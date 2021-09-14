@@ -13,7 +13,7 @@ CAD2D * c2d_start () {
 
     if (cad != NULL)
         cad->canvas = NULL;
-        cad->label_list = NULL; 
+        cad->entity_list = NULL; 
         cad->h = NULL;
     
     return cad;
@@ -31,9 +31,10 @@ CAD2D * c2d_start_wh (double width, double height) {
             cad->canvas->end.x = width / 2;
             cad->canvas->end.y =  height / 2;
 
-            cad->label_list = NULL;
+            cad->entity_list = NULL;
             cad->h = NULL;
-        } else {
+        } 
+        else {
             free(cad);
             cad = NULL;
         }
@@ -54,7 +55,7 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
             cad->canvas->end.x = width / 2;
             cad->canvas->end.y =  height / 2;
 
-            cad->label_list = NULL;
+            cad->entity_list = NULL;
             cad->h = NULL;
 
             // ! NOT IMPLEMENTED YET: defining Hierarcy 
@@ -70,15 +71,13 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 /*********************************************************************************
  * Adding Basic CAD Entities
 *********************************************************************************/
-void c2d_add_label_list (ListLabel ** list, Label * label) {
-    while (*list != NULL) list = &(*list)->next;
+void c2d_add_entity_list (EntityList ** l, Entity * e) {
+    while (*l != NULL) l = &(*l)->next;
 
-    *list = (ListLabel *) malloc(sizeof(ListLabel));
+    *l = (EntityList *) malloc(sizeof(EntityList));
 
-    if (*list != NULL) {
-        (*list)->label = label;    
-        (*list)->next = NULL;         
-    }
+    if (*l != NULL) 
+        (*l)->entity = e;
 }
 
 // ! any basic 2D shape can have color, thickness and line style 
@@ -90,30 +89,44 @@ Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
 Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
 */
 
+Label * c2d_create_label (CAD2D * cad, char * text, EntityType type) {
+    Label * l = (Label *) malloc(sizeof(Label));
+    
+    // ! NOT IMPLEMENTED YET: Be sure given parameters can produce unique label
+    // ! if user do not give a name for label set something sentinal value    
+    if (l != NULL) {
+        l->text = text;
+        l->type = type;
+    } 
+    
+    return l;
+}
+
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {}
 Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
 Label * c2d_add_line(CAD2D * cad, Point2D * start, Point2D * end) {
-    Label * label = (Label *) malloc(sizeof(Label));    
-    Line * e;
+    Entity * e = (Entity *) malloc(sizeof(Entity));    
+    Label * e_label = NULL;   
+    Line * e_data;
 
-    if (label != NULL) {
-        e = (Line *) malloc(sizeof(Line));
-        if (e != NULL) {
-            e->start = *start;
-            e->end = *end;
+    if (e != NULL) {
+        e_data = (Line *) malloc(sizeof(Line));
 
-            label->entity = (void *) e;
-            label->type = line;
-            
-            /* insert this new cad entity to cad entity list */
-            c2d_add_label_list(&cad->label_list, label);
+        if (e_data != NULL) {
+            // ! It would be better to do not implementing dereferencing given Point2D's
+            e_data->start = *start;
+            e_data->end = *end;
+
+            e->entity_data = e_data;
+            e->label = c2d_create_label(cad, '\0', line);
+            c2d_add_entity_list(&cad->entity_list, e);
         }
     }
 
-    return label;
+    return e_label;
 }
 
 /* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
@@ -156,18 +169,17 @@ Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent) {}
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
-void draw_line (FILE * fid, Line * l) {
-    fprintf(fid, "\n%.2f %.2f moveto\n", l->start.x , l->start.y);
-    fprintf(fid, "%.2f %.2f lineto\n", l->end.x, l->end.y);
+void draw_line (FILE * fid, Line * e) {
+    fprintf(fid, "\n%.2f %.2f moveto\n", e->start.x , e->start.y);
+    fprintf(fid, "%.2f %.2f lineto\n", e->end.x, e->end.y);
     fprintf(fid, "stroke\n");
 }
-
 
 void c2d_export (CAD2D * cad, char * file_name, char * options) {}
 
 void c2d_export_eps (CAD2D * cad, char * file_name) {
     FILE * fid = fopen(file_name, "wt");
-    ListLabel * l = cad->label_list;
+    EntityList * l = cad->entity_list;
 
 
     if (fid != NULL) {
@@ -178,12 +190,12 @@ void c2d_export_eps (CAD2D * cad, char * file_name) {
             fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
         while (l != NULL) {
-            switch (l->label->type) {
+            switch (l->entity->label->type) {
                 case point:
                     // ! NOT IMPLEMENTED YET
                     break;
                 case line:
-                    draw_line(fid, (Line *) l->label->entity);
+                    draw_line(fid, (Line *) l->entity->entity_data);
                     break;
                 case spline:
                     // ! NOT IMPLEMENTED YET

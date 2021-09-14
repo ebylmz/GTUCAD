@@ -1,12 +1,35 @@
 #ifndef cad2d
 #define cad2d
 
-// ! any basic 2D shape can have color, thickness and line style 
+/*********************************************************************************
+ * Fundamental Structures
+*********************************************************************************/
 
 typedef enum EntityType {
     point, line, spline, polyline, polygon,
     rectangle, circle, arc, ellipse, text, image
 } EntityType;
+
+// ! any basic 2D shape can have color, thickness and line style 
+// ! tipini identy etmem de gerek
+// ! point olur birde textfield olur belkide hashcode olur
+
+/* A label for a given CAD entity (line, arch, circle...) */
+typedef struct Label {
+    EntityType type; /* identifies the type of the cad entity */
+    char * text; 
+} Label;
+
+typedef struct Entity {
+    void * entity_data;
+    Label * label;
+} Entity;
+
+/* EntityList holds all the CAD entities (each of them has unique label) as linked list */
+typedef struct EntityList {
+    Entity * entity;
+    struct EntityList * next;
+} EntityList;
 
 /* A data structure to hold coordinates of 2D points */
 typedef struct Point2D {
@@ -14,37 +37,16 @@ typedef struct Point2D {
     // Label label;
 } Point2D;
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
-/* Holds the hierarchy information for CAD entities. */
-typedef struct Hierarchy {
-    struct CAD2D * child, *next;
-} Hierarchy;
-
-
-// ! tipini identy etmem de gerek
-// ! point olur birde textfield olır belkide hashcode olur
-
-/* A label for a given CAD entity (line, arch, circle...) */
-typedef struct Label {
-    EntityType type; /* identifies the type of the cad entity */
-    void * entity;
-    char * text; 
-} Label;
-
 typedef struct Canvas{
     Point2D start;      /* (-width/2, -height/2) */
     Point2D end;        /* ( width/2,  height/2) */
 } Canvas;
 
-/* ListLabel holds all the cad entities (each of them are unique label) as linked list */
-typedef struct ListLabel {
-    Label * label;
-    struct ListLabel * next;
-} ListLabel;
-
-/***************************************************************************************************
-// ? CAD 2D
-***************************************************************************************************/
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+/* Holds the hierarchy information for CAD entities. */
+typedef struct Hierarchy {
+    struct CAD2D * child, *next;
+} Hierarchy;
 
 // ! cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
 // ! muhtemelen void pointerlı bir linked list olacak list yada agac olacak
@@ -53,8 +55,13 @@ typedef struct ListLabel {
 typedef struct CAD2D {
     Canvas * canvas;
     Hierarchy * h;    
-    ListLabel * label_list;
+    EntityList * entity_list;
 } CAD2D;
+
+/*********************************************************************************
+ * Basic CAD Entities
+*********************************************************************************/
+
 
 /* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
 typedef struct Line {
@@ -86,7 +93,6 @@ typedef struct Text {
 typedef struct Rectangle {
     Point2D corner1, corner2;
 } Rectangle;
-
 
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start();

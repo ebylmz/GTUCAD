@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "cad2d.h"
 
+/* Draw a line */
 void test0 () {
     CAD2D * cad = c2d_start_wh(500, 500);    
     Point2D start, end;
@@ -12,6 +13,8 @@ void test0 () {
         c2d_add_line(cad, &start, &end);
 
         c2d_export_eps(cad, "test0.eps");
+
+        printf("Test0 - Draw Line: DONE\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -52,7 +55,6 @@ void test2 () {
 
 
 int main (void) {
-    printf("Test0:\n");
     test0(0);
     // test1();
     // test2();
