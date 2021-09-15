@@ -69,25 +69,8 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 }
 
 /*********************************************************************************
- * Adding Basic CAD Entities
+ * Label
 *********************************************************************************/
-void c2d_add_entity_list (EntityList ** l, Entity * e) {
-    while (*l != NULL) l = &(*l)->next;
-
-    *l = (EntityList *) malloc(sizeof(EntityList));
-
-    if (*l != NULL) 
-        (*l)->entity = e;
-}
-
-// ! any basic 2D shape can have color, thickness and line style 
-
-/*
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
-*/
 
 Label * c2d_create_label (CAD2D * cad, char * text, EntityType type) {
     Label * l = (Label *) malloc(sizeof(Label));
@@ -102,12 +85,47 @@ Label * c2d_create_label (CAD2D * cad, char * text, EntityType type) {
     return l;
 }
 
+/*********************************************************************************
+ * Hierarchy
+*********************************************************************************/
+
+/*
+Hierarchy * c2d_create_hierarchy?(CAD2D * cad) {}
+Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
+Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent) {}
+*/
+
+/*********************************************************************************
+ * Adding Basic CAD Entities
+*********************************************************************************/
+
+void c2d_add_entity_list (EntityList ** l, Entity * e) {
+    while (*l != NULL) l = &(*l)->next;
+
+    *l = (EntityList *) malloc(sizeof(EntityList));
+
+    if (*l != NULL) {
+        (*l)->entity = e;
+        (*l)->next = NULL;
+    }
+}
+
+// ! any basic 2D shape can have color, thickness and line style 
+
+/* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
+/*
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
+*/
+
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {}
 Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
-Label * c2d_add_line(CAD2D * cad, Point2D * start, Point2D * end) {
+Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end) {
     Entity * e = (Entity *) malloc(sizeof(Entity));    
     Label * e_label = NULL;   
     Line * e_data;
@@ -116,12 +134,11 @@ Label * c2d_add_line(CAD2D * cad, Point2D * start, Point2D * end) {
         e_data = (Line *) malloc(sizeof(Line));
 
         if (e_data != NULL) {
-            // ! It would be better to do not implementing dereferencing given Point2D's
-            e_data->start = *start;
-            e_data->end = *end;
+            e_data->start = start;
+            e_data->end = end;
 
             e->entity_data = e_data;
-            e->label = c2d_create_label(cad, '\0', line);
+            e_label = e->label = c2d_create_label(cad, "", line);
             c2d_add_entity_list(&cad->entity_list, e);
         }
     }
@@ -129,10 +146,51 @@ Label * c2d_add_line(CAD2D * cad, Point2D * start, Point2D * end) {
     return e_label;
 }
 
-/* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
+Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
+    Entity * e = (Entity *) malloc(sizeof(Entity));
+    Label * e_label = NULL;
+    Arc * e_data;
+
+    if (e != NULL) {
+        e_data = (Arc *) malloc(sizeof(Arc));
+
+        if (e_data != NULL) {
+            e_data->center = center;
+            e_data->radius = radius;
+            e_data->start_angle = start_angle;
+            e_data->end_angle = end_angle;
+
+            e_label = e->label = c2d_create_label(cad, "", arc);
+            e->entity_data = e_data;
+            c2d_add_entity_list(&cad->entity_list, e);
+        }
+    }
+    return e_label;
+}
+
+Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
+    Entity * e = (Entity *) malloc(sizeof(Entity));
+    Label * e_label = NULL;
+    Circle * e_data;
+
+    if (e != NULL) {
+        e_data = (Circle *) malloc(sizeof(Circle));
+
+        if (e_data != NULL) {
+            e_data->center = center;
+            e_data->radius = radius;
+            e_data->start_angle = 0;
+            e_data->end_angle = 360;
+
+            e->entity_data = e_data;
+            e_label = e->label = c2d_create_label(cad, "", circle);
+            c2d_add_entity_list(&cad->entity_list, e);
+        }
+    }
+    return e_label;
+}
 
 /* 
-Label * c2d_add_arc(CAD2D * cad, ...) {}
 Label * c2d_add_circle(CAD2D * cad, ...) {}
 Label * c2d_add_ellipse(CAD2D * cad, ...) {}
 Label * c2d_add_splines(CAD2D * cad, ...) {}
@@ -155,25 +213,23 @@ double c2d_measure (CAD2D * cad, const Label * ls, const Label * lt) {}
 
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {}
 
-
-/*********************************************************************************
- * Hierarchy
-*********************************************************************************/
-
-/*
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad) {}
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent) {}
-*/
-
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
 void draw_line (FILE * fid, Line * e) {
-    fprintf(fid, "\n%.2f %.2f moveto\n", e->start.x , e->start.y);
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto\n", e->start.x , e->start.y);
     fprintf(fid, "%.2f %.2f lineto\n", e->end.x, e->end.y);
     fprintf(fid, "stroke\n");
 }
+
+void draw_arc (FILE * fid, Arc * e) {
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
+    fprintf(fid, "stroke\n");
+}
+
+// in eps mode we do not deal with labels but in gtu mode we do
 
 void c2d_export (CAD2D * cad, char * file_name, char * options) {}
 
@@ -195,7 +251,9 @@ void c2d_export_eps (CAD2D * cad, char * file_name) {
                     // ! NOT IMPLEMENTED YET
                     break;
                 case line:
+                    printf("Draw line: ");
                     draw_line(fid, (Line *) l->entity->entity_data);
+                    printf("Done\n");
                     break;
                 case spline:
                     // ! NOT IMPLEMENTED YET
@@ -210,11 +268,10 @@ void c2d_export_eps (CAD2D * cad, char * file_name) {
                     // ! NOT IMPLEMENTED YET
                     break;
                 case circle:
-                    // ! NOT IMPLEMENTED YET
-                    break;
                 case arc:
-                    // ! NOT IMPLEMENTED YET
-                    break;
+                    printf("Draw Arc: ");
+                    draw_arc(fid, (Arc *) l->entity->entity_data);
+                    printf("Done\n");
                 case ellipse:
                     // ! NOT IMPLEMENTED YET
                     break;

@@ -45,7 +45,8 @@ typedef struct Canvas{
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
 /* Holds the hierarchy information for CAD entities. */
 typedef struct Hierarchy {
-    struct CAD2D * child, *next;
+    struct CAD2D * child,
+                 * next;
 } Hierarchy;
 
 // ! cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
@@ -62,7 +63,6 @@ typedef struct CAD2D {
  * Basic CAD Entities
 *********************************************************************************/
 
-
 /* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
 typedef struct Line {
     Point2D start, end;
@@ -72,21 +72,22 @@ typedef struct Line {
 typedef struct Arc {
     Point2D center;
     double radius;
-    double startAngle, endAngle;
+    double start_angle, end_angle;
 } Arc; 
 
 typedef struct Circle {
     Point2D center;
     double radius;
+    double start_angle, end_angle;
 } Circle;
 
 typedef struct Polyline {
-    Point2D * point;
+    Point2D point;
     struct Polyline * next;
 } Polyline;
 
 typedef struct Text {
-    Point2D * point;
+    Point2D point;
     char * text_field;
 } Text;
 
@@ -96,10 +97,11 @@ typedef struct Rectangle {
 
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start();
-Label * c2d_add_line(CAD2D * cad, Point2D * start, Point2D * end);
+Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 void c2d_export_eps (CAD2D * cad, char * file_name);
+Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 
 #endif
 
