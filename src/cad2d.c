@@ -7,7 +7,6 @@
  * CAD Start
 *********************************************************************************/
 
-/* creates an root cad with unlimited canvas */
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
 
@@ -89,10 +88,33 @@ Label * c2d_create_label (CAD2D * cad, char * text, EntityType type) {
  * Hierarchy
 *********************************************************************************/
 
+Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
+    Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
+
+    if (h != NULL) {
+        cad->h = h;
+        h->child != NULL;
+        h->next != NULL;
+    }
+
+    return h;
+}
+
+Hierarchy * c2d_create_hierarchy_parent(CAD2D * cad, Hierarchy * parent) {
+    Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
+
+    if (h != NULL) {
+        cad->h = h;
+        h->child != NULL;
+        h->next != NULL;
+        // ! NOT IMPLEMENTED YET:
+        // ? What is the purpose of this function
+    }
+
+    return h;
+}
 /*
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad) {}
 Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent) {}
 */
 
 /*********************************************************************************
@@ -236,7 +258,6 @@ void c2d_export (CAD2D * cad, char * file_name, char * options) {}
 void c2d_export_eps (CAD2D * cad, char * file_name) {
     FILE * fid = fopen(file_name, "wt");
     EntityList * l = cad->entity_list;
-
 
     if (fid != NULL) {
         fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
