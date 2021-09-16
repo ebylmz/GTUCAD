@@ -22,8 +22,10 @@
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
 */
+
+// ! added object data type
 typedef enum {
-    point, line, spline, polyline, polygon,
+    object, point, line, spline, polyline, polygon,
     rectangle, circle, arc, ellipse, text, image
 } EntityType;
 
@@ -51,19 +53,21 @@ typedef struct Style {
     int filled;
 } Style;
 
-// ! tipini identy etmem de gerek
-// ! point olur birde textfield olur belkide hashcode olur
 
 // * permit the user to create new types for exp. rectangle + circle = cirec use as postscript function
+// ! tipini identy etmem de gerek
+// ! point olur birde textfield olur belkide hashcode olur
 /* the user editable name of this object, it is an arbitrary UTF8 string. */
 /* A label for a given CAD entity (line, arch, circle...) */
 typedef struct Label {
-    EntityType type; /* identifies the type of the cad entity */
-    char * text; 
+    EntityType type;    /* identifies the type of the cad entity */
+    char * name; 
+    void * data_location;    /* location of the cad data in the memory */
 } Label;
 
+/* Entity can be basic entity or more complex like CAD2D */
 typedef struct Entity {
-    void * entity_data; /* Start Point, radius, angle etc */
+    void * data; /* Start Point, radius, angle etc */
     Label * label;      /* unique label to identify cad entities */
 } Entity;
 
@@ -72,6 +76,14 @@ typedef struct EntityList {
     Entity * entity;
     struct EntityList * next;
 } EntityList;
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+/* Holds the hierarchy information for CAD entities. */
+typedef struct Hierarchy {
+    CAD2D * parent; /* parent object of all the entites inside of entity_list */
+    char * name;    /* name of the hierarchy */
+    EntityList * entity_list;
+} Hierarchy;
 
 /* A data structure to hold coordinates of 2D points */
 typedef struct Point2D {
@@ -84,13 +96,6 @@ typedef struct Canvas {
     Point2D end;        /* ( width/2,  height/2) */
 } Canvas;
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
-/* Holds the hierarchy information for CAD entities. */
-typedef struct Hierarchy {
-    struct CAD2D * child,
-                 * next;
-} Hierarchy;
-
 // ! cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
 // ! muhtemelen void pointerlı bir linked list olacak list yada agac olacak
 // ! every cad entity belongs to a hierarchy
@@ -98,14 +103,14 @@ typedef struct Hierarchy {
 /* The data structure to hold the current CAD content */
 typedef struct CAD2D {
     Canvas * canvas;
-    Hierarchy * h;    
-    EntityList * entity_list;
+    Hierarchy * hierarchy;  /* to reach all the CAD entities */    
 } CAD2D;
 
 /*********************************************************************************
  * Basic CAD Entities:
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
+
 
 typedef struct Line {
     Point2D start, end;
@@ -127,6 +132,7 @@ typedef struct Circle {
     Style style;
 } Circle;
 
+// ! We actualy do not need a new data type for polyline, we can add * next inside of the Point2D
 typedef struct Polyline {
     Point2D point;
     struct Polyline * next;
@@ -159,6 +165,10 @@ typedef struct Ellipse{
 typedef struct Image {
     // ! NOT IMPLMENTED YET
 } Image;
+
+/*********************************************************************************
+ * Function Definitions
+*********************************************************************************/
 
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start();

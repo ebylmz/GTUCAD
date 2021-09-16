@@ -41,7 +41,7 @@ CAD2D * c2d_start_wh (double width, double height) {
     
     return cad;
 }
-
+/* Initialize the new CAD at the given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
 
