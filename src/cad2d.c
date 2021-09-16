@@ -147,7 +147,65 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
-Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end) {
+
+Entity * create_entity (CAD2D * cad, EntityType type, char * label_name) {
+    Entity * e = (Entity *) malloc(sizeof(Entity));
+    
+    if (e != NULL) {
+        e->label = c2d_create_label(cad, label_name, type);
+
+        /* remember entity_data is a void pointer. So we can allocate exact memory for needed type */
+        switch (type) {
+            case point:
+                e->entity_data = (Point2D *) malloc (sizeof(Point2D));
+                break;
+            case line:
+                e->entity_data = (Line *) malloc (sizeof(Line));
+                break;
+            case spline:
+                e->entity_data = (Spline *) malloc (sizeof(Spline));
+                break;
+            case polyline:
+                e->entity_data = (Polyline *) malloc (sizeof(Polyline));
+                break;
+            case polygon:
+                e->entity_data = (Polygon *) malloc (sizeof(Polygon));
+                break;
+            case rectangle:
+                e->entity_data = (Rectangle *) malloc (sizeof(Rectangle));
+                break;
+            case circle:
+                e->entity_data = (Circle *) malloc (sizeof(Circle));
+                break;
+            case arc:
+                e->entity_data = (Arc *) malloc (sizeof(Arc));
+                break;
+            case ellipse:
+                e->entity_data = (Ellipse *) malloc (sizeof(Ellipse));
+                break;
+            case text:
+                e->entity_data = (Text *) malloc (sizeof(Text));
+                break;
+            case image:
+                e->entity_data = (Image *) malloc (sizeof(Image));
+                break;
+            default:
+                // ! NOT IMPLEMENTED YET
+        }   
+
+        if (e->label == NULL || e->entity_data == NULL) {
+            free(e->entity_data);
+            free(e->label);
+
+            free(e->entity_data);
+            free(e);
+            e = NULL;
+        }
+    }
+    return e;
+}
+
+Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
     Entity * e = (Entity *) malloc(sizeof(Entity));    
     Label * e_label = NULL;   
     Line * e_data;
@@ -212,6 +270,11 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     return e_label;
 }
 
+Label * c2d_add_rectangle (CAD2D * cad, Point2D corne) {
+    Entity * e = malloc(sizeof(entity));
+
+}
+
 /* 
 Label * c2d_add_circle(CAD2D * cad, ...) {}
 Label * c2d_add_ellipse(CAD2D * cad, ...) {}
@@ -242,14 +305,26 @@ void draw_line (FILE * fid, Line * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->start.x , e->start.y);
     fprintf(fid, "%.2f %.2f lineto\n", e->end.x, e->end.y);
-    fprintf(fid, "stroke\n");
+    // fprintf(fid, "stroke\n");
 }
 
 void draw_arc (FILE * fid, Arc * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
-    fprintf(fid, "stroke\n");
+    // fprintf(fid, "stroke\n");
 }
+
+void draw_rectangle (FILE * fid, Rectangle * e) {
+    double  height = (e->corner_top_right.y - e->corner_down_left.y),
+            width = (e->corner_down_left.x - e->corner_top_right.x);
+
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto", e->corner_down_left.x, e->corner_down_left.y);
+    fprintf(fid, "%.2f %.2f rlineto", 0, height);
+    fprintf(fid, "%.2f %.2f rlineto", width, 0);
+    fprintf(fid, "%.2f %.2f rlineto", 0, -height);
+    fprintf(fid, "closepath");
+} 
 
 // in eps mode we do not deal with labels but in gtu mode we do
 
@@ -274,6 +349,7 @@ void c2d_export_eps (CAD2D * cad, char * file_name) {
                 case line:
                     printf("Draw line: ");
                     draw_line(fid, (Line *) l->entity->entity_data);
+                    fprintf(fid, "stroke\n");
                     printf("Done\n");
                     break;
                 case spline:
@@ -286,12 +362,15 @@ void c2d_export_eps (CAD2D * cad, char * file_name) {
                     // ! NOT IMPLEMENTED YET
                     break;
                 case rectangle:
-                    // ! NOT IMPLEMENTED YET
+                    printf("Draw rectangle: ");
+                    draw_rectangle(fid, (Rectangle *) l->entity->entity_data);
+                    printf("Done\n");
                     break;
                 case circle:
                 case arc:
                     printf("Draw Arc: ");
                     draw_arc(fid, (Arc *) l->entity->entity_data);
+                    fprintf(fid, "stroke\n");
                     printf("Done\n");
                 case ellipse:
                     // ! NOT IMPLEMENTED YET

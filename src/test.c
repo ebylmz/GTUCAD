@@ -18,6 +18,9 @@ void test0 () {
         start.y = start.x = -canvas_wh / 2;
         end.y = end.x = canvas_wh / 2;
         c2d_add_line(cad, start, end);
+
+        /* draw a rectangle */
+        c2d_add_rectangle_corner (cad, Point2D );
         
         /* export the current CAD as eps */
         c2d_export_eps(cad, "test0.eps");

@@ -103,10 +103,10 @@ typedef struct CAD2D {
 } CAD2D;
 
 /*********************************************************************************
- * Basic CAD Entities
+ * Basic CAD Entities:
+ * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
 
-/* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
 typedef struct Line {
     Point2D start, end;
     Style style;
@@ -140,9 +140,25 @@ typedef struct Text {
 } Text;
 
 typedef struct Rectangle {
-    Point2D corner1, corner2;
+    Point2D corner_down_left, corner_top_right;
     Style style;
 } Rectangle;
+
+typedef struct Spline {
+    // ! NOT IMPLMENTED YET
+} Spline;
+
+typedef struct Polygon {
+    // ! NOT IMPLMENTED YET
+} Polygon;
+
+typedef struct Ellipse{
+    // ! NOT IMPLMENTED YET
+} Ellipse;
+
+typedef struct Image {
+    // ! NOT IMPLMENTED YET
+} Image;
 
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start();
