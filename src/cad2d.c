@@ -6,146 +6,37 @@
 /*********************************************************************************
  * CAD Start
 *********************************************************************************/
-
-int get_hash (Label * label) {
-    int v;
-
-    return v;    
-}
-
-// ?
-void insert_hash_table (Label *, void * data) {
-
-}
-
-Node ** create_hash_table () {
-    return (Node **) calloc(HSIZE, sizeof(Node *));
-}
-
-
-void insert_entity_list (EntityList ** l, Entity * e) {
-
-    while (*l != NULL) l = &(*l)->next;
-
-    *l = (EntityList *) malloc(sizeof(EntityList));
-
-    if (*l != NULL) {
-        (*l)->entity = e;
-        (*l)->next = NULL;
-    }
-}
-
-
-Label * create_label (EntityType type, char * name) {
-    Label * l = (Label *) malloc(sizeof(Label));
-
-    if (l != NULL) {
-        l->name = name;
-        l->type = type;
-    }
-    // ! NOT IMPLEMENTED YET: Be sure given parameters can produce unique label to do that we need root CAD
-    // ! if user do not give a name for label set something sentinal value  
-    return l;
-}
-
-Entity * c2d_create_entity (EntityType type, void * data, Label * label) {
-    Entity * e = malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = data;
-        e->label = label;
-    }
-
-    return e;
-}
-
-/*
-Entity * c2d_create_entity (EntityType type) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = NULL;
-
-        switch (type) {
-            case point:
-                e->data = (Point2D *) malloc (sizeof(Point2D));
-                break;
-            case line:
-                e->data = (Line *) malloc (sizeof(Line));
-                break;
-            case spline:
-                e->data = (Spline *) malloc (sizeof(Spline));
-                break;
-            case polyline:
-                e->data = (Polyline *) malloc (sizeof(Polyline));
-                break;
-            case polygon:
-                e->data = (Polygon *) malloc (sizeof(Polygon));
-                break;
-            case rectangle:
-                e->data = (Rectangle *) malloc (sizeof(Rectangle));
-                break;
-            case circle:
-                e->data = (Circle *) malloc (sizeof(Circle));
-                break;
-            case arc:
-                e->data = (Arc *) malloc (sizeof(Arc));
-                break;
-            case ellipse:
-                e->data = (Ellipse *) malloc (sizeof(Ellipse));
-                break;
-            case text:
-                e->data = (Text *) malloc (sizeof(Text));
-                break;
-            case image:
-                e->data = (Image *) malloc (sizeof(Image));
-                break;
-            // ! Is this needed
-            case object:
-                e->data = (CAD2D *) malloc(sizeof(CAD2D));
-        }
-           
-        if (e->data != NULL) {
-            e->label = create_label(type, "");
-            
-            if (e->label == NULL) {
-                free(e->data);
-                free(e);
-                e = NULL;
-            }
-        }
-        else {
-            free(e);
-            e = NULL;
-        }
-    }
-    return e;
-}
-*/
-
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
-        cad->canvas = NULL;
-        cad->hierarchy = NULL;
+        cad->list = (Entity **) calloc(INIT_SIZE_HASH, sizeof(Entity *));
+
+        if (cad->list != NULL) {
+            cad->canvas = NULL;
+            cad->list_size.cur = 0;
+            cad->list_size.max = INIT_SIZE_HASH;  /* initially 10 entity can created in this cad object */
+            cad->hierarchy = c2d_create_hierarchy(cad);
+        }
+        else {
+            free(cad);
+            cad = NULL;
+        }
     }
     return cad;
 }
 
 CAD2D * c2d_start_wh (double width, double height) {
-    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
+    CAD2D * cad = c2d_start();
     
     if (cad != NULL) {
         cad->canvas = (Canvas *) malloc(sizeof(Canvas));
+        
         if (cad->canvas != NULL) {
             cad->canvas->start.x = -width / 2;
             cad->canvas->start.y = -height / 2;
             cad->canvas->end.x = width / 2; 
             cad->canvas->end.y = height / 2; 
-            
-            // ! initilize the hierarchy as root
-            cad->hierarchy = NULL;
         }
         else {
             free(cad);
@@ -158,19 +49,10 @@ CAD2D * c2d_start_wh (double width, double height) {
 /* Initialize the new CAD at children of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = c2d_start_wh(width, height);
-    Entity * e;
-    Label * l;
 
-    if (cad != NULL) {
-        l = create_label(object, "");
-        
-        if (l != NULL) {
-            e = create_entity(object, (void *) cad, l);
+    if (cad != NULL)
+        h->parent = h;
 
-            if (e != NULL)
-                insert_entity_list(&h->entity_list, e);
-        }
-    }
     return cad;
 }
 
@@ -181,39 +63,46 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 /*********************************************************************************
  * Hierarchy
 *********************************************************************************/
-
-// ? What is the purpose of these function?
-
 Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        // ? I understand as "create an hierarcy for given CAD"
-        // ? But it can also be "create an hierarcy and put given CAD to inside of it"
-        h->entity_list = NULL;
-        h->parent = NULL;
-        // ! h->name = NULL
-        cad->hierarchy = h;
+        h->children = (Hierarchy **) calloc(INIT_SIZE_HIER, sizeof(Hierarchy *));
+        if (h->children != NULL) {
+            h->cad = cad;
+            h->parent = NULL;
+            h->size.max = INIT_SIZE_HIER;
+            h->size.cur = 0;
+
+            cad->hierarchy = h;
+        }
+        else {
+            free(h);
+            h = NULL;
+        }
     }
 
     return h;
 }
+
+//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
-    Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
+    Hierarchy * h = c2d_create_hierarchy(cad);
 
     if (h != NULL) {
-        h->entity_list = NULL;
         h->parent = parent;
-        // ! h->name = NULL
-        cad->hierarchy = h;
+
+        /* add new hierarchy as child of given parent */
+        if (parent->size.cur < parent->size.max) 
+            parent->children[parent->size.cur] = h;
+        else {
+            //! NOT IMPLEMENTED YET: Reallocating memory for hierarchy array (newsize by doubling current max size)
+        }
     }
 
     return h;
 }
-/*
-Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
-*/
 
 /*********************************************************************************
  * Adding Basic CAD Entities

@@ -6,7 +6,8 @@
 #ifndef cad2d
 #define cad2d
 
-#define HSIZE 20 /* Size of hash table */
+#define INIT_SIZE_HIER 10 /* Size of hash table */
+#define INIT_SIZE_HASH 10 /* Size of hash table */
 
 /*********************************************************************************
  * Fundamental Structures
@@ -47,34 +48,18 @@ typedef struct Style {
 typedef struct Label {
     EntityType type;    /* identifies the type of the cad entity */
     char * name;        /* name of the object */
-    int index;          /* index of the this entity in entity_list */
+    int hash_code;      /* labels are should be unique to do that we use hashing */
 } Label;
 
-//! Be sure label's are unique
-/* Entity can be basic entity or more complex like CAD2D */
+//! Be sure label's are unique to provide this use hash table
 typedef struct Entity {
-    void * data;        /* Start Point, radius, angle etc */
+    void * data;        /* specific data for the entity like radius for Circle */
     Label * label;      /* unique label to identify cad entities */
 } Entity;
-
-/* EntityList holds all the CAD entities as linked list */
-//!     double c2d_measure(CAD2D * cad, const Label * ls, const Label * lt)
-//!     entityList can be hash table we can reach any data constant time in this way
-/*
-typedef struct EntityList {
-    Entity * entity;
-    struct EntityList * next;
-} EntityList;
-*/
 
 typedef struct Size {
     int cur, max;
 } Size;
-
-//* Label * c2d_add_<BASIC>? (CAD2D *, ..., const Label *, const Hierarchy *) 
-//* Purpose of function: creates CAD entity and returns it's unique label
-//*    
-//! So we need a data structure to keep cad entites in CAD not Hierarchy or Label
 
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad)
 //? Convert given CAD to hierarchy
@@ -85,7 +70,7 @@ typedef struct Size {
 typedef struct Hierarchy {
     CAD2D * cad;
     struct Hierarchy * parent;
-    struct Hierarchy ** children;   /* All the children hierarchies */
+    struct Hierarchy ** children;   /* array of children hierarchies */
     Size size;
 } Hierarchy;
 
@@ -102,13 +87,11 @@ typedef struct Canvas {
 
 // ! cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
 // ! muhtemelen void pointerlı bir linked list olacak list yada agac olacak
-// ! every cad entity belongs to a hierarchy
-
 /* The data structure to hold the current CAD content */
 typedef struct CAD2D {
     Canvas * canvas;
-    void ** entity_list;
-    Size entit_size;
+    Size list_size;
+    Entity ** list;    /* hash table for keeping entities */
     Hierarchy * hierarchy;  /* to reach all the CAD entities */    
 } CAD2D;
 
