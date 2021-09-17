@@ -1,31 +1,19 @@
+// * TODO:
+
+// * permit the user to create new types. rectangle + circle = cirec use as postscript func
+
+
 #ifndef cad2d
 #define cad2d
+
+#define HSIZE 20 /* Size of hash table */
 
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
-/*
-    White 	#FFFFFF 	rgb(255, 255, 255)
-	Silver 	#C0C0C0 	rgb(192, 192, 192)
-	Gray 	#808080 	rgb(128, 128, 128)
-	Black 	#000000 	rgb(0, 0, 0)
-	Red 	#FF0000 	rgb(255, 0, 0)
-	Maroon 	#800000 	rgb(128, 0, 0)
-	Yellow 	#FFFF00 	rgb(255, 255, 0)
-	Olive 	#808000 	rgb(128, 128, 0)
-	Lime 	#00FF00 	rgb(0, 255, 0)
-	Green 	#008000 	rgb(0, 128, 0)
-	Aqua 	#00FFFF 	rgb(0, 255, 255)
-	Teal 	#008080 	rgb(0, 128, 128)
-	Blue 	#0000FF 	rgb(0, 0, 255)
-	Navy 	#000080 	rgb(0, 0, 128)
-	Fuchsia #FF00FF 	rgb(255, 0, 255)
-	Purple 	#800080 	rgb(128, 0, 128)
-*/
 
-// ! added object data type
 typedef enum {
-    object, point, line, spline, polyline, polygon,
+    point, line, spline, polyline, polygon,
     rectangle, circle, arc, ellipse, text, image
 } EntityType;
 
@@ -53,42 +41,58 @@ typedef struct Style {
     int filled;
 } Style;
 
-
-// * permit the user to create new types for exp. rectangle + circle = cirec use as postscript function
-// ! tipini identy etmem de gerek
 // ! point olur birde textfield olur belkide hashcode olur
 /* the user editable name of this object, it is an arbitrary UTF8 string. */
 /* A label for a given CAD entity (line, arch, circle...) */
 typedef struct Label {
     EntityType type;    /* identifies the type of the cad entity */
-    char * name; 
-    void * data_location;    /* location of the cad data in the memory */
+    char * name;        /* name of the object */
+    int index;          /* index of the this entity in entity_list */
 } Label;
 
+//! Be sure label's are unique
 /* Entity can be basic entity or more complex like CAD2D */
 typedef struct Entity {
-    void * data; /* Start Point, radius, angle etc */
+    void * data;        /* Start Point, radius, angle etc */
     Label * label;      /* unique label to identify cad entities */
 } Entity;
 
 /* EntityList holds all the CAD entities as linked list */
+//!     double c2d_measure(CAD2D * cad, const Label * ls, const Label * lt)
+//!     entityList can be hash table we can reach any data constant time in this way
+/*
 typedef struct EntityList {
     Entity * entity;
     struct EntityList * next;
 } EntityList;
+*/
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+typedef struct Size {
+    int cur, max;
+} Size;
+
+//* Label * c2d_add_<BASIC>? (CAD2D *, ..., const Label *, const Hierarchy *) 
+//* Purpose of function: creates CAD entity and returns it's unique label
+//*    
+//! So we need a data structure to keep cad entites in CAD not Hierarchy or Label
+
+//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad)
+//? Convert given CAD to hierarchy
+//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent):
+//? ... and link the child of given parent Hierarchy  
+
 /* Holds the hierarchy information for CAD entities. */
 typedef struct Hierarchy {
-    CAD2D * parent; /* parent object of all the entites inside of entity_list */
-    char * name;    /* name of the hierarchy */
-    EntityList * entity_list;
+    CAD2D * cad;
+    struct Hierarchy * parent;
+    struct Hierarchy ** children;   /* All the children hierarchies */
+    Size size;
 } Hierarchy;
 
 /* A data structure to hold coordinates of 2D points */
 typedef struct Point2D {
     double x, y;
-    // Label label;
+    struct Point2D * next;
 } Point2D;
 
 typedef struct Canvas {
@@ -103,6 +107,8 @@ typedef struct Canvas {
 /* The data structure to hold the current CAD content */
 typedef struct CAD2D {
     Canvas * canvas;
+    void ** entity_list;
+    Size entit_size;
     Hierarchy * hierarchy;  /* to reach all the CAD entities */    
 } CAD2D;
 
@@ -111,11 +117,9 @@ typedef struct CAD2D {
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
 
-
 typedef struct Line {
     Point2D start, end;
     Style style;
-    // Label label;
 } Line;
 
 typedef struct Arc {

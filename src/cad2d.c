@@ -7,32 +7,146 @@
  * CAD Start
 *********************************************************************************/
 
+int get_hash (Label * label) {
+    int v;
+
+    return v;    
+}
+
+// ?
+void insert_hash_table (Label *, void * data) {
+
+}
+
+Node ** create_hash_table () {
+    return (Node **) calloc(HSIZE, sizeof(Node *));
+}
+
+
+void insert_entity_list (EntityList ** l, Entity * e) {
+
+    while (*l != NULL) l = &(*l)->next;
+
+    *l = (EntityList *) malloc(sizeof(EntityList));
+
+    if (*l != NULL) {
+        (*l)->entity = e;
+        (*l)->next = NULL;
+    }
+}
+
+
+Label * create_label (EntityType type, char * name) {
+    Label * l = (Label *) malloc(sizeof(Label));
+
+    if (l != NULL) {
+        l->name = name;
+        l->type = type;
+    }
+    // ! NOT IMPLEMENTED YET: Be sure given parameters can produce unique label to do that we need root CAD
+    // ! if user do not give a name for label set something sentinal value  
+    return l;
+}
+
+Entity * c2d_create_entity (EntityType type, void * data, Label * label) {
+    Entity * e = malloc(sizeof(Entity));
+
+    if (e != NULL) {
+        e->data = data;
+        e->label = label;
+    }
+
+    return e;
+}
+
+/*
+Entity * c2d_create_entity (EntityType type) {
+    Entity * e = (Entity *) malloc(sizeof(Entity));
+
+    if (e != NULL) {
+        e->data = NULL;
+
+        switch (type) {
+            case point:
+                e->data = (Point2D *) malloc (sizeof(Point2D));
+                break;
+            case line:
+                e->data = (Line *) malloc (sizeof(Line));
+                break;
+            case spline:
+                e->data = (Spline *) malloc (sizeof(Spline));
+                break;
+            case polyline:
+                e->data = (Polyline *) malloc (sizeof(Polyline));
+                break;
+            case polygon:
+                e->data = (Polygon *) malloc (sizeof(Polygon));
+                break;
+            case rectangle:
+                e->data = (Rectangle *) malloc (sizeof(Rectangle));
+                break;
+            case circle:
+                e->data = (Circle *) malloc (sizeof(Circle));
+                break;
+            case arc:
+                e->data = (Arc *) malloc (sizeof(Arc));
+                break;
+            case ellipse:
+                e->data = (Ellipse *) malloc (sizeof(Ellipse));
+                break;
+            case text:
+                e->data = (Text *) malloc (sizeof(Text));
+                break;
+            case image:
+                e->data = (Image *) malloc (sizeof(Image));
+                break;
+            // ! Is this needed
+            case object:
+                e->data = (CAD2D *) malloc(sizeof(CAD2D));
+        }
+           
+        if (e->data != NULL) {
+            e->label = create_label(type, "");
+            
+            if (e->label == NULL) {
+                free(e->data);
+                free(e);
+                e = NULL;
+            }
+        }
+        else {
+            free(e);
+            e = NULL;
+        }
+    }
+    return e;
+}
+*/
+
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
-
-    if (cad != NULL)
-        cad->canvas = NULL;
-        cad->entity_list = NULL; 
-        cad->h = NULL;
     
+    if (cad != NULL) {
+        cad->canvas = NULL;
+        cad->hierarchy = NULL;
+    }
     return cad;
 }
 
 CAD2D * c2d_start_wh (double width, double height) {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
-
+    
     if (cad != NULL) {
         cad->canvas = (Canvas *) malloc(sizeof(Canvas));
-
         if (cad->canvas != NULL) {
             cad->canvas->start.x = -width / 2;
             cad->canvas->start.y = -height / 2;
-            cad->canvas->end.x = width / 2;
-            cad->canvas->end.y =  height / 2;
-
-            cad->entity_list = NULL;
-            cad->h = NULL;
-        } 
+            cad->canvas->end.x = width / 2; 
+            cad->canvas->end.y = height / 2; 
+            
+            // ! initilize the hierarchy as root
+            cad->hierarchy = NULL;
+        }
         else {
             free(cad);
             cad = NULL;
@@ -41,29 +155,22 @@ CAD2D * c2d_start_wh (double width, double height) {
     
     return cad;
 }
-/* Initialize the new CAD at the given hierarchy */
+/* Initialize the new CAD at children of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
-    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
+    CAD2D * cad = c2d_start_wh(width, height);
+    Entity * e;
+    Label * l;
 
     if (cad != NULL) {
-        cad->canvas = (Canvas *) malloc(sizeof(Canvas));
+        l = create_label(object, "");
+        
+        if (l != NULL) {
+            e = create_entity(object, (void *) cad, l);
 
-        if (cad->canvas != NULL) {
-            cad->canvas->start.x = -width / 2;
-            cad->canvas->start.y = -height / 2;
-            cad->canvas->end.x = width / 2;
-            cad->canvas->end.y =  height / 2;
-
-            cad->entity_list = NULL;
-            cad->h = NULL;
-
-            // ! NOT IMPLEMENTED YET: defining Hierarcy 
-        } else {
-            free(cad);
-            cad = NULL;
+            if (e != NULL)
+                insert_entity_list(&h->entity_list, e);
         }
     }
-    
     return cad;
 }
 
@@ -71,44 +178,35 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
  * Label
 *********************************************************************************/
 
-Label * c2d_create_label (CAD2D * cad, char * text, EntityType type) {
-    Label * l = (Label *) malloc(sizeof(Label));
-    
-    // ! NOT IMPLEMENTED YET: Be sure given parameters can produce unique label
-    // ! if user do not give a name for label set something sentinal value    
-    if (l != NULL) {
-        l->text = text;
-        l->type = type;
-    } 
-    
-    return l;
-}
-
 /*********************************************************************************
  * Hierarchy
 *********************************************************************************/
+
+// ? What is the purpose of these function?
 
 Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        cad->h = h;
-        h->child != NULL;
-        h->next != NULL;
+        // ? I understand as "create an hierarcy for given CAD"
+        // ? But it can also be "create an hierarcy and put given CAD to inside of it"
+        h->entity_list = NULL;
+        h->parent = NULL;
+        // ! h->name = NULL
+        cad->hierarchy = h;
     }
 
     return h;
 }
 
-Hierarchy * c2d_create_hierarchy_parent(CAD2D * cad, Hierarchy * parent) {
+Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        cad->h = h;
-        h->child != NULL;
-        h->next != NULL;
-        // ! NOT IMPLEMENTED YET:
-        // ? What is the purpose of this function
+        h->entity_list = NULL;
+        h->parent = parent;
+        // ! h->name = NULL
+        cad->hierarchy = h;
     }
 
     return h;
@@ -120,17 +218,6 @@ Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 /*********************************************************************************
  * Adding Basic CAD Entities
 *********************************************************************************/
-
-void c2d_add_entity_list (EntityList ** l, Entity * e) {
-    while (*l != NULL) l = &(*l)->next;
-
-    *l = (EntityList *) malloc(sizeof(EntityList));
-
-    if (*l != NULL) {
-        (*l)->entity = e;
-        (*l)->next = NULL;
-    }
-}
 
 // ! any basic 2D shape can have color, thickness and line style 
 
@@ -147,83 +234,18 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
-
-Entity * create_entity (CAD2D * cad, EntityType type, char * label_name) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));
-    
-    if (e != NULL) {
-        e->label = c2d_create_label(cad, label_name, type);
-
-        /* remember entity_data is a void pointer. So we can allocate exact memory for needed type */
-        switch (type) {
-            case point:
-                e->entity_data = (Point2D *) malloc (sizeof(Point2D));
-                break;
-            case line:
-                e->entity_data = (Line *) malloc (sizeof(Line));
-                break;
-            case spline:
-                e->entity_data = (Spline *) malloc (sizeof(Spline));
-                break;
-            case polyline:
-                e->entity_data = (Polyline *) malloc (sizeof(Polyline));
-                break;
-            case polygon:
-                e->entity_data = (Polygon *) malloc (sizeof(Polygon));
-                break;
-            case rectangle:
-                e->entity_data = (Rectangle *) malloc (sizeof(Rectangle));
-                break;
-            case circle:
-                e->entity_data = (Circle *) malloc (sizeof(Circle));
-                break;
-            case arc:
-                e->entity_data = (Arc *) malloc (sizeof(Arc));
-                break;
-            case ellipse:
-                e->entity_data = (Ellipse *) malloc (sizeof(Ellipse));
-                break;
-            case text:
-                e->entity_data = (Text *) malloc (sizeof(Text));
-                break;
-            case image:
-                e->entity_data = (Image *) malloc (sizeof(Image));
-                break;
-            default:
-                // ! NOT IMPLEMENTED YET
-        }   
-
-        if (e->label == NULL || e->entity_data == NULL) {
-            free(e->entity_data);
-            free(e->label);
-
-            free(e->entity_data);
-            free(e);
-            e = NULL;
-        }
-    }
-    return e;
-}
-
 Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));    
-    Label * e_label = NULL;   
-    Line * e_data;
+    Line * data = (Line *) malloc(sizeof(Line));
+    Entity * e;
 
-    if (e != NULL) {
-        e_data = (Line *) malloc(sizeof(Line));
-
-        if (e_data != NULL) {
-            e_data->start = start;
-            e_data->end = end;
-
-            e->entity_data = e_data;
-            e_label = e->label = c2d_create_label(cad, "", line);
-            c2d_add_entity_list(&cad->entity_list, e);
-        }
+    if (data != NULL) {
+        data->start = start;
+        data->end = end;
+        // ! NOT IMPLEMENTED YET: data->style maybe a function required for this
+        // c2d_add_entity_list(&cad->entity_list, e);
     }
 
-    return e_label;
+    return e != NULL ? e->label : NULL;
 }
 
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
