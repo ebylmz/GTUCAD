@@ -1,8 +1,3 @@
-// * TODO:
-
-// * permit the user to create new types. rectangle + circle = cirec use as postscript func
-
-
 #ifndef cad2d
 #define cad2d
 
@@ -32,41 +27,31 @@ typedef struct RGBColor {
 } RGBColor;
 
 typedef struct LineStyle {
-    // ! NOT IMPLEMENTED YET:
+    //! NOT IMPLEMENTED YET:
 } LineStyle;
 
 typedef struct Style {
-    // ! NOT IMPLEMENTED YET: Color choice
+    //! NOT IMPLEMENTED YET: Color choice
     LineStyle line_style;
     double thickness;
     int filled;
 } Style;
 
-// ! point olur birde textfield olur belkide hashcode olur
-/* the user editable name of this object, it is an arbitrary UTF8 string. */
-/* A label for a given CAD entity (line, arch, circle...) */
 typedef struct Label {
     EntityType type;    /* identifies the type of the cad entity */
     char * name;        /* name of the object */
     int hash_code;      /* labels are should be unique to do that we use hashing */
 } Label;
 
-//! Be sure label's are unique to provide this use hash table
 typedef struct Entity {
-    void * data;        /* specific data for the entity like radius for Circle */
     Label * label;      /* unique label to identify cad entities */
+    void * data;        /* specific data for the entity like radius for Circle type */
 } Entity;
 
 typedef struct Size {
     int cur, max;
 } Size;
 
-//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad)
-//? Convert given CAD to hierarchy
-//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent):
-//? ... and link the child of given parent Hierarchy  
-
-/* Holds the hierarchy information for CAD entities. */
 typedef struct Hierarchy {
     CAD2D * cad;
     struct Hierarchy * parent;
@@ -74,7 +59,6 @@ typedef struct Hierarchy {
     Size size;
 } Hierarchy;
 
-/* A data structure to hold coordinates of 2D points */
 typedef struct Point2D {
     double x, y;
     struct Point2D * next;
@@ -85,13 +69,10 @@ typedef struct Canvas {
     Point2D end;        /* ( width/2,  height/2) */
 } Canvas;
 
-// ! cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
-// ! muhtemelen void pointerlı bir linked list olacak list yada agac olacak
-/* The data structure to hold the current CAD content */
 typedef struct CAD2D {
     Canvas * canvas;
-    Size list_size;
-    Entity ** list;    /* hash table for keeping entities */
+    Size list_size;         
+    Entity ** list;         /* hash table for keeping entities */
     Hierarchy * hierarchy;  /* to reach all the CAD entities */    
 } CAD2D;
 
@@ -138,19 +119,19 @@ typedef struct Rectangle {
 } Rectangle;
 
 typedef struct Spline {
-    // ! NOT IMPLMENTED YET
+    //! NOT IMPLMENTED YET
 } Spline;
 
 typedef struct Polygon {
-    // ! NOT IMPLMENTED YET
+    //! NOT IMPLMENTED YET
 } Polygon;
 
 typedef struct Ellipse{
-    // ! NOT IMPLMENTED YET
+    //! NOT IMPLMENTED YET
 } Ellipse;
 
 typedef struct Image {
-    // ! NOT IMPLMENTED YET
+    //! NOT IMPLMENTED YET
 } Image;
 
 /*********************************************************************************

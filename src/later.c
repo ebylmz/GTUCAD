@@ -1,3 +1,18 @@
+// * permit the user to create new types. rectangle + circle = cirec use as postscript func
+
+/*  
+    * cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
+    * muhtemelen void pointerlı bir linked list olacak list yada agac olacak
+*/
+
+// ! label için point olur birde textfield olur belkide hashcode olur
+//! Be sure label's are unique to provide this use hash table
+
+//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad)
+//? Convert given CAD to hierarchy
+//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent):
+//? convert given cad to hierarchy and link the child of given parent Hierarchy  
+
 /*
     White 	#FFFFFF 	rgb(255, 255, 255)
 	Silver 	#C0C0C0 	rgb(192, 192, 192)
@@ -17,24 +32,10 @@
 	Purple 	#800080 	rgb(128, 0, 128)
 */
 
-
+/*
 Node ** create_hash_table () {
     return (Node **) calloc(HSIZE, sizeof(Node *));
 }
-
-
-void insert_entity_list (EntityList ** l, Entity * e) {
-
-    while (*l != NULL) l = &(*l)->next;
-
-    *l = (EntityList *) malloc(sizeof(EntityList));
-
-    if (*l != NULL) {
-        (*l)->entity = e;
-        (*l)->next = NULL;
-    }
-}
-
 
 Label * create_label (EntityType type, char * name) {
     Label * l = (Label *) malloc(sizeof(Label));
@@ -47,78 +48,5 @@ Label * create_label (EntityType type, char * name) {
     // ! if user do not give a name for label set something sentinal value  
     return l;
 }
-
-Entity * c2d_create_entity (EntityType type, void * data, Label * label) {
-    Entity * e = malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = data;
-        e->label = label;
-    }
-
-    return e;
-}
-
-/*
-Entity * c2d_create_entity (EntityType type) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = NULL;
-
-        switch (type) {
-            case point:
-                e->data = (Point2D *) malloc (sizeof(Point2D));
-                break;
-            case line:
-                e->data = (Line *) malloc (sizeof(Line));
-                break;
-            case spline:
-                e->data = (Spline *) malloc (sizeof(Spline));
-                break;
-            case polyline:
-                e->data = (Polyline *) malloc (sizeof(Polyline));
-                break;
-            case polygon:
-                e->data = (Polygon *) malloc (sizeof(Polygon));
-                break;
-            case rectangle:
-                e->data = (Rectangle *) malloc (sizeof(Rectangle));
-                break;
-            case circle:
-                e->data = (Circle *) malloc (sizeof(Circle));
-                break;
-            case arc:
-                e->data = (Arc *) malloc (sizeof(Arc));
-                break;
-            case ellipse:
-                e->data = (Ellipse *) malloc (sizeof(Ellipse));
-                break;
-            case text:
-                e->data = (Text *) malloc (sizeof(Text));
-                break;
-            case image:
-                e->data = (Image *) malloc (sizeof(Image));
-                break;
-            // ! Is this needed
-            case object:
-                e->data = (CAD2D *) malloc(sizeof(CAD2D));
-        }
-           
-        if (e->data != NULL) {
-            e->label = create_label(type, "");
-            
-            if (e->label == NULL) {
-                free(e->data);
-                free(e);
-                e = NULL;
-            }
-        }
-        else {
-            free(e);
-            e = NULL;
-        }
-    }
-    return e;
-}
 */
+
