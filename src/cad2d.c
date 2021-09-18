@@ -1,17 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include "cad2d.h"
 
 /*********************************************************************************
  * CAD Start
 *********************************************************************************/
+/* Initialize a new cad without any constrain */
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
         cad->list = NULL;
-        cad->list_size.max = cad->list_size.cur = 0;
+        cad->list_size.max = 0;
+        cad->list_size.cur = 0;
         cad->canvas = NULL;
         cad->hierarchy = c2d_create_hierarchy(cad);
     }
@@ -38,40 +41,57 @@ CAD2D * c2d_start_wh (double width, double height) {
     
     return cad;
 }
-/* Initialize the new CAD at children of given hierarchy */
+
+/* Initialize a new CAD at children of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = c2d_start_wh(width, height);
 
-    if (cad != NULL)
+    if (cad != NULL) {
+        u_insert_hierarchy(cad->hierarchy, h);
         h->parent = h;
+    }
 
     return cad;
 }
 
 /*********************************************************************************
- * Label
-*********************************************************************************/
-
-/*********************************************************************************
  * Hierarchy
 *********************************************************************************/
+/* links given two hiearchy as child-parent */
+void u_insert_hierarchy (Hierarchy * child, Hierarchy * parent) {
+    Hierarchy ** tmp;
+    int i;
+
+    if (parent->size.cur == parent->size.max) {
+        parent->size.max = parent->size.max == 0 ? INIT_HIER : parent->size.cur * 2; 
+
+        tmp = (Hierarchy **) calloc(parent->size.max, sizeof(Hierarchy *));
+
+        if (tmp != NULL) {
+            for (i = 0; i < parent->size.cur; ++i)
+                tmp[i] = parent->children[i];
+
+            free(parent->children);
+            parent->children = tmp;
+        }
+    }
+
+    parent->children[(parent->size.cur)++] = child;
+}
+
+/* creates a hierarchy from given cad */
 Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        h->children = (Hierarchy **) calloc(INIT_SIZE_HIER, sizeof(Hierarchy *));
-        if (h->children != NULL) {
-            h->cad = cad;
-            h->parent = NULL;
-            h->size.max = INIT_SIZE_HIER;
-            h->size.cur = 0;
+        h->deep = 0;    /* Root hierarchy */
+        h->parent = NULL;
+        h->cad = cad;
+        h->children = NULL;
+        h->size.max = 0;
+        h->size.cur = 0;
 
-            cad->hierarchy = h;
-        }
-        else {
-            free(h);
-            h = NULL;
-        }
+        cad->hierarchy = h;
     }
 
     return h;
@@ -79,43 +99,143 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
 
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
+/* creates a hierarchy from given cad and add it as child of given parent hierarchy */
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
     Hierarchy * h = c2d_create_hierarchy(cad);
     int i;
     
     if (h != NULL) {
+        h->deep = 1 + parent->deep;
         h->parent = parent;
 
         /* add new hierarchy as child of given parent */
-            
-        if (parent->size.cur < parent->size.max) 
-            parent->children[parent->size.cur] = h;
-        else {
-            //! NOT IMPLEMENTED YET: Reallocating memory for hierarchy array (newsize by doubling current max size)
-        }
+        u_insert_hierarchy(h, parent);
     }
 
     return h;
 }
 
 /*********************************************************************************
+ * Label
+*********************************************************************************/
+char * u_produce_label_name (CAD2D * cad, EntityType type) {
+    char name[10];
+    char * r;
+    int n, i = 0;
+
+    /* since every hierarchy name's unique thhis process produce unique label */
+
+    /* 
+        Type + Hierarchy + order
+        First rectangle in hiearchy named h0 will produce 
+            R00
+        Second
+            R01
+        Third polyline in hierarchy named h2 will produce
+            Pl23
+    */
+
+    /* add type factor */
+    switch (type) {
+        case point:
+            name[i++] = 'P';
+            break;
+        case line:
+            name[i++] = 'L';
+            break;
+        case spline:
+            name[i++] = 'S';
+            name[i++] = 'l';
+            break;
+        case polyline:
+            name[i++] = 'P';
+            name[i++] = 'l';
+            break;
+        case polygon:
+            name[i++] = 'P';
+            name[i++] = 'g';
+            break;
+        case rectangle:
+            name[i++] = 'R';
+            break;
+        case circle:
+            name[i++] = 'C';
+            break;
+        case arc:
+            name[i++] = 'A';
+            break;
+        case ellipse:
+            name[i++] = 'E';
+            break;
+        case text:
+            name[i++] = 'T';
+            break;
+        case image:
+            name[i++] = 'I';
+            break;
+    }
+
+    //! NOT IMPLEMENTED YET: Better solution needed
+    /* add deep factor */
+    /* add order */
+    name[i++] = cad->hierarchy->deep + '0';
+    name[i++] = '\0';
+
+    if (r != NULL) 
+        strcpy(r, name);
+    //! NOT IMPLEMENTED YET: Else
+
+    return r;
+}
+
+int u_get_hash (Label * l, int q, int p) {
+    int i;
+    int code;
+
+    //! is mod(p) suitable
+    for (i = 0; l->name[i] != '\0'; ++i)
+        code = (code * q + l->name[i]) % p;
+
+    return code;
+}
+
+/*  Creates an unique label inside the given CAD.
+    For automic naming use "" (empty string) as name    */
+Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
+    Label * l = (Label *) malloc(sizeof(Label));
+
+    if (l != NULL) {
+        l->type = type;
+
+        /* If user not provided a label name, produce a unique one */
+        //l->name = name[0] == '\0' ? u_produce_label_name(cad, type) : name;
+        //! NOT IMPLEMENTED YET: Hash code calling parameters
+        // l->hash_code = u_get_hash(l, 10 , PRIME);
+
+        //! NOT IMPLEMETED YET: Be sure produced or given name is unique by hashing
+    }
+
+    return l;
+}
+
+/*********************************************************************************
  * Adding Basic CAD Entities
 *********************************************************************************/
-void insert_entity_list (CAD2D * cad, Entity * e) {
-    Entity ** list = cad->list;
+
+void u_insert_entity_list (CAD2D * cad, Entity * e) {
     Entity ** tmp;
     int i;
 
     if (cad->list_size.cur == cad->list_size.max) {
-        cad->list_size.max = cad->list_size.max == 0 ? INIT_SIZE_HASH : cad->list_size.max * 2;        
+        cad->list_size.max = cad->list_size.max == 0 ? INIT_HASH : cad->list_size.max * 2;        
         
         tmp = (Entity **) calloc(cad->list_size.max, sizeof(Entity *));
 
         if (tmp != NULL) {
             for (i = 0; i < cad->list_size.cur; ++i)
-                tmp[i] = list[i];
+                tmp[i] = cad->list[i];
             
-            free(list);
+            free(cad->list);
             cad->list = tmp;
         }
     }
@@ -123,19 +243,11 @@ void insert_entity_list (CAD2D * cad, Entity * e) {
     cad->list[(cad->list_size.cur)++] = e;
 }
 
-Label * c2d_create_label (EntityType type, char * name) {
-    Label * l = (Label *) malloc(sizeof(Label));
+//* /////////////////////////////////////////////////////////
+//! /////////////////////////////////////////////////////////
+//? /////////////////////////////////////////////////////////
 
-    if (l != NULL) {
-        l->name = name;
-        l->type = type;
-        l->hash_code = -1;  //! !!!!!!!!!!!!!
-    }
-
-    return l;
-}
-
-Entity * c2d_create_entity_filled (Label * l, void * data) {
+Entity * u_create_entity_filled (Label * l, void * data) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
     if (e != NULL) {
@@ -146,7 +258,7 @@ Entity * c2d_create_entity_filled (Label * l, void * data) {
     return e;
 }
 
-Entity * c2d_create_entity_empty (EntityType type) {
+Entity * u_create_entity_empty (EntityType type) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
     if (e != NULL) {
@@ -219,7 +331,7 @@ Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
 Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
-    Entity * e = c2d_create_entity_empty(line);
+    Entity * e = u_create_entity_empty(line);
     Line * data;
 
     if (e != NULL) {
@@ -227,24 +339,16 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
         data->start = start;
         data->end = end;
         //! NOT IMPLEMENTED YET: data->style
-        //! NOT IMPLEMENTED YET: Create a unique label
-        
-        // insert list function requried 
-        /*
-        if (cad->list_size.cur < cad->list_size.max) {
-            cad->list[(cad->list_size.cur)++] = e;
-        }
-        else {
-            //! NOT IMPLEMENTED YET: Reallocate new memory for entity list
-        }
-        */
+
+        e->label = c2d_create_label(cad, line, "");
+        u_insert_entity_list(cad, e); 
     }
 
     return e != NULL ? e->label : NULL;
 }
 
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
-    Entity * e = c2d_create_entity_empty(arc);
+    Entity * e = u_create_entity_empty(arc);
     Arc * data;
 
     if (e != NULL) {
@@ -256,30 +360,31 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
         data->end_angle = end_angle;
 
         //! NOT IMPLEMENTED YET: Create a unique label
-        insert_entity_list(cad, e);
+        e->label = c2d_create_label(cad, line, "");
+        u_insert_entity_list(cad, e);
     }
 
     return e != NULL ? e->label : NULL;
 }
 
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
-    Entity * e = c2d_create_entity_empty(circle);
+    Entity * e = u_create_entity_empty(circle);
     Circle * data;
 
     if (e != NULL) {
         data = (Circle *) e->data;
         data->center = center;
         data->radius = radius;
-        data->start_angle = 0;
-        data->end_angle = 360;
+        data->start_angle = 0.0;
+        data->end_angle = 360.0;
 
-        //! NOT IMPLEMENTED YET: Create a unique label
-        insert_entity_list(cad, e);
+        e->label = c2d_create_label(cad, line, "");
+        u_insert_entity_list(cad, e);
     }
     return e != NULL ? e->label : NULL;
 }
 
-Label * c2d_add_rectangle (CAD2D * cad, Point2D corne) {
+Label * c2d_add_rectangle (CAD2D * cad, Point2D corner) {
     //! NOT IMPLEMENTED YET
 }
 
@@ -312,28 +417,28 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
-void draw_line (FILE * fid, Line * e) {
+void u_draw_line (FILE * fid, Line * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->start.x , e->start.y);
     fprintf(fid, "%.2f %.2f lineto\n", e->end.x, e->end.y);
     // fprintf(fid, "stroke\n");
 }
 
-void draw_arc (FILE * fid, Arc * e) {
+void u_draw_arc (FILE * fid, Arc * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
     // fprintf(fid, "stroke\n");
 }
 
-void draw_rectangle (FILE * fid, Rectangle * e) {
+void u_draw_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->corner_top_right.y - e->corner_down_left.y),
             width = (e->corner_down_left.x - e->corner_top_right.x);
 
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto", e->corner_down_left.x, e->corner_down_left.y);
-    fprintf(fid, "%.2f %.2f rlineto", 0, height);
-    fprintf(fid, "%.2f %.2f rlineto", width, 0);
-    fprintf(fid, "%.2f %.2f rlineto", 0, -height);
+    fprintf(fid, "%.2f %.2f rlineto", 0.0, height);
+    fprintf(fid, "%.2f %.2f rlineto", width, 0.0);
+    fprintf(fid, "%.2f %.2f rlineto", 0.0, -height);
     fprintf(fid, "closepath");
 } 
 
@@ -344,16 +449,16 @@ void c2d_export (CAD2D * cad, char * file_name, char * options) {
 
     if (fid != NULL) {
         if (strcmp(options, "eps") == 0)
-            export_eps(cad, fid);
+            u_export_eps(cad, fid);
         else if (strcmp(options, "gtucad") == 0)
-            export_gtucad(cad, fid);
+            u_export_gtucad(cad, fid);
         //! NOT IMPLEMENTED YET: else 
 
         fclose(fid);
     }
 }
 
-void export_eps (CAD2D * cad, FILE * fid) {
+void u_export_eps (CAD2D * cad, FILE * fid) {
     Entity ** e = cad->list;
     int i;
 
@@ -363,14 +468,19 @@ void export_eps (CAD2D * cad, FILE * fid) {
     if (cad->canvas != NULL)
         fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
+//! DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE 
+    printf("list size: %d\n", cad->list_size.cur);
+
     for (i = 0; i < cad->list_size.cur; ++i) {
+//! DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE 
+        printf("label->type: %d\n", e[i]->label->type);
         switch (e[i]->label->type) {
             case point:
                 //! NOT IMPLEMENTED YET
                 break;
             case line:
                 printf("Draw line: ");
-                draw_line(fid, (Line *) e[i]->data);
+                u_draw_line(fid, (Line *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
@@ -385,13 +495,13 @@ void export_eps (CAD2D * cad, FILE * fid) {
                 break;
             case rectangle:
                 printf("Draw rectangle: ");
-                draw_rectangle(fid, (Rectangle *) e[i]->data);
+                u_draw_rectangle(fid, (Rectangle *) e[i]->data);
                 printf("Done\n");
                 break;
             case circle:
             case arc:
                 printf("Draw Arc: ");
-                draw_arc(fid, (Arc *) e[i]->data);
+                u_draw_arc(fid, (Arc *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
             case ellipse:
@@ -403,14 +513,13 @@ void export_eps (CAD2D * cad, FILE * fid) {
             case image:
                 //! NOT IMPLEMENTED YET
                 break;
-            default:
-                //!  NOT IMPLEMENTED YET
+                //!  NOT IMPLEMENTED YET: default:
         }
     }
     fprintf(fid, "\nshowpage\n");
 }
 
-void export_gtucad(CAD2D * cad, FILE * fid) {
+void u_export_gtucad(CAD2D * cad, FILE * fid) {
     //! NOT IMPLEMENTED YET
 }
 

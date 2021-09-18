@@ -8,11 +8,6 @@
 // ! label için point olur birde textfield olur belkide hashcode olur
 //! Be sure label's are unique to provide this use hash table
 
-//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad)
-//? Convert given CAD to hierarchy
-//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, Hierarchy * parent):
-//? convert given cad to hierarchy and link the child of given parent Hierarchy  
-
 /*
     White 	#FFFFFF 	rgb(255, 255, 255)
 	Silver 	#C0C0C0 	rgb(192, 192, 192)
@@ -31,22 +26,3 @@
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
 */
-
-/*
-Node ** create_hash_table () {
-    return (Node **) calloc(HSIZE, sizeof(Node *));
-}
-
-Label * create_label (EntityType type, char * name) {
-    Label * l = (Label *) malloc(sizeof(Label));
-
-    if (l != NULL) {
-        l->name = name;
-        l->type = type;
-    }
-    // ! NOT IMPLEMENTED YET: Be sure given parameters can produce unique label to do that we need root CAD
-    // ! if user do not give a name for label set something sentinal value  
-    return l;
-}
-*/
-
