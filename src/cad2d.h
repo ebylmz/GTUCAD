@@ -62,6 +62,7 @@ typedef struct Hierarchy {
     Size size;
 } Hierarchy;
 
+/* also used as Line, Polyline and Polygone */
 typedef struct Point2D {
     double x, y;
     struct Point2D * next;
@@ -84,10 +85,28 @@ typedef struct CAD2D {
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
 
+
+/*
 typedef struct Line {
     Point2D start, end;
     Style style;
 } Line;
+
+typedef struct Polyline {
+    Point2D point;
+    // struct Polyline * next;
+    Style style;
+} Polyline;
+
+
+typedef struct Polygon {
+    Point2D point;
+    struct Polyline * next;
+    Style style;
+    //! NOT IMPLMENTED YET
+} Polygon;
+*/
+
 
 typedef struct Arc {
     Point2D center;
@@ -103,34 +122,31 @@ typedef struct Circle {
     Style style;
 } Circle;
 
-// ! We actualy do not need a new data type for polyline, we can add * next inside of the Point2D
-typedef struct Polyline {
-    Point2D point;
-    struct Polyline * next;
-    Style style;
-} Polyline;
-
 typedef struct Text {
     Point2D point;
-    char * text_field;
+    char * text;
     Style style;
 } Text;
 
+/*
+    D--C        we need corners at down-left and top-right
+    |  |
+    A--B
+*/
 typedef struct Rectangle {
-    Point2D corner_down_left, corner_top_right;
+    Point2D cornerA, cornerC;
     Style style;
+    //* NOT IMPLMENTED YET
 } Rectangle;
 
 typedef struct Spline {
     //! NOT IMPLMENTED YET
 } Spline;
 
-typedef struct Polygon {
-    //! NOT IMPLMENTED YET
-} Polygon;
-
 typedef struct Ellipse{
-    //! NOT IMPLMENTED YET
+    Point2D center;
+    double width, hight;
+    //* NOT IMPLMENTED YET
 } Ellipse;
 
 typedef struct Image {
@@ -144,11 +160,15 @@ void u_insert_hierarchy (Hierarchy * child, Hierarchy * parent);
 char * u_produce_label_name (CAD2D * cad, EntityType type);
 int u_get_hash (Label * l, int q, int p);
 void u_insert_entity_list (CAD2D * cad, Entity * e);
+
 Entity * u_create_entity_filled (Label * l, void * data);
 Entity * u_create_entity_empty (EntityType type);
-void u_draw_line (FILE * fid, Line * e);
+
+void u_draw_line (FILE * fid, Point2D * e);
 void u_draw_arc (FILE * fid, Arc * e);
 void u_draw_rectangle (FILE * fid, Rectangle * e);
+void u_draw_polyline (FILE * fid, Point2D * e);
+
 void u_export_eps (CAD2D * cad, FILE * fid);
 void u_export_gtucad(CAD2D * cad, FILE * fid);
 
@@ -160,12 +180,16 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad);
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
+Point2D * c2d_create_point (double x, double y);
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
+
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
-Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
+Label * c2d_add_line(CAD2D * cad, Point2D *start, Point2D * end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
+Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
+Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);

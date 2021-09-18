@@ -266,19 +266,13 @@ Entity * u_create_entity_empty (EntityType type) {
 
         switch (type) {
             case point:
-                e->data = (Point2D *) malloc (sizeof(Point2D));
-                break;
             case line:
-                e->data = (Line *) malloc (sizeof(Line));
+            case polyline:
+            case polygon:
+                e->data = (Point2D *) malloc (sizeof(Point2D));
                 break;
             case spline:
                 e->data = (Spline *) malloc (sizeof(Spline));
-                break;
-            case polyline:
-                e->data = (Polyline *) malloc (sizeof(Polyline));
-                break;
-            case polygon:
-                e->data = (Polygon *) malloc (sizeof(Polygon));
                 break;
             case rectangle:
                 e->data = (Rectangle *) malloc (sizeof(Rectangle));
@@ -330,14 +324,17 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
 
-Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
+Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
     Entity * e = u_create_entity_empty(line);
-    Line * data;
+    Point2D * data;
 
     if (e != NULL) {
-        data = (Line *) e->data;
-        data->start = start;
-        data->end = end;
+        data = (Point2D *) e->data;
+        data->x = start->x;
+        data->y = start->y;
+    
+        data->next = c2d_create_point(end->x, end->y);
+        //! NOT IMPLEMENTED YET: if (data->next == NULL)
         //! NOT IMPLEMENTED YET: data->style
 
         e->label = c2d_create_label(cad, line, "");
@@ -346,6 +343,49 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
 
     return e != NULL ? e->label : NULL;
 }
+
+Point2D * c2d_create_point (double x, double y) {
+    Point2D * p = (Point2D *) malloc(sizeof(Point2D));
+
+    if (p != NULL) {
+        p->x = x;
+        p->y = y;
+        p->next = NULL;
+    }
+
+    return p;
+}
+
+Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
+    Entity * e = u_create_entity_empty(polyline);
+    Point2D * data;
+    Point2D ** trav;
+
+    if (e != NULL) {
+        data = (Point2D *) e->data;
+        trav = &data;
+
+        while (p != NULL) {
+            *trav = c2d_create_point(p->x, p->y);
+            
+            if (*trav != NULL) {
+                trav = &(*trav)->next;
+                p = p->next;
+            }
+            else    
+                break;
+            //! NOT IMPLEMENTED YET: else
+        }
+        /* lastly trav will point the last Point2D pointer */
+        *trav = NULL;
+
+        e->label = c2d_create_label(cad, polyline, "");
+        u_insert_entity_list(cad, e);
+    }
+    
+    return e != NULL ? e->label : NULL;
+}
+
 
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
     Entity * e = u_create_entity_empty(arc);
@@ -360,7 +400,7 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
         data->end_angle = end_angle;
 
         //! NOT IMPLEMENTED YET: Create a unique label
-        e->label = c2d_create_label(cad, line, "");
+        e->label = c2d_create_label(cad, arc, "");
         u_insert_entity_list(cad, e);
     }
 
@@ -378,23 +418,34 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
         data->start_angle = 0.0;
         data->end_angle = 360.0;
 
-        e->label = c2d_create_label(cad, line, "");
+        e->label = c2d_create_label(cad, circle, "");
+        u_insert_entity_list(cad, e);
+    }
+    return e != NULL ? e->label : NULL;
+}
+//* Label * c2d_add_rectangle (CAD2D * cad, Point2D center , double width, double hight) {
+
+Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
+    Entity * e = u_create_entity_empty(rectangle);
+    Rectangle * data;
+    
+    if (e != NULL) {
+        data = (Rectangle *) e->data;
+        data->cornerA = cornerA;
+        data->cornerC = cornerC;
+        //! NOT IMPLEMENTED YET: data->style
+
+        e->label = c2d_create_label(cad, rectangle, "");
         u_insert_entity_list(cad, e);
     }
     return e != NULL ? e->label : NULL;
 }
 
-Label * c2d_add_rectangle (CAD2D * cad, Point2D corner) {
-    //! NOT IMPLEMENTED YET
-}
-
 /* 
-Label * c2d_add_circle(CAD2D * cad, ...) {}
 Label * c2d_add_ellipse(CAD2D * cad, ...) {}
 Label * c2d_add_splines(CAD2D * cad, ...) {}
-Label * c2d_add_polyline(CAD2D * cad, ...) {}
-Label * c2d_add_text(CAD2D * cad, char * text, Color, Font, Thickness ...) {}
 Label * c2d_add_polygons(CAD2D * cad, ...) {}
+Label * c2d_add_text(CAD2D * cad, char * text, Color, Font, Thickness ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
 
@@ -417,30 +468,40 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
-void u_draw_line (FILE * fid, Line * e) {
+void u_draw_line (FILE * fid, Point2D * e) {
     fprintf(fid, "\nnewpath\n");
-    fprintf(fid, "%.2f %.2f moveto\n", e->start.x , e->start.y);
-    fprintf(fid, "%.2f %.2f lineto\n", e->end.x, e->end.y);
-    // fprintf(fid, "stroke\n");
+    fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
+    e = e->next;
+    fprintf(fid, "%.2f %.2f lineto\n", e->x, e->y);
 }
 
 void u_draw_arc (FILE * fid, Arc * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
-    // fprintf(fid, "stroke\n");
 }
 
 void u_draw_rectangle (FILE * fid, Rectangle * e) {
-    double  height = (e->corner_top_right.y - e->corner_down_left.y),
-            width = (e->corner_down_left.x - e->corner_top_right.x);
+    double  height = (e->cornerC.y - e->cornerA.y),
+            width = (e->cornerC.x - e->cornerA.x);
 
     fprintf(fid, "\nnewpath\n");
-    fprintf(fid, "%.2f %.2f moveto", e->corner_down_left.x, e->corner_down_left.y);
-    fprintf(fid, "%.2f %.2f rlineto", 0.0, height);
-    fprintf(fid, "%.2f %.2f rlineto", width, 0.0);
-    fprintf(fid, "%.2f %.2f rlineto", 0.0, -height);
-    fprintf(fid, "closepath");
+    fprintf(fid, "%.2f %.2f moveto\n", e->cornerA.x, e->cornerA.y);
+    fprintf(fid, "%.2f %.2f rlineto\n", 0.0, height);
+    fprintf(fid, "%.2f %.2f rlineto\n", width, 0.0);
+    fprintf(fid, "%.2f %.2f rlineto\n", 0.0, -height);
+    fprintf(fid, "closepath\n");
 } 
+
+void u_draw_polyline (FILE * fid, Point2D * e) {
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
+    e = e->next;
+    
+    while (e != NULL) {
+        fprintf(fid, "%.2f %.2f lineto\n", e->x, e->y);
+        e = e->next;
+    }
+}
 
 // in eps mode we do not deal with labels but in gtu mode we do
 
@@ -480,7 +541,7 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
                 break;
             case line:
                 printf("Draw line: ");
-                u_draw_line(fid, (Line *) e[i]->data);
+                u_draw_line(fid, (Point2D *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
@@ -488,7 +549,10 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
                 //! NOT IMPLEMENTED YET
                 break;
             case polyline:
-                //! NOT IMPLEMENTED YET
+                printf("Draw polyline: ");
+                u_draw_polyline(fid, (Point2D *) e[i]->data);
+                fprintf(fid, "stroke\n");
+                printf("Done\n");
                 break;
             case polygon:
                 //! NOT IMPLEMENTED YET
@@ -496,6 +560,7 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
             case rectangle:
                 printf("Draw rectangle: ");
                 u_draw_rectangle(fid, (Rectangle *) e[i]->data);
+                fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
             case circle:
