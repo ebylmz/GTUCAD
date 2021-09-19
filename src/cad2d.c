@@ -42,12 +42,12 @@ CAD2D * c2d_start_wh (double width, double height) {
     return cad;
 }
 
-/* Initialize a new CAD at children of given hierarchy */
+/* Initialize a new CAD at child of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = c2d_start_wh(width, height);
 
     if (cad != NULL) {
-        u_insert_hierarchy(cad->hierarchy, h);
+        u_link_hierarchy(cad->hierarchy, h);
         h->parent = h;
     }
 
@@ -57,8 +57,28 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 /*********************************************************************************
  * Hierarchy
 *********************************************************************************/
-/* links given two hiearchy as child-parent */
-void u_insert_hierarchy (Hierarchy * child, Hierarchy * parent) {
+//! NOT TESTED YET
+Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
+    int i;
+    Hierarchy * r = NULL;
+
+    if (cad->hierarchy != h) {
+        /* look the child's of root hierarchy */
+        for (i = 0; i < cad->hierarchy->size.cur && r == NULL; ++i)
+            if (cad->hierarchy->child[i] == h)
+                r = h;
+        /* if it isn't finded yet, look the children's children */
+        if (r == NULL) {
+            for (i = 0; i < cad->hierarchy->size.cur && r == NULL; ++i)
+                r = u_find_hierarchy(cad->hierarchy->child[i]->cad, h);
+        }
+    }
+    return r;
+}
+
+
+/* links given two hiearchy as child-parent relationship */
+void u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
     Hierarchy ** tmp;
     int i;
 
@@ -69,14 +89,15 @@ void u_insert_hierarchy (Hierarchy * child, Hierarchy * parent) {
 
         if (tmp != NULL) {
             for (i = 0; i < parent->size.cur; ++i)
-                tmp[i] = parent->children[i];
+                tmp[i] = parent->child[i];
 
-            free(parent->children);
-            parent->children = tmp;
+            free(parent->child);
+            parent->child = tmp;
         }
     }
 
-    parent->children[(parent->size.cur)++] = child;
+    child->parent = parent;
+    parent->child[(parent->size.cur)++] = child;
 }
 
 /* creates a hierarchy from given cad */
@@ -87,7 +108,7 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
         h->deep = 0;    /* Root hierarchy */
         h->parent = NULL;
         h->cad = cad;
-        h->children = NULL;
+        h->child = NULL;
         h->size.max = 0;
         h->size.cur = 0;
 
@@ -109,7 +130,7 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
         h->parent = parent;
 
         /* add new hierarchy as child of given parent */
-        u_insert_hierarchy(h, parent);
+        u_link_hierarchy(h, parent);
     }
 
     return h;
@@ -137,40 +158,40 @@ char * u_produce_label_name (CAD2D * cad, EntityType type) {
 
     /* add type factor */
     switch (type) {
-        case point:
+        case point_t:
             name[i++] = 'P';
             break;
-        case line:
+        case line_t:
             name[i++] = 'L';
             break;
-        case spline:
+        case spline_t:
             name[i++] = 'S';
             name[i++] = 'l';
             break;
-        case polyline:
+        case polyline_t:
             name[i++] = 'P';
             name[i++] = 'l';
             break;
-        case polygon:
+        case polygon_t:
             name[i++] = 'P';
             name[i++] = 'g';
             break;
-        case rectangle:
+        case rectangle_t:
             name[i++] = 'R';
             break;
-        case circle:
+        case circle_t:
             name[i++] = 'C';
             break;
-        case arc:
+        case arc_t:
             name[i++] = 'A';
             break;
-        case ellipse:
+        case ellipse_t:
             name[i++] = 'E';
             break;
-        case text:
+        case text_t:
             name[i++] = 'T';
             break;
-        case image:
+        case image_t:
             name[i++] = 'I';
             break;
     }
@@ -247,6 +268,7 @@ void u_insert_entity_list (CAD2D * cad, Entity * e) {
 //! /////////////////////////////////////////////////////////
 //? /////////////////////////////////////////////////////////
 
+/*
 Entity * u_create_entity_filled (Label * l, void * data) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
@@ -257,39 +279,39 @@ Entity * u_create_entity_filled (Label * l, void * data) {
 
     return e;
 }
-
-Entity * u_create_entity_empty (EntityType type) {
+ */
+Entity * u_create_entity (EntityType type) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
     if (e != NULL) {
         e->data = NULL;
 
         switch (type) {
-            case point:
-            case line:
-            case polyline:
-            case polygon:
+            case point_t:
+            case line_t:
+            case polyline_t:
+            case polygon_t:
                 e->data = (Point2D *) malloc (sizeof(Point2D));
                 break;
-            case spline:
+            case spline_t:
                 e->data = (Spline *) malloc (sizeof(Spline));
                 break;
-            case rectangle:
+            case rectangle_t:
                 e->data = (Rectangle *) malloc (sizeof(Rectangle));
                 break;
-            case circle:
+            case circle_t:
                 e->data = (Circle *) malloc (sizeof(Circle));
                 break;
-            case arc:
+            case arc_t:
                 e->data = (Arc *) malloc (sizeof(Arc));
                 break;
-            case ellipse:
+            case ellipse_t:
                 e->data = (Ellipse *) malloc (sizeof(Ellipse));
                 break;
-            case text:
+            case text_t:
                 e->data = (Text *) malloc (sizeof(Text));
                 break;
-            case image:
+            case image_t:
                 e->data = (Image *) malloc (sizeof(Image));
                 break;
         }
@@ -319,31 +341,6 @@ Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
 Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
 */
 
-Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {}
-Label * c2d_add_point_p (CAD2D * cad, Point2D p) {}
-Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {}
-Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {}
-
-Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
-    Entity * e = u_create_entity_empty(line);
-    Point2D * data;
-
-    if (e != NULL) {
-        data = (Point2D *) e->data;
-        data->x = start->x;
-        data->y = start->y;
-    
-        data->next = c2d_create_point(end->x, end->y);
-        //! NOT IMPLEMENTED YET: if (data->next == NULL)
-        //! NOT IMPLEMENTED YET: data->style
-
-        e->label = c2d_create_label(cad, line, "");
-        u_insert_entity_list(cad, e); 
-    }
-
-    return e != NULL ? e->label : NULL;
-}
-
 Point2D * c2d_create_point (double x, double y) {
     Point2D * p = (Point2D *) malloc(sizeof(Point2D));
 
@@ -356,8 +353,72 @@ Point2D * c2d_create_point (double x, double y) {
     return p;
 }
 
+//! NOT TESTED YET:
+Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
+    Entity * e = u_create_entity(point_t);
+    Point2D * data;
+
+    if (e != NULL) {
+        data = (Point2D *) e->data;
+
+        data->x = x;
+        data->y = y;
+        data->next = NULL;
+    }
+
+    return e != NULL ? e->label : NULL;
+}
+
+//! NOT TESTED YET:
+Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
+    Entity * e = u_create_entity(point_t);
+    Point2D * data;
+
+    if (e != NULL) {
+        data = (Point2D *) e->data;
+
+        data->x = p.x;
+        data->y = p.y;
+        data->next = NULL;
+    }
+
+    return e != NULL ? e->label : NULL;
+}
+
+//! NOT TESTED YET:
+Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
+    Hierarchy * r = u_find_hierarchy(cad, h);
+
+    /* be sure given hierarchy exist */
+    /* add point at desired hiearchy as if it's root */
+    return r != NULL ? c2d_add_point_p(r->cad, p) : NULL;
+}
+
+Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {
+    //! NOT IMPLEMENTED YET: data->style
+}
+
+Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
+    Entity * e = u_create_entity(line_t);
+    Point2D * data;
+
+    if (e != NULL) {
+        data = (Point2D *) e->data;
+        data->x = start->x;
+        data->y = start->y;
+    
+        data->next = c2d_create_point(end->x, end->y);
+        //! NOT IMPLEMENTED YET: if (data->next == NULL)
+
+        e->label = c2d_create_label(cad, line_t, "");
+        u_insert_entity_list(cad, e); 
+    }
+
+    return e != NULL ? e->label : NULL;
+}
+
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
-    Entity * e = u_create_entity_empty(polyline);
+    Entity * e = u_create_entity(polyline_t);
     Point2D * data;
     Point2D ** trav;
 
@@ -379,7 +440,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
         /* lastly trav will point the last Point2D pointer */
         *trav = NULL;
 
-        e->label = c2d_create_label(cad, polyline, "");
+        e->label = c2d_create_label(cad, polyline_t, "");
         u_insert_entity_list(cad, e);
     }
     
@@ -388,7 +449,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
 
 
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
-    Entity * e = u_create_entity_empty(arc);
+    Entity * e = u_create_entity(arc_t);
     Arc * data;
 
     if (e != NULL) {
@@ -400,7 +461,7 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
         data->end_angle = end_angle;
 
         //! NOT IMPLEMENTED YET: Create a unique label
-        e->label = c2d_create_label(cad, arc, "");
+        e->label = c2d_create_label(cad, arc_t, "");
         u_insert_entity_list(cad, e);
     }
 
@@ -408,7 +469,7 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
 }
 
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
-    Entity * e = u_create_entity_empty(circle);
+    Entity * e = u_create_entity(circle_t);
     Circle * data;
 
     if (e != NULL) {
@@ -418,7 +479,7 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
         data->start_angle = 0.0;
         data->end_angle = 360.0;
 
-        e->label = c2d_create_label(cad, circle, "");
+        e->label = c2d_create_label(cad, circle_t, "");
         u_insert_entity_list(cad, e);
     }
     return e != NULL ? e->label : NULL;
@@ -426,7 +487,7 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
 //* Label * c2d_add_rectangle (CAD2D * cad, Point2D center , double width, double hight) {
 
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
-    Entity * e = u_create_entity_empty(rectangle);
+    Entity * e = u_create_entity(rectangle_t);
     Rectangle * data;
     
     if (e != NULL) {
@@ -435,9 +496,30 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
         data->cornerC = cornerC;
         //! NOT IMPLEMENTED YET: data->style
 
-        e->label = c2d_create_label(cad, rectangle, "");
+        e->label = c2d_create_label(cad, rectangle_t, "");
         u_insert_entity_list(cad, e);
     }
+    return e != NULL ? e->label : NULL;
+}
+
+Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text) {
+    Entity * e = u_create_entity(text_t);
+    Text * data;
+
+    if (e != NULL) {
+        data = (Text *) e->data;
+        data->point.x = point->x;
+        data->point.y = point->y;
+        //! NOT IMPLEMENTED YET: data->style
+        data->text = (char *) calloc(strlen(text), sizeof(char));
+
+        if (data->text != NULL)
+            strcpy(data->text, text);
+        //! NOT IMPLEMENTED YET: else
+        e->label = c2d_create_label(cad, text_t, "");
+        u_insert_entity_list(cad, e);
+    }
+
     return e != NULL ? e->label : NULL;
 }
 
@@ -445,7 +527,6 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
 Label * c2d_add_ellipse(CAD2D * cad, ...) {}
 Label * c2d_add_splines(CAD2D * cad, ...) {}
 Label * c2d_add_polygons(CAD2D * cad, ...) {}
-Label * c2d_add_text(CAD2D * cad, char * text, Color, Font, Thickness ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
 
@@ -471,8 +552,7 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 void u_draw_line (FILE * fid, Point2D * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
-    e = e->next;
-    fprintf(fid, "%.2f %.2f lineto\n", e->x, e->y);
+    fprintf(fid, "%.2f %.2f lineto\n", e->next->x, e->next->y);
 }
 
 void u_draw_arc (FILE * fid, Arc * e) {
@@ -503,8 +583,13 @@ void u_draw_polyline (FILE * fid, Point2D * e) {
     }
 }
 
-// in eps mode we do not deal with labels but in gtu mode we do
+void u_draw_text (FILE * fid, Text * e) {
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
+    //! NOT IMPLEMENTED YET: 
+}
 
+// in eps mode we do not deal with labels but in gtu mode we do
 void c2d_export (CAD2D * cad, char * file_name, char * options) {
     FILE * fid = fopen(file_name, "wt");
 
@@ -530,52 +615,56 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
         fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
 //! DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE 
-    printf("list size: %d\n", cad->list_size.cur);
+printf("list size: %d\n", cad->list_size.cur);
 
     for (i = 0; i < cad->list_size.cur; ++i) {
 //! DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE 
-        printf("label->type: %d\n", e[i]->label->type);
+printf("label->type: %d\n", e[i]->label->type);
         switch (e[i]->label->type) {
-            case point:
+            case point_t:
                 //! NOT IMPLEMENTED YET
                 break;
-            case line:
+            case line_t:
                 printf("Draw line: ");
                 u_draw_line(fid, (Point2D *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
-            case spline:
+            case spline_t:
                 //! NOT IMPLEMENTED YET
                 break;
-            case polyline:
+            case polyline_t:
                 printf("Draw polyline: ");
                 u_draw_polyline(fid, (Point2D *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
-            case polygon:
+            case polygon_t:
                 //! NOT IMPLEMENTED YET
                 break;
-            case rectangle:
+            case rectangle_t:
                 printf("Draw rectangle: ");
                 u_draw_rectangle(fid, (Rectangle *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
                 break;
-            case circle:
-            case arc:
+            case circle_t:
+            case arc_t:
                 printf("Draw Arc: ");
                 u_draw_arc(fid, (Arc *) e[i]->data);
                 fprintf(fid, "stroke\n");
                 printf("Done\n");
-            case ellipse:
+                break;
+            case ellipse_t:
                 //! NOT IMPLEMENTED YET
                 break;
-            case text:
-                //! NOT IMPLEMENTED YET
+            case text_t:
+                printf("Draw Text: ");
+                u_draw_text(fid, (Text *) e[i]->data);
+                fprintf(fid, "stroke\n");
+                printf("Done\n");
                 break;
-            case image:
+            case image_t:
                 //! NOT IMPLEMENTED YET
                 break;
                 //!  NOT IMPLEMENTED YET: default:

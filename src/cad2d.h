@@ -10,8 +10,8 @@
 *********************************************************************************/
 
 typedef enum {
-    point, line, spline, polyline, polygon,
-    rectangle, circle, arc, ellipse, text, image
+    point_t, line_t, spline_t, polyline_t, polygon_t,
+    rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
 } EntityType;
 
 typedef enum {
@@ -47,6 +47,7 @@ typedef struct Label {
 typedef struct Entity {
     Label * label;      /* unique label to identify cad entities */
     void * data;        /* specific data for the entity like radius for Circle type */
+    //! Style style;    
 } Entity;
 
 typedef struct Size {
@@ -57,7 +58,7 @@ typedef struct Hierarchy {
     struct CAD2D * cad;
     char * name;
     struct Hierarchy * parent;
-    struct Hierarchy ** children;   /* array of children hierarchies */
+    struct Hierarchy ** child;   /* array of child hierarchies */
     int deep;           
     Size size;
 } Hierarchy;
@@ -107,7 +108,6 @@ typedef struct Polygon {
 } Polygon;
 */
 
-
 typedef struct Arc {
     Point2D center;
     double radius;
@@ -156,7 +156,7 @@ typedef struct Image {
 /*********************************************************************************
  * Function Definitions
 *********************************************************************************/
-void u_insert_hierarchy (Hierarchy * child, Hierarchy * parent);
+void u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 char * u_produce_label_name (CAD2D * cad, EntityType type);
 int u_get_hash (Label * l, int q, int p);
 void u_insert_entity_list (CAD2D * cad, Entity * e);
