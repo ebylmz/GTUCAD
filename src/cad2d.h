@@ -14,28 +14,37 @@ typedef enum {
     rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
 } EntityType;
 
-typedef enum {
-    white, silver, gray, black, red, maroon, yellow, 
-    olive, lime, green, aqua, teal, blue, navy,
-    fuchsia, purple
-} ColorPalette;
-
-typedef enum  {stroke, fill} DrawStyle;
-
-/* RGB color scheme */
-typedef struct RGBColor {
+typedef struct {
     double red, green, blue;
 } RGBColor;
 
-typedef struct LineStyle {
-    //! NOT IMPLEMENTED YET:
+typedef enum {
+    red, green, green_dark, blue_dark, blue_light, magenta,
+    yellow, white, black, orange, purple, brown 
+} Color;
+
+typedef enum {
+    Helvetica, Courier, Times, Coronet, Symbol, Albertus, Arial, Bodoni
+} FontStyle;
+
+typedef enum {
+// ! any basic 2D shape can have color, thickness and line style       
+    dashed, solid
 } LineStyle;
 
+typedef enum  {
+    stroke, fill
+} DrawStyle;
+
+// ! any basic 2D shape can have color, thickness and line style       
+
+//* use -1 for default style choices
 typedef struct Style {
-    //! NOT IMPLEMENTED YET: Color choice
-    LineStyle line_style;
+    LineStyle line_type;
+    FontStyle font_type;
+    RGBColor color;
+    DrawStyle draw;
     double thickness;
-    int filled;
 } Style;
 
 typedef struct Label {
@@ -59,7 +68,6 @@ typedef struct Hierarchy {
     char * name;
     struct Hierarchy * parent;
     struct Hierarchy ** child;   /* array of child hierarchies */
-    int deep;           
     Size size;
 } Hierarchy;
 
@@ -156,22 +164,6 @@ typedef struct Image {
 /*********************************************************************************
  * Function Definitions
 *********************************************************************************/
-void u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
-char * u_produce_label_name (CAD2D * cad, EntityType type);
-int u_get_hash (Label * l, int q, int p);
-void u_insert_entity_list (CAD2D * cad, Entity * e);
-
-Entity * u_create_entity_filled (Label * l, void * data);
-Entity * u_create_entity_empty (EntityType type);
-
-void u_draw_line (FILE * fid, Point2D * e);
-void u_draw_arc (FILE * fid, Arc * e);
-void u_draw_rectangle (FILE * fid, Rectangle * e);
-void u_draw_polyline (FILE * fid, Point2D * e);
-
-void u_export_eps (CAD2D * cad, FILE * fid);
-void u_export_gtucad(CAD2D * cad, FILE * fid);
-
 CAD2D * c2d_start();
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h);
@@ -182,7 +174,6 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 
 Point2D * c2d_create_point (double x, double y);
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
-
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D *start, Point2D * end);

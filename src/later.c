@@ -1,12 +1,49 @@
-// * permit the user to create new types. rectangle + circle = cirec use as postscript func
+// ! label için point olur birde textfield olur belkide hashcode olur
 
-/*  
-    * cad2d data yapısı farklı turden elemanları tutabiliyor olması gerek
-    * muhtemelen void pointerlı bir linked list olacak list yada agac olacak
+/*
+void u_insert_entity_list (CAD2D * cad, Entity * e) {
+    Entity ** tmp;
+    int i;
+
+    if (cad->list_size.cur == cad->list_size.max) {
+        cad->list_size.max = cad->list_size.max == 0 ? INIT_HASH : cad->list_size.max * 2;        
+        
+        tmp = (Entity **) calloc(cad->list_size.max, sizeof(Entity *));
+
+        if (tmp != NULL) {
+            for (i = 0; i < cad->list_size.cur; ++i)
+                tmp[i] = cad->list[i];
+            
+            free(cad->list);
+            cad->list = tmp;
+        }
+    }
+    cad->list[(cad->list_size.cur)++] = e;
+    u_insert_hash_table(cad->list, e);
+}
+
 */
 
-// ! label için point olur birde textfield olur belkide hashcode olur
-//! Be sure label's are unique to provide this use hash table
+/*
+1 0 0 		 setrgbcolor	red
+0 1 0 		 setrgbcolor	green
+0 0 1 		 setrgbcolor	dark blue
+0 1 1 		 setrgbcolor	light blue
+1 0 1 		 setrgbcolor	magenta
+1 1 0 		 setrgbcolor	yellow
+1 1 1 		 setrgbcolor	white
+0 0 0 		 setrgbcolor	black
+1.0 0.7 0.0  setrgbcolor	orange
+0.7 0.3 1.0  setrgbcolor	purple
+0.7 0.3 0.0  setrgbcolor	brown
+0.0 0.5 0.0  setrgbcolor	dark green
+*/
+
+typedef enum {
+    white, silver, gray, black, red, maroon, yellow, 
+    olive, lime, green, aqua, teal, blue, navy,
+    fuchsia, purple
+} ColorPalette;
 
 /*
     White 	#FFFFFF 	rgb(255, 255, 255)

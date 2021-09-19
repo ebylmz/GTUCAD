@@ -7,6 +7,7 @@
 /*********************************************************************************
  * CAD Start
 *********************************************************************************/
+
 /* Initialize a new cad without any constrain */
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
@@ -76,7 +77,6 @@ Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
     return r;
 }
 
-
 /* links given two hiearchy as child-parent relationship */
 void u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
     Hierarchy ** tmp;
@@ -105,7 +105,6 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        h->deep = 0;    /* Root hierarchy */
         h->parent = NULL;
         h->cad = cad;
         h->child = NULL;
@@ -126,7 +125,6 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
     int i;
     
     if (h != NULL) {
-        h->deep = 1 + parent->deep;
         h->parent = parent;
 
         /* add new hierarchy as child of given parent */
@@ -135,72 +133,112 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
 
     return h;
 }
-
 /*********************************************************************************
  * Label
 *********************************************************************************/
-char * u_produce_label_name (CAD2D * cad, EntityType type) {
+int u_get_hash (char * s, int q, int p) {
+    int i;
+    int code;
+
+    for (i = 0; s[i] != '\0'; ++i)
+        code = (code * q + s[i]) % p;
+    //! Be sure p is the biggest prime number which is smaller than list max size
+    return code;
+}
+
+/* Returns an index of hash value in case of unique label, o.w. returns -1 */
+int u_get_hash_index (CAD2D * cad, Label * l) {
+    int i, r = -2, h = l->hash_code;
+
+    /* find proper where by linear-probing */
+    for (i = 0; cad->list_size.max && r == -2; ++i) {
+        if (h >= cad->list_size.max)
+            h %= cad->list_size.max;
+        
+        /* same hash-code is a sign for same label */
+        if (cad->list[h] != NULL) {
+            if (strcmp(cad->list[h]->label->name, l->name) == 0)
+                r = -1;
+            else
+                ++h;
+        }
+        else
+            r = i; 
+    }
+    return r;
+}
+
+int u_get_tree_depth (Hierarchy * h) {
+    int r;
+    if (h == NULL)
+        r = 0;
+    else
+        r = 1 + u_get_tree_depth(h->parent);
+    return r;
+}
+
+char * u_create_label_name (CAD2D * cad, EntityType type) {
     char name[10];
     char * r;
-    int n, i = 0;
-
-    /* since every hierarchy name's unique thhis process produce unique label */
-
+    int n = 0, i = 0;
     /* 
-        Type + Hierarchy + order
-        First rectangle in hiearchy named h0 will produce 
-            R00
-        Second
-            R01
-        Third polyline in hierarchy named h2 will produce
-            Pl23
+        EntityType + Hierarchy level + instance
+        R00 : First rectangle, hiearchy h0, 0. instance 
+        Pl23: Third polyline in hierarchy h2
     */
 
-    /* add type factor */
     switch (type) {
         case point_t:
-            name[i++] = 'P';
+            name[n++] = 'P';
             break;
         case line_t:
-            name[i++] = 'L';
+            name[n++] = 'L';
             break;
         case spline_t:
-            name[i++] = 'S';
-            name[i++] = 'l';
+            name[n++] = 'S';
+            name[n++] = 'l';
             break;
         case polyline_t:
-            name[i++] = 'P';
-            name[i++] = 'l';
+            name[n++] = 'P';
+            name[n++] = 'l';
             break;
         case polygon_t:
-            name[i++] = 'P';
-            name[i++] = 'g';
+            name[n++] = 'P';
+            name[n++] = 'g';
             break;
         case rectangle_t:
-            name[i++] = 'R';
+            name[n++] = 'R';
             break;
         case circle_t:
-            name[i++] = 'C';
+            name[n++] = 'C';
             break;
         case arc_t:
-            name[i++] = 'A';
+            name[n++] = 'A';
             break;
         case ellipse_t:
-            name[i++] = 'E';
+            name[n++] = 'E';
             break;
         case text_t:
-            name[i++] = 'T';
+            name[n++] = 'T';
             break;
         case image_t:
-            name[i++] = 'I';
+            name[n++] = 'I';
             break;
     }
 
-    //! NOT IMPLEMENTED YET: Better solution needed
-    /* add deep factor */
-    /* add order */
-    name[i++] = cad->hierarchy->deep + '0';
-    name[i++] = '\0';
+    //! what if depth larger than 9
+    name[n++] = u_get_tree_depth(cad->hierarchy) + '0'; 
+
+    /* Be sure produced label is unique, to do that use hash value of new label */
+    do {
+        name[n] = '0' + i;
+        ++i;
+        //! NOT IMPLEMENTED YET: Check if new label name is unique
+    } while ();
+
+    name[++n] = '\0';
+
+    r = calloc(n + 1, sizeof(char));
 
     if (r != NULL) 
         strcpy(r, name);
@@ -209,27 +247,23 @@ char * u_produce_label_name (CAD2D * cad, EntityType type) {
     return r;
 }
 
-int u_get_hash (Label * l, int q, int p) {
-    int i;
-    int code;
+Label * c2d_creat_label_default (CAD2D * cad, EntityType type) {
+    Label * l = (Label *) malloc(sizeof(Label));
+ 
+    if (l != NULL) {
+        l->type = type;
+        l->name = u_create_label_name(cad, type);
+        //! l->hash_code =
+    } 
 
-    //! is mod(p) suitable
-    for (i = 0; l->name[i] != '\0'; ++i)
-        code = (code * q + l->name[i]) % p;
-
-    return code;
+    return l;
 }
 
-/*  Creates an unique label inside the given CAD.
-    For automic naming use "" (empty string) as name    */
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
     Label * l = (Label *) malloc(sizeof(Label));
-
     if (l != NULL) {
         l->type = type;
 
-        /* If user not provided a label name, produce a unique one */
-        //l->name = name[0] == '\0' ? u_produce_label_name(cad, type) : name;
         //! NOT IMPLEMENTED YET: Hash code calling parameters
         // l->hash_code = u_get_hash(l, 10 , PRIME);
 
@@ -242,11 +276,19 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 /*********************************************************************************
  * Adding Basic CAD Entities
 *********************************************************************************/
+/* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
+/*
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
+*/
 
 void u_insert_entity_list (CAD2D * cad, Entity * e) {
     Entity ** tmp;
-    int i;
+    int i, h;
 
+    /* Be sure hash-table has a place for new entity */
     if (cad->list_size.cur == cad->list_size.max) {
         cad->list_size.max = cad->list_size.max == 0 ? INIT_HASH : cad->list_size.max * 2;        
         
@@ -260,13 +302,15 @@ void u_insert_entity_list (CAD2D * cad, Entity * e) {
             cad->list = tmp;
         }
     }
+    
+    i = u_get_hash_index(cad, e->label);
 
-    cad->list[(cad->list_size.cur)++] = e;
+    //! given label is not unique
+    if (i == -1) 
+        printf("NOT UNIQUE\n");
+    else 
+        cad->list[i] = e;
 }
-
-//* /////////////////////////////////////////////////////////
-//! /////////////////////////////////////////////////////////
-//? /////////////////////////////////////////////////////////
 
 /*
 Entity * u_create_entity_filled (Label * l, void * data) {
@@ -279,7 +323,7 @@ Entity * u_create_entity_filled (Label * l, void * data) {
 
     return e;
 }
- */
+*/
 Entity * u_create_entity (EntityType type) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
@@ -331,15 +375,6 @@ Entity * u_create_entity (EntityType type) {
     }
     return e;
 }
-
-// ! any basic 2D shape can have color, thickness and line style       
-/* point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image */
-/*
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
-*/
 
 Point2D * c2d_create_point (double x, double y) {
     Point2D * p = (Point2D *) malloc(sizeof(Point2D));
@@ -395,7 +430,7 @@ Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
 }
 
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {
-    //! NOT IMPLEMENTED YET: data->style
+    //! NOT IMPLEMENTED YET
 }
 
 Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
@@ -417,6 +452,7 @@ Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
     return e != NULL ? e->label : NULL;
 }
 
+//! NOT TESTED YET
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
     Entity * e = u_create_entity(polyline_t);
     Point2D * data;
@@ -484,6 +520,7 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     }
     return e != NULL ? e->label : NULL;
 }
+
 //* Label * c2d_add_rectangle (CAD2D * cad, Point2D center , double width, double hight) {
 
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
@@ -530,6 +567,7 @@ Label * c2d_add_polygons(CAD2D * cad, ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
 
+
 /*********************************************************************************
  * Measurement between two Labels
 *********************************************************************************/
@@ -549,6 +587,63 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
+void u_set_font_style (FILE * fid, FontStyle s, double thickness) {
+     switch (s) {
+        case Helvetica:
+            fprintf(fid, "/Helvetica");
+            break;
+        case Courier:
+            fprintf(fid, "/Courier");
+            break;
+        case Times:
+            fprintf(fid, "/Times");
+            break;
+        case Coronet:
+            fprintf(fid, "/Coronet");
+            break;
+        case Symbol:
+            fprintf(fid, "/Symbol");
+            break;
+        case Albertus:
+            fprintf(fid, "/Albertus");
+            break;
+        case Arial:
+            fprintf(fid, "/Arial");
+            break;
+        case Bodoni:
+            fprintf(fid, "/Bodoni");
+            break;
+        default:
+            /* don't do anyting */
+            return;
+    }
+
+    fprintf(fid, "findfont %.2f scalefont setfont\n", thickness);
+}
+
+void u_set_color (FILE * fid, RGBColor s) {
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s.red, s.green, s.blue);
+}
+
+void u_set_line_Style (FILE * fid, LineStyle s) {
+    if (s == dashed)
+        fprintf(fid, "[3 3] 0 setdash\n");
+    
+}
+void u_set_draw_style (FILE * fid, DrawStyle s) {
+    if (s == fill)
+        fprintf(fid, "fill\n");
+    else
+        fprintf(fid, "stroke\n");
+}
+
+void u_set_style (FILE * fid, Style * s) {
+    u_set_color(fid, s->color);
+    u_set_font_style(fid, s->font_type, s->thickness);
+    u_set_line_Style(fid, s->line_type);
+    u_set_draw_style(fid, s->draw);
+}
+
 void u_draw_line (FILE * fid, Point2D * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
@@ -587,21 +682,6 @@ void u_draw_text (FILE * fid, Text * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     //! NOT IMPLEMENTED YET: 
-}
-
-// in eps mode we do not deal with labels but in gtu mode we do
-void c2d_export (CAD2D * cad, char * file_name, char * options) {
-    FILE * fid = fopen(file_name, "wt");
-
-    if (fid != NULL) {
-        if (strcmp(options, "eps") == 0)
-            u_export_eps(cad, fid);
-        else if (strcmp(options, "gtucad") == 0)
-            u_export_gtucad(cad, fid);
-        //! NOT IMPLEMENTED YET: else 
-
-        fclose(fid);
-    }
 }
 
 void u_export_eps (CAD2D * cad, FILE * fid) {
@@ -675,6 +755,22 @@ printf("label->type: %d\n", e[i]->label->type);
 
 void u_export_gtucad(CAD2D * cad, FILE * fid) {
     //! NOT IMPLEMENTED YET
+}
+
+// in eps mode we do not deal with labels but in gtu mode we do
+
+void c2d_export (CAD2D * cad, char * file_name, char * options) {
+    FILE * fid = fopen(file_name, "wt");
+
+    if (fid != NULL) {
+        if (strcmp(options, "eps") == 0)
+            u_export_eps(cad, fid);
+        else if (strcmp(options, "gtucad") == 0)
+            u_export_gtucad(cad, fid);
+        //! NOT IMPLEMENTED YET: else 
+
+        fclose(fid);
+    }
 }
 
 /* import option for now consist of only "GTUCAD", in the future it can be improved */
