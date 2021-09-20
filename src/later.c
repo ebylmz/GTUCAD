@@ -63,3 +63,63 @@ typedef enum {
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
 */
+/*
+void u_set_font_style (FILE * fid, FontStyle s, double thickness) {
+     switch (s) {
+        case Helvetica:
+            fprintf(fid, "/Helvetica");
+            break;
+        case Courier:
+            fprintf(fid, "/Courier");
+            break;
+        case Times:
+            fprintf(fid, "/Times");
+            break;
+        case Coronet:
+            fprintf(fid, "/Coronet");
+            break;
+        case Symbol:
+            fprintf(fid, "/Symbol");
+            break;
+        case Albertus:
+            fprintf(fid, "/Albertus");
+            break;
+        case Arial:
+            fprintf(fid, "/Arial");
+            break;
+        case Bodoni:
+            fprintf(fid, "/Bodoni");
+            break;
+        default:
+            return;
+
+
+
+    }
+
+    fprintf(fid, " findfont %.2f scalefont setfont\n", thickness);
+}
+
+void u_set_color (FILE * fid, RGBColor s) {
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s.red, s.green, s.blue);
+}
+
+void u_set_line_Style (FILE * fid, LineStyle s) {
+    if (s == dashed)
+        fprintf(fid, "[3 3] 0 setdash\n");
+    
+}
+void u_set_draw_style (FILE * fid, DrawStyle s) {
+    if (s == fill)
+        fprintf(fid, "fill\n");
+    else
+        fprintf(fid, "stroke\n");
+}
+
+void u_set_style (FILE * fid, EntityStyle * s) {
+    u_set_color(fid, s->color);
+    u_set_font_style(fid, s->font, s->thickness);
+    u_set_line_Style(fid, s->line);
+    // u_set_draw_style(fid, s->draw);
+}
+*/

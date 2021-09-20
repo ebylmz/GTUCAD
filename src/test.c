@@ -25,7 +25,7 @@ void test0 () {
         c2d_add_rectangle(cad, start, end);
 
         c2d_export(cad, "test0.eps", "eps");
-        printf("Test0: DONE\n");
+        printf("<<< Test0 DONE >>>\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -33,18 +33,20 @@ void test0 () {
 
 void test1 () {
     CAD2D * cad;
-    Point2D * p;
-
+    Point2D p[5] = {{-100, -50}, {-25, 90}, {50, 70}, {100, 140}, {210, -150}};
+    RGBColor rgb = {1, 0, 1};
+    Point2D * start = c2d_create_point(0, 0); 
+    char * text = "Life is good";
+    TextStyle * style = c2d_create_text_style(Coronet, rgb, 40);
+    
     cad = c2d_start_wh(1000, 1000);
-
+    
     if (cad != NULL) {
-        p = c2d_create_point(0, 0);
-        p->next = c2d_create_point(5, 5);
-
-        c2d_add_polyline(cad, p);
+        c2d_add_polyline(cad, p, 5);
+        c2d_add_text(cad, start, text, style);
 
         c2d_export(cad, "test1.eps", "eps");
-        printf("Test1: DONE\n");
+        printf("<<< Test1 DONE >>>\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -84,9 +86,11 @@ void test2 () {
 */
 
 int main (void) {
+    /**
     test0();
-    /*
+    **/
     test1();
+    /**
     test2();
-    */
+    **/
 }

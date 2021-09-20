@@ -152,10 +152,12 @@ int u_get_hash_code (CAD2D * cad, char * key) {
     int i, r = -2, h = u_hash_function(key, 10, 7);
     //! NOT IMPLEMENTED YET: Hash code calling parameters should be variable inside hash
 
-    //! DELETE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    printf("List-size: %d\nproduced hash value for %s: %d\n", cad->list_size.max, key, h);
-
-    if (cad->list_size.max > 0) {
+    printf("Max-List-Size: %d\nhashInit(%s): %d\n", cad->list_size.max, key, h);
+    
+    /* First label is unique since list initiliazed yet */
+    if (cad->list_size.max == 0) 
+        r = h;
+    else {
         /* hashing by linear-probing */
         for (i = 0; i < cad->list_size.max && r == -2; ++i) {
             if (h >= cad->list_size.max)
@@ -173,7 +175,9 @@ int u_get_hash_code (CAD2D * cad, char * key) {
                 r = h; 
         }
     }
-    return h;
+
+    printf("hashEnd (%s): %d\n\n", key, r);
+    return r;
 }
 
 int u_get_tree_depth (Hierarchy * h) {
@@ -264,8 +268,6 @@ Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
         l->type = type;
         l->name = u_create_label_name(cad, l);
         // l->hash_code = u_get_hash_code(cad, l->name);
-        //! DELETE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        printf("hash code for %s: %d\n\n", l->name, l->hash_code);
     } 
 
     return l;
@@ -286,6 +288,36 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
     }
 
     return l;
+}
+
+/*********************************************************************************
+ * Style
+*********************************************************************************/
+void c2d_set_entity_style (Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
+    //! NOT IMPLEMENTED YET
+}
+
+EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w) {
+    EntityStyle * style = (EntityStyle *) malloc(sizeof(EntityStyle));
+    
+    if (style != NULL) {
+        style->line = l;
+        style->color = c;
+        style->draw = d;
+        style->line_width = w;
+    }
+
+    return style;
+}
+
+TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s) {
+    TextStyle * style = (TextStyle *) malloc(sizeof(EntityStyle));
+
+    if (style != NULL) {
+        style->color = c;
+        style->font = f;
+        style->scale = s;
+    }
 }
 
 /*********************************************************************************
@@ -464,28 +496,19 @@ Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
 }
 
 //! NOT TESTED YET
-Label * c2d_add_polyline (CAD2D * cad, Point2D * p) {
+Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     Entity * e = u_create_entity(polyline_t);
     Point2D * data;
     Point2D ** trav;
+    int i;
 
     if (e != NULL) {
-        data = (Point2D *) e->data;
-        trav = &data;
+        trav = (Point2D **) &e->data;
 
-        while (p != NULL) {
-            *trav = c2d_create_point(p->x, p->y);
-            
-            if (*trav != NULL) {
-                trav = &(*trav)->next;
-                p = p->next;
-            }
-            else    
-                break;
-            //! NOT IMPLEMENTED YET: else
+        for (i = 0; i < size; ++i) {
+            *trav = c2d_create_point(p[i].x, p[i].y);
+            trav = &(*trav)->next;
         }
-        /* lastly trav will point the last Point2D pointer */
-        *trav = NULL;
 
         e->label = c2d_create_label_default(cad, polyline_t);
         u_insert_entity_list(cad, e);
@@ -550,7 +573,7 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
     return e != NULL ? e->label : NULL;
 }
 
-Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text) {
+Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text, TextStyle * style) {
     Entity * e = u_create_entity(text_t);
     Text * data;
 
@@ -558,7 +581,7 @@ Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text) {
         data = (Text *) e->data;
         data->point.x = point->x;
         data->point.y = point->y;
-        //! NOT IMPLEMENTED YET: data->style
+        data->style = style;
         data->text = (char *) calloc(strlen(text), sizeof(char));
 
         if (data->text != NULL)
@@ -577,7 +600,6 @@ Label * c2d_add_splines(CAD2D * cad, ...) {}
 Label * c2d_add_polygons(CAD2D * cad, ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
-
 
 /*********************************************************************************
  * Measurement between two Labels
@@ -598,8 +620,45 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 /*********************************************************************************
  * Import & Export & Memory Deletion
 *********************************************************************************/
-void u_set_font_style (FILE * fid, FontStyle s, double thickness) {
-     switch (s) {
+RGBColor u_convert_rgb (Color c) {
+    RGBColor rgb;
+
+    switch (c) {
+        case red:
+            rgb.red = 1, rgb.green = 0, rgb.blue = 0; break;
+        case green:
+            rgb.red = 0, rgb.green = 1, rgb.blue = 0; break;
+        case green_dark:
+            rgb.red = 0, rgb.green = 0.5, rgb.blue = 0; break;
+        case blue:
+            rgb.red = 0, rgb.green = 0, rgb.blue = 1; break;
+        case blue_light:
+            rgb.red = 0, rgb.green = 1, rgb.blue = 1; break;
+        case magenta:
+            rgb.red = 1, rgb.green = 0, rgb.blue = 1; break;
+        case yellow:
+            rgb.red = 1, rgb.green = 1, rgb.blue = 0; break;
+        case orange:
+            rgb.red = 1, rgb.green = 0.7, rgb.blue = 0; break;
+        case purple:
+            rgb.red = 0.7, rgb.green = 0.3, rgb.blue = 1; break;
+        case brown:
+            rgb.red = 0.7, rgb.green = 0.3, rgb.blue = 0; break;
+        case white:
+            rgb.red = 1, rgb.green = 1, rgb.blue = 1; break;
+        case black:
+        default:
+            rgb.red = 0, rgb.green = 0, rgb.blue = 0;
+    }
+
+    return rgb;
+}
+
+/* set font, color and scale of the text */
+void u_print_text_style (FILE * fid, TextStyle * s) {
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
+
+    switch (s->font) {
         case Helvetica:
             fprintf(fid, "/Helvetica");
             break;
@@ -629,44 +688,37 @@ void u_set_font_style (FILE * fid, FontStyle s, double thickness) {
             return;
     }
 
-    fprintf(fid, "findfont %.2f scalefont setfont\n", thickness);
+    fprintf(fid, " findfont %.2f scalefont setfont\n", s->scale);
 }
 
-void u_set_color (FILE * fid, RGBColor s) {
-    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s.red, s.green, s.blue);
+void u_print_entity_style (FILE * fid, EntityStyle * s) {
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
+    fprintf(fid, "%.2f setlinewidth\n", s->line_width);
+    fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
+    fprintf(fid, s->draw == fill ? "fill" : "stroke");
 }
 
-void u_set_line_Style (FILE * fid, LineStyle s) {
-    if (s == dashed)
-        fprintf(fid, "[3 3] 0 setdash\n");
-    
-}
-void u_set_draw_style (FILE * fid, DrawStyle s) {
-    if (s == fill)
-        fprintf(fid, "fill\n");
-    else
-        fprintf(fid, "stroke\n");
+void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
+    fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
+    fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
+    fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
+    u_print_entity_style(fid, s);
 }
 
-void u_set_style (FILE * fid, Style * s) {
-    u_set_color(fid, s->color);
-    u_set_font_style(fid, s->font_type, s->thickness);
-    u_set_line_Style(fid, s->line_type);
-    u_set_draw_style(fid, s->draw);
-}
-
-void u_draw_line (FILE * fid, Point2D * e) {
+void u_print_line (FILE * fid, Point2D * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
     fprintf(fid, "%.2f %.2f lineto\n", e->next->x, e->next->y);
 }
 
-void u_draw_arc (FILE * fid, Arc * e) {
+void u_print_arc (FILE * fid, Arc * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
 }
 
-void u_draw_rectangle (FILE * fid, Rectangle * e) {
+void u_print_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->cornerC.y - e->cornerA.y),
             width = (e->cornerC.x - e->cornerA.x);
 
@@ -678,7 +730,7 @@ void u_draw_rectangle (FILE * fid, Rectangle * e) {
     fprintf(fid, "closepath\n");
 } 
 
-void u_draw_polyline (FILE * fid, Point2D * e) {
+void u_print_polyline (FILE * fid, Point2D * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
     e = e->next;
@@ -689,10 +741,11 @@ void u_draw_polyline (FILE * fid, Point2D * e) {
     }
 }
 
-void u_draw_text (FILE * fid, Text * e) {
+void u_print_text (FILE * fid, Text * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
-    //! NOT IMPLEMENTED YET: 
+    u_print_text_style(fid, e->style);
+    fprintf(fid, "(%s) show\n", e->text);
 }
 
 void u_export_eps (CAD2D * cad, FILE * fid) {
@@ -705,48 +758,50 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
     if (cad->canvas != NULL)
         fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
-//! DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE DELETE 
-printf("list size: %d\n", cad->list_size.cur);
+        printf("Entity Number: %d\n", cad->list_size.cur);
+        printf("EXPORT:\n");
 
-    for (i = 0; i < cad->list_size.cur; ++i) {
-        switch (e[i]->label->type) {
-            case point_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case line_t:
-                u_draw_line(fid, (Point2D *) e[i]->data);
-                fprintf(fid, "stroke\n");
-                break;
-            case spline_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case polyline_t:
-                u_draw_polyline(fid, (Point2D *) e[i]->data);
-                fprintf(fid, "stroke\n");
-                break;
-            case polygon_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case rectangle_t:
-                u_draw_rectangle(fid, (Rectangle *) e[i]->data);
-                fprintf(fid, "stroke\n");
-                break;
-            case circle_t:
-            case arc_t:
-                u_draw_arc(fid, (Arc *) e[i]->data);
-                fprintf(fid, "stroke\n");
-                break;
-            case ellipse_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case text_t:
-                u_draw_text(fid, (Text *) e[i]->data);
-                fprintf(fid, "stroke\n");
-                break;
-            case image_t:
-                //! NOT IMPLEMENTED YET
-                break;
-                //!  NOT IMPLEMENTED YET: default:
+    for (i = 0; i < cad->list_size.max; ++i) {
+        if (e[i] != NULL) {
+            printf("\tc: %s\th: %d\n", e[i]->label->name, e[i]->label->hash_code);
+            switch (e[i]->label->type) {
+                case point_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case line_t:
+                    u_print_line(fid, (Point2D *) e[i]->data);
+                    fprintf(fid, "stroke\n");
+                    break;
+                case spline_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case polyline_t:
+                    u_print_polyline(fid, (Point2D *) e[i]->data);
+                    fprintf(fid, "stroke\n");
+                    break;
+                case polygon_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case rectangle_t:
+                    u_print_rectangle(fid, (Rectangle *) e[i]->data);
+                    fprintf(fid, "stroke\n");
+                    break;
+                case circle_t:
+                case arc_t:
+                    u_print_arc(fid, (Arc *) e[i]->data);
+                    fprintf(fid, "stroke\n");
+                    break;
+                case ellipse_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case text_t:
+                    u_print_text(fid, (Text *) e[i]->data);
+                    break;
+                case image_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                    //!  NOT IMPLEMENTED YET: default:
+            }
         }
     }
     fprintf(fid, "\nshowpage\n");

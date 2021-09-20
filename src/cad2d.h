@@ -8,7 +8,6 @@
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
-
 typedef enum {
     point_t, line_t, spline_t, polyline_t, polygon_t,
     rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
@@ -19,7 +18,7 @@ typedef struct {
 } RGBColor;
 
 typedef enum {
-    red, green, green_dark, blue_dark, blue_light, magenta,
+    red, green, green_dark, blue, blue_light, magenta,
     yellow, white, black, orange, purple, brown 
 } Color;
 
@@ -28,7 +27,6 @@ typedef enum {
 } FontStyle;
 
 typedef enum {
-// ! any basic 2D shape can have color, thickness and line style       
     dashed, solid
 } LineStyle;
 
@@ -36,16 +34,31 @@ typedef enum  {
     stroke, fill
 } DrawStyle;
 
-// ! any basic 2D shape can have color, thickness and line style       
+//! NOT IMPLEMENTED YET: Set proper values
+/*
+typedef enum {
+    small, medium, large
+} LineWidth;
 
+typedef enum {
+    small, medium, large
+} FontScale;
+*/
+
+// ! any basic 2D shape can have color, thickness and line style       
 //* use -1 for default style choices
-typedef struct Style {
-    LineStyle line_type;
-    FontStyle font_type;
+typedef struct {
+    LineStyle line;
     RGBColor color;
     DrawStyle draw;
-    double thickness;
-} Style;
+    double line_width;
+} EntityStyle;
+
+typedef struct {
+    FontStyle font;
+    double scale; //! ???
+    RGBColor color;
+} TextStyle;
 
 typedef struct Label {
     EntityType type;    /* identifies the type of the cad entity */
@@ -56,7 +69,7 @@ typedef struct Label {
 typedef struct Entity {
     Label * label;      /* unique label to identify cad entities */
     void * data;        /* specific data for the entity like radius for Circle type */
-    //! Style style;    
+    //! EntityStyle style;    
 } Entity;
 
 typedef struct Size {
@@ -98,20 +111,20 @@ typedef struct CAD2D {
 /*
 typedef struct Line {
     Point2D start, end;
-    Style style;
+    EntityStyle style;
 } Line;
 
 typedef struct Polyline {
     Point2D point;
     // struct Polyline * next;
-    Style style;
+    EntityStyle style;
 } Polyline;
 
 
 typedef struct Polygon {
     Point2D point;
     struct Polyline * next;
-    Style style;
+    EntityStyle style;
     //! NOT IMPLMENTED YET
 } Polygon;
 */
@@ -120,20 +133,20 @@ typedef struct Arc {
     Point2D center;
     double radius;
     double start_angle, end_angle;
-    Style style;
+    EntityStyle style;
 } Arc; 
 
 typedef struct Circle {
     Point2D center;
     double radius;
     double start_angle, end_angle;
-    Style style;
+    EntityStyle style;
 } Circle;
 
 typedef struct Text {
     Point2D point;
     char * text;
-    Style style;
+    TextStyle * style;
 } Text;
 
 /*
@@ -143,7 +156,7 @@ typedef struct Text {
 */
 typedef struct Rectangle {
     Point2D cornerA, cornerC;
-    Style style;
+    EntityStyle style;
     //* NOT IMPLMENTED YET
 } Rectangle;
 
@@ -174,13 +187,17 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 
 Point2D * c2d_create_point (double x, double y);
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
+EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w);
+TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D *start, Point2D * end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
-Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
+// Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
+Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
+Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text, TextStyle * style);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);
