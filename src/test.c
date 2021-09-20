@@ -33,17 +33,31 @@ void test0 () {
 
 void test1 () {
     CAD2D * cad;
-    Point2D p[5] = {{-100, -50}, {-25, 90}, {50, 70}, {100, 140}, {210, -150}};
-    RGBColor rgb = {1, 0, 1};
-    Point2D * start = c2d_create_point(0, 0); 
+    Label * label;
     char * text = "Life is good";
-    TextStyle * style = c2d_create_text_style(Coronet, rgb, 40);
+    Point2D start;
+    TextStyle * style;
+    int x = 400, n = 5;
+    RGBColor c1 = {0, 0, 0}, c2 = {1, 0.5, 0};
+    Point2D p[9] = {{-x, 0}, {-x/n, x/n}, {0, x}, {x/n, x/n}, {x, 0},
+                    {x/n, -x/n}, {0, -x}, {-x/n, -x/n}, {-x, 0}};
     
     cad = c2d_start_wh(1000, 1000);
     
     if (cad != NULL) {
-        c2d_add_polyline(cad, p, 5);
-        c2d_add_text(cad, start, text, style);
+        start.x = 0;
+        start.y = 0;
+        start.next = NULL;
+        label = c2d_add_circle(cad, start, x/n);
+        c2d_set_entity_style(cad, label, solid, c2, stroke, 2);
+        
+        label = c2d_add_polyline(cad, p, 9);
+        c2d_set_entity_style(cad, label, dashed, c1, fill, 2);
+
+        start.x = -400;
+        start.y = -400;
+        style = c2d_create_text_style(Coronet, c1, 40);
+        c2d_add_text(cad, &start, text, style);
 
         c2d_export(cad, "test1.eps", "eps");
         printf("<<< Test1 DONE >>>\n");

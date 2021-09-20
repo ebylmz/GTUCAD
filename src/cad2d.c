@@ -54,8 +54,7 @@ char * u_create_hierarchy_name (Hierarchy * h) {
     return r;    
 }
 
-
-//! NOT TESTED YET
+//! NOT TESTED YET, hashing problem here 
 Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
     int i;
     Hierarchy * r = NULL;
@@ -65,7 +64,7 @@ Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
         for (i = 0; i < cad->hierarchy->size.cur && r == NULL; ++i)
             if (cad->hierarchy->child[i] == h)
                 r = h;
-        /* if it isn't finded yet, look the children's children */
+        /* if isn't founded yet, look the children's children */
         if (r == NULL) {
             for (i = 0; i < cad->hierarchy->size.cur && r == NULL; ++i)
                 r = u_find_hierarchy(cad->hierarchy->child[i]->cad, h);
@@ -184,10 +183,10 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 /*********************************************************************************
  * Label
 *********************************************************************************/
-/* Produce a hash code according to given string */
+/* Produce a hash-code according to given string */
 int u_hash_function (char * s, int q, int p) {
     int i;
-    int code;
+    int code = 0;
 
     //! Be sure p is the biggest prime number which is smaller than list max size
     for (i = 0; s[i] != '\0'; ++i)
@@ -322,8 +321,42 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 /*********************************************************************************
  * Style
 *********************************************************************************/
-void c2d_set_entity_style (Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
-    //! NOT IMPLEMENTED YET
+Entity * u_find_entity (CAD2D * cad, Label * l) {
+    Entity * e = NULL, * tmp;    
+    int i, h = l->hash_code;
+
+    
+    for (i = 0; i < cad->list_size.max && e == NULL; ++i) {
+        if (h >= cad->list_size.max)
+            h %= cad->list_size.max;
+
+        tmp = cad->list[h + i];
+        if (tmp != NULL && strcmp(l->name, tmp->label->name) == 0)
+            e = tmp;
+    } 
+    //! NOT IMPLEMENTED YET: Also check other hierarchies 
+    return e;
+}
+
+/* set's the style of entity by given it's label */
+EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
+    EntityStyle * style = NULL;
+    Entity * e = u_find_entity(cad, label); 
+    
+    if (e != NULL) {
+        style = (EntityStyle *) malloc(sizeof(EntityStyle));
+
+        if (style != NULL) {
+            style->color = c;
+            style->draw = d;
+            style->line = l;
+            style->line_width = w;
+
+            e->style = style;
+        }
+    }
+
+    return style;
 }
 
 EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w) {
@@ -394,6 +427,7 @@ Entity * u_create_entity_filled (Label * l, void * data) {
     return e;
 }
 */
+
 Entity * u_create_entity (EntityType type) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
@@ -724,7 +758,7 @@ void u_print_entity_style (FILE * fid, EntityStyle * s) {
     fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
     fprintf(fid, "%.2f setlinewidth\n", s->line_width);
     fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
-    fprintf(fid, s->draw == fill ? "fill" : "stroke");
+    fprintf(fid, s->draw == fill ? "fill\n" : "stroke\n");
 }
 
 void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
@@ -733,7 +767,6 @@ void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
     fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
-    u_print_entity_style(fid, s);
 }
 
 void u_print_line (FILE * fid, Point2D * e) {
@@ -799,26 +832,22 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
                     break;
                 case line_t:
                     u_print_line(fid, (Point2D *) e[i]->data);
-                    fprintf(fid, "stroke\n");
                     break;
                 case spline_t:
                     //! NOT IMPLEMENTED YET
                     break;
                 case polyline_t:
                     u_print_polyline(fid, (Point2D *) e[i]->data);
-                    fprintf(fid, "stroke\n");
                     break;
                 case polygon_t:
                     //! NOT IMPLEMENTED YET
                     break;
                 case rectangle_t:
                     u_print_rectangle(fid, (Rectangle *) e[i]->data);
-                    fprintf(fid, "stroke\n");
                     break;
                 case circle_t:
                 case arc_t:
                     u_print_arc(fid, (Arc *) e[i]->data);
-                    fprintf(fid, "stroke\n");
                     break;
                 case ellipse_t:
                     //! NOT IMPLEMENTED YET
@@ -831,6 +860,9 @@ void u_export_eps (CAD2D * cad, FILE * fid) {
                     break;
                     //!  NOT IMPLEMENTED YET: default:
             }
+
+            if (e[i]->style != NULL)
+                u_print_entity_style(fid, e[i]->style);
         }
     }
     fprintf(fid, "\nshowpage\n");

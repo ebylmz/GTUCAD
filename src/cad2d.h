@@ -72,8 +72,8 @@ typedef struct Label {
 
 typedef struct Entity {
     Label * label;      /* unique label to identify cad entities */
-    void * data;        /* specific data for the entity like radius for Circle type */
-    //! EntityStyle style;    
+    void * data;        /* drawing data like radius, width... */
+    EntityStyle * style;   
 } Entity;
 
 typedef struct Size {
@@ -103,7 +103,7 @@ typedef struct CAD2D {
     Canvas * canvas;
     Size list_size;         
     Entity ** list;         /* hash table for keeping entities */
-    Hierarchy * hierarchy;  /* to reach all the CAD entities */    
+    Hierarchy * hierarchy;  /* to reach all the CAD entities */   
 } CAD2D;
 
 /*********************************************************************************
@@ -121,15 +121,12 @@ typedef struct Line {
 typedef struct Polyline {
     Point2D point;
     // struct Polyline * next;
-    EntityStyle style;
 } Polyline;
 
 
 typedef struct Polygon {
     Point2D point;
     struct Polyline * next;
-    EntityStyle style;
-    //! NOT IMPLMENTED YET
 } Polygon;
 */
 
@@ -137,14 +134,12 @@ typedef struct Arc {
     Point2D center;
     double radius;
     double start_angle, end_angle;
-    EntityStyle style;
 } Arc; 
 
 typedef struct Circle {
     Point2D center;
     double radius;
     double start_angle, end_angle;
-    EntityStyle style;
 } Circle;
 
 typedef struct Text {
@@ -160,7 +155,6 @@ typedef struct Text {
 */
 typedef struct Rectangle {
     Point2D cornerA, cornerC;
-    EntityStyle style;
     //* NOT IMPLMENTED YET
 } Rectangle;
 
@@ -190,9 +184,14 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
 Point2D * c2d_create_point (double x, double y);
+
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
+
 EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w);
+EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
 TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s);
+
+
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D *start, Point2D * end);
