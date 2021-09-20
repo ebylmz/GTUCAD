@@ -8,6 +8,10 @@
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
+typedef struct {
+    int p, q;
+} HashInfo;
+
 typedef enum {
     point_t, line_t, spline_t, polyline_t, polygon_t,
     rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t

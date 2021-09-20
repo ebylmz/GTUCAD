@@ -7,6 +7,54 @@
 /*********************************************************************************
  * Hierarchy
 *********************************************************************************/
+int u_get_tree_depth (Hierarchy * h) {
+    int r;
+    if (h == NULL)
+        r = 0;
+    else
+        r = 1 + u_get_tree_depth(h->parent);
+    return r;
+}
+
+char * u_deci_to_hexa (int deci) {
+    int r, i, j;
+    char tmp[20], * hexa;
+
+    for (i = 0; deci > 0; ++i) {
+        r = deci % 16;
+        if (r < 10)
+            tmp[i] =  r + '0';
+        else
+            tmp[i] = r - 10 + 'A';
+        
+        deci /= 16;
+    }
+
+    hexa = (char *) calloc(i + 1, sizeof(char));
+
+    if (hexa != NULL) {
+        j = 0;
+
+        while (i >= 0)
+            hexa[j++] = tmp[--i];
+        hexa[j] = '\0';
+    }
+
+    return hexa;
+}
+
+char * u_create_hierarchy_name (Hierarchy * h) {
+    char * tmp = u_deci_to_hexa((u_get_tree_depth(h)));;
+    char * r = (char *) calloc(strlen(tmp) + 2, sizeof(char));
+
+    r[0] = 'h';
+    strcpy(r + 1, tmp);
+
+    free(tmp);
+    return r;    
+}
+
+
 //! NOT TESTED YET
 Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
     int i;
@@ -60,7 +108,7 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
         h->size.max = 0;
         h->size.cur = 0;
 
-        cad->hierarchy = h;
+        cad->hierarchy = h; //???????????????
     }
 
     return h;
@@ -180,71 +228,53 @@ int u_get_hash_code (CAD2D * cad, char * key) {
     return r;
 }
 
-int u_get_tree_depth (Hierarchy * h) {
-    int r;
-    if (h == NULL)
-        r = 0;
-    else
-        r = 1 + u_get_tree_depth(h->parent);
-    return r;
-}
-
 char * u_create_label_name (CAD2D * cad, Label * l) {
-    char name[10];
-    char * r;
+    char name[10], * tmp;
+    char * r = NULL;
     int n = 0, i = 0;
     /* 
-        EntityType + Hierarchy level + instance
-        R00 : First rectangle, hiearchy h0, 0. instance 
-        Pl23: Third polyline in hierarchy h2
+        EntityType + Hierarchy level/depth + instance
+        R00 : First rectangle, hiearchy depth 0, 0. instance 
+        Pl23: Third polyline at hierarchy depth 2
     */
 
     switch (l->type) {
         case point_t:
-            name[n++] = 'P';
-            break;
+            name[n++] = 'P';    break;
         case line_t:
-            name[n++] = 'L';
-            break;
+            name[n++] = 'L';    break;
         case spline_t:
             name[n++] = 'S';
-            name[n++] = 'l';
-            break;
+            name[n++] = 'l';    break;
         case polyline_t:
             name[n++] = 'P';
-            name[n++] = 'l';
-            break;
+            name[n++] = 'l';    break;
         case polygon_t:
             name[n++] = 'P';
-            name[n++] = 'g';
-            break;
+            name[n++] = 'g';    break;
         case rectangle_t:
-            name[n++] = 'R';
-            break;
+            name[n++] = 'R';    break;
         case circle_t:
-            name[n++] = 'C';
-            break;
+            name[n++] = 'C';    break;
         case arc_t:
-            name[n++] = 'A';
-            break;
+            name[n++] = 'A';    break;
         case ellipse_t:
-            name[n++] = 'E';
-            break;
+            name[n++] = 'E';    break;
         case text_t:
-            name[n++] = 'T';
-            break;
+            name[n++] = 'T';    break;
         case image_t:
-            name[n++] = 'I';
-            break;
+            name[n++] = 'I';    break;
     }
 
-    //! what if depth larger than 9
-    name[n++] = u_get_tree_depth(cad->hierarchy) + '0'; 
+    tmp = u_deci_to_hexa(u_get_tree_depth(cad->hierarchy)); 
 
-    /* Be sure produced label is unique, to do that use hash value of new label */
+    for (i = 1; tmp[i] != '\0'; ++i)
+        name[n++] = tmp[i];
     name[n + 1] = '\0';
     
-    /* rc00, rc01, rc02, rc03... */
+    free(tmp);
+
+    /* Be sure produced label is unique, to do that use hash value of new label */
     do {
         name[n] = '0' + i;
         ++i;
@@ -255,7 +285,6 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
 
     if (r != NULL) 
         strcpy(r, name);
-    //! NOT IMPLEMENTED YET: Else
 
     return r;
 }
