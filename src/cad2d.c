@@ -202,22 +202,21 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
  * Label
 *********************************************************************************/
 /* Produce a hash-code according to given string */
-int u_hash_function (char * s, int q, int p) {
+int u_create_hash_code (char * key, int q, int p) {
     int i;
     int code = 0;
 
     //! Be sure p is the biggest prime number which is smaller than elist max size
-    for (i = 0; s[i] != '\0'; ++i)
-        code = (code * q + s[i]) % p;
+    for (i = 0; key[i] != '\0'; ++i)
+        code = (code * q + key[i]) % p;
     return code;
 }
 
-/* Returns an index of hash value in case of unique label, o.w. returns -1 */
-int u_get_hash_code (CAD2D * cad, char * key) {
-    int i, r = -2, h = u_hash_function(key, 10, 7);
-    //! NOT IMPLEMENTED YET: Hash code calling parameters should be variable inside hash
+/* returns the index of it's index if it's unique, o.w. returns -1 */
+int u_check_unique_label (CAD2D * cad, Label * l) {
+    int i, r = -2, h = l->hash_code;
 
-    printf("Max-List-Size: %d\nhashInit(%s): %d\n", cad->list_size.max, key, h);
+    printf("Max-List-Size: %d\nhashInit(%s): %d\n", cad->list_size.max, l->name, h);
     
     /* First label is unique since elist initiliazed yet */
     if (cad->list_size.max == 0) 
@@ -231,7 +230,7 @@ int u_get_hash_code (CAD2D * cad, char * key) {
             /* same hash-code is a sign for same key */
             if (cad->elist[h] != NULL) {
                 printf("...\n");
-                if (strcmp(cad->elist[h]->label->name, key) == 0)
+                if (strcmp(cad->elist[h]->label->name, l->name) == 0)
                     r = -1;
                 else
                     ++h;
@@ -241,7 +240,7 @@ int u_get_hash_code (CAD2D * cad, char * key) {
         }
     }
 
-    printf("hashEnd (%s): %d\n\n", key, r);
+    printf("hashEnd (%s): %d\n\n", l->name, r);
     return r;
 }
 
@@ -278,7 +277,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
         case image_t:
             name[n++] = 'I';    break;
     }
-
+    //! we can check directly from it's hierarchy name if it's default
     tmp = u_deci_to_hexa(u_get_tree_depth(cad->hierarchy)); 
 
     for (i = 1; tmp[i] != '\0'; ++i)
@@ -286,13 +285,17 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     name[n + 1] = '\0';
     
     free(tmp);
-
+    
+    //! Use haxadecimal value
+    
     /* Be sure produced label is unique, to do that use hash value of new label */
     do {
         name[n] = '0' + i;
         ++i;
-        l->hash_code = u_get_hash_code(cad, name);
-    } while (i < 10 && l->hash_code == -1);
+        /* calculate the hash-code of new created name */
+        l->name = name;
+        l->hash_code = u_create_hash_code(name, 10, 7);  //!!! Parameters should be variable
+    } while (i < 10 && u_check_unique_label(cad, l) == -1);
 
     r = calloc(n + 2, sizeof(char));
 
@@ -301,6 +304,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
 
     return r;
 }
+
 /* Creates an default unique label  */
 Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
     Label * l = (Label *) malloc(sizeof(Label));
@@ -309,7 +313,6 @@ Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
         //* create_label function produce unique label
         l->type = type;
         l->name = u_create_label_name(cad, l);
-        // l->hash_code = u_get_hash_code(cad, l->name);
     } 
 
     return l;
@@ -320,9 +323,9 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
     if (l != NULL) {
         l->type = type;
         l->name = name;
-        l->hash_code = u_get_hash_code(cad, l->name);
+        l->hash_code = u_create_hash_code(name, 10, 17); //!!!!!!
 
-        if (l->hash_code == -1) {
+        if (u_check_unique_label(cad, l) == -1) {
             printf("Given label name is already exist\n");
             free(l);
             l = NULL;
@@ -440,18 +443,6 @@ void u_insert_entity_list (CAD2D * cad, Entity * e) {
     cad->elist[e->label->hash_code] = e;
 }
 
-/*
-Entity * u_create_entity_filled (Label * l, void * data) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = data;
-        e->label = l;
-    }
-
-    return e;
-}
-*/
 
 /* common for point and lines */
 void u_free_point (Point2D * p) {
