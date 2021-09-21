@@ -41,8 +41,6 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
     return l;
 }
 
-
-
 // ! label için point olur birde textfield olur belkide hashcode olur
 /*
 1 0 0 		 setrgbcolor	red

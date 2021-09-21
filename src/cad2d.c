@@ -508,53 +508,19 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
     *l = NULL;
 }
 
-Entity * u_create_entity (EntityType type) {
+/* Creates an entity with giveb parameters ans save that entity to the lists of CAD */
+Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
     Entity * e = (Entity *) malloc(sizeof(Entity));
 
     if (e != NULL) {
-        e->data = NULL;
+        e->data = d;
+        e->label = l;
+        e->style = s;
 
-        switch (type) {
-            case point_t:
-            case line_t:
-            case polyline_t:
-            case polygon_t:
-                e->data = (Point2D *) malloc (sizeof(Point2D));
-                break;
-            case spline_t:
-                e->data = (Spline *) malloc (sizeof(Spline));
-                break;
-            case rectangle_t:
-                e->data = (Rectangle *) malloc (sizeof(Rectangle));
-                break;
-            case circle_t:
-            case arc_t:
-                e->data = (Circle *) malloc (sizeof(Circle));
-                break;
-            case ellipse_t:
-                e->data = (Ellipse *) malloc (sizeof(Ellipse));
-                break;
-            case text_t:
-                e->data = (Text *) malloc (sizeof(Text));
-                break;
-            case image_t:
-                e->data = (Image *) malloc (sizeof(Image));
-                break;
-        }
-           
-        if (e->data == NULL) {
-            free(e);
-            e = NULL;
-        }
-        else {
-            e->label = (Label *) malloc(sizeof(Label));
-            if (e->label == NULL) {
-                free(e->data);
-                free(e);
-                e = NULL;
-            }
-        }
+        u_insert_entity_list(cad, e);
+        u_insert_label_list(&cad->llist, e->label); 
     }
+    
     return e;
 }
 
@@ -587,41 +553,51 @@ Point2D * c2d_create_point (double x, double y) {
 
 //! NOT TESTED YET:
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
-    Entity * e = u_create_entity(point_t);
-    Point2D * data;
+    Point2D * d = c2d_create_point(x, y);
+    Label * l = NULL;
 
-    if (e != NULL) {
-        data = (Point2D *) e->data;
-        data->x = x;
-        data->y = y;
-        data->next = NULL;
-        //! check if we are in canvas area
-        e->label = c2d_create_label_default(cad, point_t);
-        u_insert_entity_list(cad, e); 
-        u_insert_label_list(&cad->llist, e->label); 
+    if (d != NULL && u_is_in_canvas(cad->canvas, d)) {
+        if (d != NULL) {
+            l = c2d_create_label_default(cad, point_t);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
     }
-
-    return e != NULL ? e->label : NULL;
+    else
+        free(d);
+    
+    return l;
 }
 
 //! NOT TESTED YET:
 Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
-    Entity * e = u_create_entity(point_t);
-    Point2D * data;
+    Point2D * d = (Point2D *) malloc(sizeof(Point2D));
+    Label * l = NULL;
 
-    if (e != NULL) {
-        data = (Point2D *) e->data;
+    /* Be sure there is only one point */
+    p.next = NULL;
 
-        data->x = p.x;
-        data->y = p.y;
-        data->next = NULL;
-        
-        e->label = c2d_create_label_default(cad, point_t);
-        u_insert_entity_list(cad, e); 
-        u_insert_label_list(&cad->llist, e->label); 
+    if (u_is_in_canvas(cad->canvas, &p)) {
+        if (d != NULL) {
+            d->x = p.x;
+            d->y = p.y;
+            d->next = NULL;
+
+            l = c2d_create_label_default(cad, point_t);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d); 
+        }
     }
-
-    return e != NULL ? e->label : NULL;
+    else
+        free(d);
+    
+    return l;
 }
 
 //! NOT TESTED YET:
@@ -642,147 +618,151 @@ Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const La
 }
 
 Label * c2d_add_line (CAD2D * cad, Point2D * start, Point2D * end) {
-    Entity * e = u_create_entity(line_t);
-    Point2D * data;
+    Point2D * head;
+    Label * l = NULL;
 
-    if (e != NULL) {
-        data = (Point2D *) e->data;
-        data->x = start->x;
-        data->y = start->y;
-        data->next = c2d_create_point(end->x, end->y);
-
-        if (u_is_in_canvas(cad->canvas, data)) {
-            e->label = c2d_create_label_default(cad, line_t);
-            u_insert_entity_list(cad, e); 
-            u_insert_label_list(&cad->llist, e->label); 
-        }
-        else {
-            u_free_entity(e);
-            e = NULL;
-        }
+    if (u_is_in_canvas(cad->canvas, start) && u_is_in_canvas(cad->canvas, end)) {
+        head = c2d_create_point(start->x, start->y);
+        head->next = c2d_create_point(end->x, end->y);
+        
+        l = c2d_create_label_default(cad, line_t);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point(head);
     }
-    
-    return e != NULL ? e->label : NULL;
+
+    return l;
 }
 
 //! NOT TESTED YET
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
-    Entity * e = u_create_entity(polyline_t);
-    Point2D * data;
-    Point2D ** trav;
+    Point2D * head, * trav;
+    Label * l = NULL;
     int i;
 
-    if (e != NULL && u_is_in_canvas(cad->canvas, p)) {
-        trav = (Point2D **) &e->data;
-
-        for (i = 0; i < size; ++i) {
-            *trav = c2d_create_point(p[i].x, p[i].y);
-            trav = &(*trav)->next;
+    if (u_is_in_canvas(cad->canvas, p)) {
+        trav = head = c2d_create_point(p[0].x, p[0].y);
+        
+        for (i = 1; i < size; ++i) {
+            trav->next = c2d_create_point(p[i].x, p[i].y);
+            trav = trav->next;
         }
-        e->label = c2d_create_label_default(cad, polyline_t);
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
+        
+        l = c2d_create_label_default(cad, polyline_t);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point(head);
     }
-    else
-        u_free_entity(e);
     
-    return e != NULL ? e->label : NULL;
+    return l;
 }
 
-Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
-    Entity * e = u_create_entity(circle_t);
-    Circle * data;
+Label * c2d_add_polygone (CAD2D * cad, Point2D * p, int size) {
+    return c2d_add_polyline(cad, p, size);
+}
 
-    if (e != NULL) {
-        //! Check if it's in canvas
-        data = (Circle *) e->data;
-        data->center = center;
-        data->radius = radius;
-        data->start_angle = 0.0;
-        data->end_angle = 360.0;
+
+Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
+    Circle * d = (Circle *) malloc(sizeof(Circle));
+    Label * l = NULL;
+    
+    if (d != NULL) {
+        //! Check if it's in canvas, we need an another function for checkinh x-y values
+        d->center = center;
+        d->radius = radius;
+        d->start_angle = 0.0;
+        d->end_angle = 360.0;
+
+        l = c2d_create_label_default(cad, circle_t);
         
-        e->label = c2d_create_label_default(cad, circle_t);
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
+        if (l != NULL)
+            u_create_entity(cad, l, d, NULL);
+        else
+            free(d);
     }
-    return e != NULL ? e->label : NULL;
+    return l;
 }
 
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
-    Entity * e = u_create_entity(arc_t);
-    Circle * data;
+    Circle * d = (Circle *) malloc(sizeof(Circle));
+    Label * l = NULL;
 
-    if (e != NULL) {
-        data = (Circle *) e->data;
-
-        data->center = center;
-        data->radius = radius;
-        data->start_angle = start_angle;
-        data->end_angle = end_angle;
-
-        e->label = c2d_create_label_default(cad, arc_t);
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
+    if (d != NULL) {
+        d->center = center;
+        d->radius = radius;
+        d->start_angle = start_angle;
+        d->end_angle = end_angle;
+        
+        l = c2d_create_label_default(cad, arc_t);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, d, NULL);
+        else
+            free(d);
     }
 
-    return e != NULL ? e->label : NULL;
+    return l;
 }
-
 
 //* Label * c2d_add_rectangle (CAD2D * cad, Point2D center , double width, double hight) {
 
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
-    Entity * e = u_create_entity(rectangle_t);
-    Rectangle * data;
-    
-    if (e != NULL) {
-        data = (Rectangle *) e->data;
-        data->cornerA = cornerA;
-        data->cornerC = cornerC;
+    Rectangle * d = (Rectangle *) malloc(sizeof(Rectangle));
+    Label * l = NULL;
+        
+    if (d != NULL) {
+        d->cornerA = cornerA;
+        d->cornerC = cornerC;
         //! Check if it's in canvas
 
-        e->label = c2d_create_label_default(cad, rectangle_t);
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
+        l = c2d_create_label_default(cad, rectangle_t);
+
+        if (l != NULL)
+            u_create_entity(cad, l, d, NULL);
+        else
+            free(d);
     }
-    return e != NULL ? e->label : NULL;
+
+    return l;
 }
 
 Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text, TextStyle * style) {
-    Entity * e = u_create_entity(text_t);
-    Text * data;
+    Text * d = (Text *) malloc(sizeof(Text));    
+    Label * l = NULL;
 
     //! Check if it's still in canvas
-    if (e != NULL && u_is_in_canvas(cad->canvas, point)) {
-        data = (Text *) e->data;
-        data->point.x = point->x;
-        data->point.y = point->y;
-        data->style = style;
-        data->text = (char *) calloc(strlen(text), sizeof(char));
+    if (d != NULL && u_is_in_canvas(cad->canvas, point)) {
+        d->point.x = point->x;
+        d->point.y = point->y;
+        d->style = style;
+        d->text = (char *) calloc(strlen(text), sizeof(char));
 
-        if (data->text != NULL)
-            strcpy(data->text, text);
+        if (d->text != NULL)
+            strcpy(d->text, text);
         //! NOT IMPLEMENTED YET: else
-        e->label = c2d_create_label_default(cad, text_t);
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
+        
+        l = c2d_create_label_default(cad, text_t);
+
+        if (l != NULL)
+            u_create_entity(cad, l, d, NULL);
+        else {
+            free(d->text);
+            free(d);
+        }
     }
 
-    return e != NULL ? e->label : NULL;
+    return l;
 }
 
 /* 
 Label * c2d_add_ellipse(CAD2D * cad, ...) {}
 Label * c2d_add_splines(CAD2D * cad, ...) {}
-Label * c2d_add_polygons(CAD2D * cad, ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
-
-/* general function for adding basic entities */
-Label * u_add_entity () {
-    //! NOT IMPLEMENTED YET
-}
-
 /*********************************************************************************
  * Measurement between two Labels
 *********************************************************************************/

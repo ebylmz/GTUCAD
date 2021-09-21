@@ -197,6 +197,7 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
+Label * c2d_add_polygone (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text, TextStyle * style);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);

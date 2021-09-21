@@ -15,6 +15,7 @@ void test0 () {
         c2d_add_arc (cad, center, radius, 210, 330);
         
         /* draw x = y line */
+        start.next = end.next = NULL;
         start.y = start.x = -canvas_size / 2;
         end.x = end.y = canvas_size / 2;
 
