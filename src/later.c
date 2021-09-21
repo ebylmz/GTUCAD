@@ -1,29 +1,49 @@
-// ! label için point olur birde textfield olur belkide hashcode olur
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "cad2d.h"
 
-/*
-void u_insert_entity_list (CAD2D * cad, Entity * e) {
-    Entity ** tmp;
-    int i;
+//! New add entity funcitons
+Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
+    Entity * e = (Entity *) malloc(sizeof(Entity));
 
-    if (cad->list_size.cur == cad->list_size.max) {
-        cad->list_size.max = cad->list_size.max == 0 ? INIT_HASH : cad->list_size.max * 2;        
-        
-        tmp = (Entity **) calloc(cad->list_size.max, sizeof(Entity *));
+    if (e != NULL) {
+        e->data = d;
+        e->label = l;
+        e->style = s;
 
-        if (tmp != NULL) {
-            for (i = 0; i < cad->list_size.cur; ++i)
-                tmp[i] = cad->list[i];
-            
-            free(cad->list);
-            cad->list = tmp;
-        }
+        u_insert_entity_list(cad, e);
+        u_insert_label_list(&cad->llist, e->label); 
     }
-    cad->list[(cad->list_size.cur)++] = e;
-    u_insert_hash_table(cad->list, e);
+    
+    return e;
 }
 
-*/
+Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
+    Circle * d = (Circle *) malloc(sizeof(Circle));
+    Label * l = NULL;
 
+    if (d != NULL) {
+        d->center = center;
+        d->radius = radius;
+        d->start_angle = start_angle;
+        d->end_angle = end_angle;
+        
+        l = c2d_create_label_default(cad, arc_t);
+        if (l != NULL)
+            u_create_entity(cad, l, d, NULL);
+        else
+            free(d);
+    }
+
+
+    return l;
+}
+
+
+
+// ! label için point olur birde textfield olur belkide hashcode olur
 /*
 1 0 0 		 setrgbcolor	red
 0 1 0 		 setrgbcolor	green
@@ -62,64 +82,4 @@ typedef enum {
 	Navy 	#000080 	rgb(0, 0, 128)
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
-*/
-/*
-void u_set_font_style (FILE * fid, FontStyle s, double thickness) {
-     switch (s) {
-        case Helvetica:
-            fprintf(fid, "/Helvetica");
-            break;
-        case Courier:
-            fprintf(fid, "/Courier");
-            break;
-        case Times:
-            fprintf(fid, "/Times");
-            break;
-        case Coronet:
-            fprintf(fid, "/Coronet");
-            break;
-        case Symbol:
-            fprintf(fid, "/Symbol");
-            break;
-        case Albertus:
-            fprintf(fid, "/Albertus");
-            break;
-        case Arial:
-            fprintf(fid, "/Arial");
-            break;
-        case Bodoni:
-            fprintf(fid, "/Bodoni");
-            break;
-        default:
-            return;
-
-
-
-    }
-
-    fprintf(fid, " findfont %.2f scalefont setfont\n", thickness);
-}
-
-void u_set_color (FILE * fid, RGBColor s) {
-    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s.red, s.green, s.blue);
-}
-
-void u_set_line_Style (FILE * fid, LineStyle s) {
-    if (s == dashed)
-        fprintf(fid, "[3 3] 0 setdash\n");
-    
-}
-void u_set_draw_style (FILE * fid, DrawStyle s) {
-    if (s == fill)
-        fprintf(fid, "fill\n");
-    else
-        fprintf(fid, "stroke\n");
-}
-
-void u_set_style (FILE * fid, EntityStyle * s) {
-    u_set_color(fid, s->color);
-    u_set_font_style(fid, s->font, s->thickness);
-    u_set_line_Style(fid, s->line);
-    // u_set_draw_style(fid, s->draw);
-}
 */

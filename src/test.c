@@ -25,7 +25,7 @@ void test0 () {
         c2d_add_rectangle(cad, start, end);
 
         c2d_export(cad, "test0.eps", "eps");
-        printf("<<< Test0 DONE >>>\n");
+        printf("<<< Test0 DONE >>>\n\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -44,15 +44,15 @@ void test1 () {
     
     cad = c2d_start_wh(1000, 1000);
     
-    if (cad != NULL) {
+    if (cad != NULL) {        
+        label = c2d_add_polyline(cad, p, 9);
+        c2d_set_entity_style(cad, label, dashed, c1, fill, 2);
+
         start.x = 0;
         start.y = 0;
         start.next = NULL;
         label = c2d_add_circle(cad, start, x/n);
         c2d_set_entity_style(cad, label, solid, c2, stroke, 2);
-        
-        label = c2d_add_polyline(cad, p, 9);
-        c2d_set_entity_style(cad, label, dashed, c1, fill, 2);
 
         start.x = -400;
         start.y = -400;
@@ -60,7 +60,7 @@ void test1 () {
         c2d_add_text(cad, &start, text, style);
 
         c2d_export(cad, "test1.eps", "eps");
-        printf("<<< Test1 DONE >>>\n");
+        printf("<<< Test1 DONE >>>\n\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -101,8 +101,8 @@ void test2 () {
 
 int main (void) {
     /**
-    test0();
     **/
+    test0();
     test1();
     /**
     test2();

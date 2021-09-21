@@ -49,7 +49,6 @@ typedef enum {
 } FontScale;
 */
 
-// ! any basic 2D shape can have color, thickness and line style       
 //* use -1 for default style choices
 typedef struct {
     LineStyle line;
@@ -99,10 +98,16 @@ typedef struct Canvas {
     Point2D end;        /* ( width/2,  height/2) */
 } Canvas;
 
+typedef struct LabeList {
+    Label * label;
+    struct LabeList * next;
+} LabeList;
+
 typedef struct CAD2D {
     Canvas * canvas;
     Size list_size;         
-    Entity ** list;         /* hash table for keeping entities */
+    LabeList * llist;
+    Entity ** elist;         /* hash table for keeping entities */
     Hierarchy * hierarchy;  /* to reach all the CAD entities */   
 } CAD2D;
 
@@ -110,8 +115,6 @@ typedef struct CAD2D {
  * Basic CAD Entities:
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
-
-
 /*
 typedef struct Line {
     Point2D start, end;
@@ -129,12 +132,6 @@ typedef struct Polygon {
     struct Polyline * next;
 } Polygon;
 */
-
-typedef struct Arc {
-    Point2D center;
-    double radius;
-    double start_angle, end_angle;
-} Arc; 
 
 typedef struct Circle {
     Point2D center;
