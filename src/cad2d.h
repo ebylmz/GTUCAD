@@ -1,7 +1,6 @@
 #ifndef cad2d
 #define cad2d
 
-#define INIT_HIER 10 /* Size of hierarcy array */
 #define INIT_HASH 10 /* Size of hash table */
 #define PRIME 17 /* Prime number for hash function */
 
@@ -116,7 +115,7 @@ typedef struct Line {
 
 typedef struct Polyline {
     Point2D point;
-    // struct Polyline * next;
+    struct Polyline * next;
 } Polyline;
 
 
@@ -181,11 +180,10 @@ void c2d_set_point (Point2D * p, double x, double y, Point2D * next);
 
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
-EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w);
+Entity * c2d_get_entity (CAD2D * cad, Label * l); 
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
-TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s);
-
-
+TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
+void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
@@ -195,7 +193,7 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_polygone (CAD2D * cad, Point2D * p, int size);
-Label * c2d_add_text (CAD2D * cad, Point2D point, char * text, TextStyle * style);
+Label * c2d_add_text (CAD2D * cad, Point2D point, char * text);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);

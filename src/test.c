@@ -36,37 +36,37 @@ void test0 () {
 void test1 () {
     CAD2D * cad;
     Point2D start;
-    Label * l_circle, * l_pline;
-    TextStyle * style;
+    RGBColor c;
+    Label * l_circle, * l_pline, * l_text;
     char * text = "Life is good";
-    int x = 400, n = 5;
-    RGBColor c1 = {0, 0, 0}, c2 = {1, 0.5, 0};
+    int x = 400, n = 6;
     Point2D p[9] = {{-x, 0}, {-x/n, x/n}, {0, x}, {x/n, x/n}, {x, 0},
                     {x/n, -x/n}, {0, -x}, {-x/n, -x/n}, {-x, 0}};
     
     cad = c2d_start_wh(1000, 1000);
     
     if (cad != NULL) {        
-        /* add a filled polyline */
+        /* add a filled polyline or polygone */
         l_pline = c2d_add_polyline(cad, p, 9);
-        c2d_set_entity_style(cad, l_pline, dashed, c1, fill, 2);
+        c2d_set_rgb(&c, 0, 0, 0);
+        c2d_set_entity_style(cad, l_pline, dashed, c, fill, 2);
 
-        c2d_set_point(&start, 0, 0, NULL);
-        l_circle = c2d_add_circle(cad, start, x / n);
-        c2d_set_entity_style(cad, l_circle, solid, c2, stroke, 2);
+        /* draw a circle with dash */
+        c2d_set_point(&start, 0, 0, NULL);  
+        l_circle = c2d_add_circle(cad, start, x / (n - 1));
+        c2d_set_rgb(&c, 1, 0, 1);
+        c2d_set_entity_style(cad, l_circle, solid, c, stroke, 2);
 
-        //! It would be better to gettig style without dynamic memory allocation 
         c2d_set_point(&start, -400, -400, NULL);
-        style = c2d_create_text_style(Coronet, c1, 40);
-        c2d_add_text(cad, start, text, style);
+        l_text = c2d_add_text(cad, start, text);
+        c2d_set_rgb(&c, 0.3, 0, 1);
+        c2d_set_text_style(cad, l_text, Coronet, c, 40);
 
         c2d_export(cad, "test1.eps", "eps");
-        free(style);
         printf("<<< Test1 DONE >>>\n\n");
     }
     else 
         printf("CAD cannot started properly\n");
-
 }
  
 /*

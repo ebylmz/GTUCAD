@@ -426,7 +426,8 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 /*********************************************************************************
  * Style
 *********************************************************************************/
-Entity * u_find_entity (CAD2D * cad, Label * l) {
+/* Returns the entity by given it's label */
+Entity * c2d_get_entity (CAD2D * cad, Label * l) {
     Entity * e = NULL, * tmp;    
     int i, h = l->hash_code;
 
@@ -441,10 +442,16 @@ Entity * u_find_entity (CAD2D * cad, Label * l) {
     return e;
 }
 
+void c2d_set_rgb (RGBColor * c, double red, double green, double blue) {
+    c->red = red;
+    c->green = green;
+    c->blue = blue;
+}
+
 /* set's the style of entity by given it's label */
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
     EntityStyle * style = NULL;
-    Entity * e = u_find_entity(cad, label); 
+    Entity * e = c2d_get_entity(cad, label); 
     
     if (e != NULL) {
         style = (EntityStyle *) malloc(sizeof(EntityStyle));
@@ -461,27 +468,24 @@ EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGB
     return style;
 }
 
-EntityStyle * c2d_create_entity_style (LineStyle l, RGBColor c, DrawStyle d, double w) {
-    EntityStyle * style = (EntityStyle *) malloc(sizeof(EntityStyle));
+TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s) {
+    TextStyle * style;
+    Entity * e = c2d_get_entity(cad, label);
+    Text * d;
     
-    if (style != NULL) {
-        style->line = l;
-        style->color = c;
-        style->draw = d;
-        style->line_width = w;
+    if (e != NULL) {
+        style = (TextStyle *) malloc(sizeof(TextStyle));
+
+        if (style != NULL) {
+            style->color = c;
+            style->font = f;
+            style->scale = s;
+            
+            d = (Text *) e->data;
+            d->style = style;
+        }
     }
 
-    return style;
-}
-
-TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s) {
-    TextStyle * style = (TextStyle *) malloc(sizeof(EntityStyle));
-
-    if (style != NULL) {
-        style->color = c;
-        style->font = f;
-        style->scale = s;
-    }
     return style;
 }
 
@@ -602,7 +606,7 @@ void u_free_entity (Entity * e) {
 }
 
 void c2d_remove_entity (CAD2D * cad, Label ** l) {
-    Entity * e = u_find_entity(cad, *l);
+    Entity * e = c2d_get_entity(cad, *l);
     u_free_entity(e);
     *l = NULL;
 }
@@ -840,7 +844,7 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
     return l;
 }
 
-Label * c2d_add_text (CAD2D * cad, Point2D point, char * text, TextStyle * style) {
+Label * c2d_add_text (CAD2D * cad, Point2D point, char * text) {
     Text * d = (Text *) malloc(sizeof(Text));    
     Label * l = NULL;
 
@@ -848,7 +852,6 @@ Label * c2d_add_text (CAD2D * cad, Point2D point, char * text, TextStyle * style
     if (d != NULL && u_is_in_canvas_p(cad->canvas, &point)) {
         d->point.x = point.x;
         d->point.y = point.y;
-        d->style = style;
         d->text = (char *) calloc(strlen(text), sizeof(char));
 
         if (d->text != NULL) {
@@ -878,7 +881,7 @@ Label * c2d_add_image(CAD2D * cad, ...) {}
 /* measures the distance between two entity given by their label */
 // double c2d_measure (CAD2D * cad, const Label * ls, const Label * lt) {
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
-    Entity * s = u_find_entity(cad, ls), * t = u_find_entity(cad, lt);
+    Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
     //! NOT IMPLEMENTED YET
 }
 
@@ -1043,7 +1046,7 @@ void u_export_hierarchy (FILE * fid, Hierarchy * h) {
         
         /* export current cad */
         while (l != NULL) {
-                e = u_find_entity(cad, l->label);
+                e = c2d_get_entity(cad, l->label);
                 
                 if (e != NULL) {
                     printf("%s\t%d\n", e->label->name, e->label->hash_code);
