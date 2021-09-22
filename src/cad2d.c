@@ -50,8 +50,6 @@ int u_create_hash_code (char * key, int size) {
     else
         p = u_get_close_prime(size);
     
-    printf("p: %d\n", p);
-
     for (i = 0; key[i] != '\0'; ++i)
         code = (code * q + key[i]) % p;
     return code;
@@ -217,8 +215,6 @@ char * u_create_hierarchy_name (Hierarchy * h) {
                 c = 'A';
 
             r[n + 1] = c++;
-
-            printf(">>>>>>>>>>>><%s\n\n", h->name);
         } while (c <= 'Z' && u_check_unique_hierarchy(h) == FAIL);
         r[n + 2] = '\0';
     }
@@ -317,8 +313,6 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 int u_check_unique_label (CAD2D * cad, Label * l) {
     int i, r, hcode = l->hash_code;
 
-    printf("Max-List-Size: %d\nhashInit(%s): %d\n", cad->elist_size, l->name, hcode);
-    
     /* First label is unique since elist initiliazed yet */
     if (cad->elist_size == 0) 
         r = hcode;
@@ -341,7 +335,7 @@ int u_check_unique_label (CAD2D * cad, Label * l) {
         }
     }
 
-    printf("hashEnd (%s): %d\n\n", l->name, r);
+    printf("%s\t%d\t[%d]\n", l->name, l->hash_code, r);
     return r;
 }
 
@@ -392,10 +386,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     do {
         if (c > '9' == '9' + 1)
             c = 'A';
-
         r[n] = c++;
-
-        printf("%s\n\n", r);
         /* calculate the hash-code of new created name */
         l->hash_code = u_create_hash_code(l->name, cad->elist_size); 
     } while (c <= 'Z' && u_check_unique_label(cad, l) == FAIL);
@@ -423,7 +414,7 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
         l->name = name;
         l->hash_code = u_create_hash_code(name, cad->elist_size); 
 
-        if (u_check_unique_label(cad, l) == -1) {
+        if (u_check_unique_label(cad, l) == FAIL) {
             printf("\"%s\" named Label is already exist\n", name);
             free(l);
             l = NULL;
@@ -443,8 +434,6 @@ Entity * u_find_entity (CAD2D * cad, Label * l) {
     for (i = 0; i < cad->elist_size && e == NULL; ++i) {
         if (h >= cad->elist_size)
             h %= cad->elist_size;
-        //! is hash code should point it's place
-        printf("...\n");
         tmp = cad->elist[h + i];
         if (tmp != NULL && strcmp(l->name, tmp->label->name) == 0)
             e = tmp;
@@ -523,36 +512,34 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
     Entity ** tmp;
     int i, n, r = u_check_unique_label(cad, e->label);
 
-    if (r == FAIL) //!!!!! Is it okay?
-        printf("\"%s\" named Label is already exist\n", e->label->name);
-    else {
-        /*  u_check_unique_label() returns the next empty place
-            based on it's hash-func regarding the size of the array.
-            So be sure we are not exceeding the size                */
-        if (r >= cad->elist_size) {
-            n = cad->elist_size;
+    /*  u_check_unique_label() returns the next empty place
+        based on it's hash-func regarding the size of the array.
+        So be sure we are not exceeding the size                */
+    if (r >= cad->elist_size) {
+        n = cad->elist_size;
 
-            if (cad->elist_size == 0)
-                cad->elist_size = INIT_HASH;
-            else
-                cad->elist_size *= 2;
+        if (cad->elist_size == 0)
+            cad->elist_size = INIT_HASH;
+        else
+            cad->elist_size *= 2;
 
-            tmp = (Entity **) calloc(cad->elist_size, sizeof(Entity *));
+        /* reallocate new memory */
+        tmp = (Entity **) calloc(cad->elist_size, sizeof(Entity *));
 
-            if (tmp != NULL) {
-                for (i = 0; i < n; ++i)
-                    tmp[i] = cad->elist[i];
-                
-                free(cad->elist);
-                cad->elist = tmp;
-            }
-            else
-                r = FAIL;
+        if (tmp != NULL) {
+            for (i = 0; i < n; ++i)
+                tmp[i] = cad->elist[i];
+            
+            free(cad->elist);
+            cad->elist = tmp;
         }
-
-        if (r != FAIL)
-            cad->elist[r] = e;
+        else
+            r = FAIL;
     }
+
+    if (r != FAIL)
+        cad->elist[r] = e;
+
     return r;
 }
 
@@ -690,7 +677,7 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     Point2D * d = (Point2D *) malloc(sizeof(Point2D));
     Label * l = NULL;
 
-    /* Be sure there is only one point */
+    //! /* Be sure there is only one point */
     p.next = NULL;
 
     if (u_is_in_canvas(cad->canvas, &p)) {
@@ -1038,69 +1025,81 @@ void u_print_text (FILE * fid, Text * e) {
     fprintf(fid, "(%s) show\n", e->text);
 }
 
- 
-//! /* Exports all the data by recursively travelling CAD hierarchy */
-void u_export_eps (CAD2D * cad, FILE * fid) {
-    LabeList * l = cad->llist;
+//! NOT TESTED YET
+void u_export_hierarchy (FILE * fid, Hierarchy * h) {
+    int i;
+    CAD2D * cad; 
     Entity * e;
+    LabeList * l; 
 
+    if (h != NULL) {
+        cad = h->cad;
+        l = cad->llist;
+        
+        printf("Hierarchy: %s\n", cad->hierarchy->name);
+        
+        /* export current cad */
+        while (l != NULL) {
+                e = u_find_entity(cad, l->label);
+                
+                if (e != NULL) {
+                    printf("%s\t%d\n", e->label->name, e->label->hash_code);
+                    
+                    switch (e->label->type) {
+                        case point_t:
+                            //! NOT IMPLEMENTED YET
+                            break;
+                        case line_t:
+                        case polyline_t:
+                        case polygon_t:
+                            u_print_line(fid, e->data);
+                            break;
+                        case spline_t:
+                            u_print_spline (fid, e->data);
+                            break;
+                        case rectangle_t:
+                            u_print_rectangle(fid, e->data);
+                            break;
+                        case circle_t:
+                        case arc_t:
+                            u_print_circle(fid, e->data);
+                            break;
+                        case ellipse_t:
+                            //! NOT IMPLEMENTED YET
+                            break;
+                        case text_t:
+                            u_print_text(fid, e->data);
+                            break;
+                        case image_t:
+                            //! NOT IMPLEMENTED YET
+                            break;
+                        default:
+                            continue;
+                    }
+
+                    if (e->style != NULL) 
+                        u_print_entity_style(fid, e->label, e->style);
+                    else if (e->label->type != text_t)
+                        fprintf(fid, "stroke\n");
+
+                    l = l->next;
+                }
+        }
+        /* export child of the root hierarchy */
+        for (i = 0; i < h->size; ++i)
+            u_export_hierarchy(fid, h->child[i]);
+    }
+}
+
+/* Exports all the CAD data by travelling recursively CAD hierarchies */
+void u_export_eps (CAD2D * cad, FILE * fid) {
     fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
+    
+    printf("EXPORT:\n");
     /* Check if canvas is decleared or not */
     if (cad->canvas != NULL)
         fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
-
-    // printf("Entity Number: %d\n", cad->llsist_size);
-    printf("EXPORT:\n");
-
-    /* export current hierarchy */
-    printf("Hierarchy: %s\n", cad->hierarchy->name);
-    
-    while (l != NULL) {
-            e = u_find_entity(cad, l->label);
-            
-            if (e != NULL) {
-                printf("\tc: %s\thash-code: %d\n", e->label->name, e->label->hash_code);
-                
-                switch (e->label->type) {
-                    case point_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case line_t:
-                    case polyline_t:
-                    case polygon_t:
-                        u_print_line(fid, e->data);
-                        break;
-                    case spline_t:
-                        u_print_spline (fid, e->data);
-                        break;
-                    case rectangle_t:
-                        u_print_rectangle(fid, e->data);
-                        break;
-                    case circle_t:
-                    case arc_t:
-                        u_print_circle(fid, e->data);
-                        break;
-                    case ellipse_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case text_t:
-                        u_print_text(fid, e->data);
-                        break;
-                    case image_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    default:
-                        continue;
-                }
-
-                if (e->style != NULL) 
-                    u_print_entity_style(fid, e->label, e->style);
-                else if (e->label->type != text_t)
-                    fprintf(fid, "stroke\n");
-
-                l = l->next;
-            }
-    }
+    u_export_hierarchy(fid, cad->hierarchy);
     fprintf(fid, "\nshowpage\n");
 }
 
