@@ -177,6 +177,7 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
 Point2D * c2d_create_point (double x, double y);
+void c2d_set_point (Point2D * p, double x, double y, Point2D * next);
 
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
@@ -187,14 +188,14 @@ TextStyle * c2d_create_text_style (FontStyle f, RGBColor c, double s);
 
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
-Label * c2d_add_line(CAD2D * cad, Point2D *start, Point2D * end);
+Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_polygone (CAD2D * cad, Point2D * p, int size);
-Label * c2d_add_text (CAD2D * cad, Point2D * point, char * text, TextStyle * style);
+Label * c2d_add_text (CAD2D * cad, Point2D point, char * text, TextStyle * style);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);
