@@ -4,42 +4,6 @@
 #include <math.h>
 #include "cad2d.h"
 
-//! New add entity funcitons
-Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
-    Entity * e = (Entity *) malloc(sizeof(Entity));
-
-    if (e != NULL) {
-        e->data = d;
-        e->label = l;
-        e->style = s;
-
-        u_insert_entity_list(cad, e);
-        u_insert_label_list(&cad->llist, e->label); 
-    }
-    
-    return e;
-}
-
-Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle) {
-    Circle * d = (Circle *) malloc(sizeof(Circle));
-    Label * l = NULL;
-
-    if (d != NULL) {
-        d->center = center;
-        d->radius = radius;
-        d->start_angle = start_angle;
-        d->end_angle = end_angle;
-        
-        l = c2d_create_label_default(cad, arc_t);
-        if (l != NULL)
-            u_create_entity(cad, l, d, NULL);
-        else
-            free(d);
-    }
-
-
-    return l;
-}
 
 // ! label için point olur birde textfield olur belkide hashcode olur
 /*

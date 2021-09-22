@@ -8,10 +8,6 @@
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
-typedef struct {
-    int p, q;
-} HashInfo;
-
 typedef enum {
     point_t, line_t, spline_t, polyline_t, polygon_t,
     rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
@@ -59,7 +55,7 @@ typedef struct {
 
 typedef struct {
     FontStyle font;
-    double scale; //! ???
+    double scale; 
     RGBColor color;
 } TextStyle;
 
@@ -75,19 +71,15 @@ typedef struct Entity {
     EntityStyle * style;   
 } Entity;
 
-typedef struct Size {
-    int cur, max;
-} Size;
-
 typedef struct Hierarchy {
     struct CAD2D * cad;
     char * name;
     struct Hierarchy * parent;
     struct Hierarchy ** child;   /* array of child hierarchies */
-    Size size;
+    int size;
 } Hierarchy;
 
-/* also used as Line, Polyline and Polygone */
+/* Point2D can also treated as Line, Polyline, Polygone and Spline */
 typedef struct Point2D {
     double x, y;
     struct Point2D * next;
@@ -105,8 +97,9 @@ typedef struct LabeList {
 
 typedef struct CAD2D {
     Canvas * canvas;
-    Size list_size;         
     LabeList * llist;
+    // int llsist_size;    //!!
+    int elist_size;         
     Entity ** elist;         /* hash table for keeping entities */
     Hierarchy * hierarchy;  /* to reach all the CAD entities */   
 } CAD2D;
@@ -131,6 +124,12 @@ typedef struct Polygon {
     Point2D point;
     struct Polyline * next;
 } Polygon;
+
+typedef struct Spline {
+    Point2D point;
+    struct Polyline * next;
+} Spline;
+
 */
 
 typedef struct Circle {
@@ -155,9 +154,6 @@ typedef struct Rectangle {
     //* NOT IMPLMENTED YET
 } Rectangle;
 
-typedef struct Spline {
-    //! NOT IMPLMENTED YET
-} Spline;
 
 typedef struct Ellipse{
     Point2D center;
