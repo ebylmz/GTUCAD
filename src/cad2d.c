@@ -44,11 +44,11 @@ int u_create_hash_code (char * key, int size) {
     int code = 0;
     int p, q = 97;  //! q
 
-    /* set the p as largest prime smaller than size */
+    /*  set the p as largest prime smaller than size.
+        in case of uninitialized hash table use it's INIT size */
     if (size == 0)
-        p = INIT_HASH;
-    else
-        p = u_get_close_prime(size);
+        size = INIT_HASH;
+    p = u_get_close_prime(size);
     
     for (i = 0; key[i] != '\0'; ++i)
         code = (code * q + key[i]) % p;
@@ -339,8 +339,7 @@ int u_check_unique_label (CAD2D * cad, Label * l) {
 }
 
 char * u_create_label_name (CAD2D * cad, Label * l) {
-    char c = '0', * r = calloc(10, sizeof(char)),
-         * h;
+    char c = '0', * r = calloc(10, sizeof(char)), * h;
     int n = 0;
 
     /* LabelName: EntityType + Hierarchy level/depth + instance */
@@ -383,7 +382,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     l->name = r;
 
     do {
-        if (c > '9' == '9' + 1)
+        if (c == '9' + 1)
             c = 'A';
         r[n] = c++;
         /* calculate the hash-code of new created name */
@@ -913,8 +912,11 @@ Label * c2d_add_image(CAD2D * cad, ...) {}
  * Measurement Between Entity
 *********************************************************************************/
 
+/* c: center e: entity */
+
 void u_get_center_polygon (Point2D * e, Point2D * c) {
     int i = 0;
+    c->y = c->x = 0;
 
     while (e != NULL) {
         c->x += e->x;
@@ -938,12 +940,26 @@ void u_get_center_circle (Circle * e, Point2D * c) {
     c->y = e->center.y; 
 }
 
+void u_get_center_ellipse(Ellipse * e, Point2D * c) {
+    c->x = e->center.x;
+    c->y = e->center.y;
+}
+
+
 Point2D * c2d_get_center2D (Entity * e) {
     Point2D * trav, * c = c2d_create_point(0, 0);
 
     if (e != NULL) {
         if (c != NULL) {
             switch (e->label->type) {
+                case point_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case line_t:
+                case spline_t:
+                case polyline_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
                 case polygon_t:
                     u_get_center_polygon(e->data, c);
                     break;
@@ -955,9 +971,12 @@ Point2D * c2d_get_center2D (Entity * e) {
                     u_get_center_circle(e->data, c);
                     break;
                 case ellipse_t:
-                    //! NOT IMPLEMENTED YET
+                    u_get_center_ellipse(e->data, c);
                     break;
                 case image_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case text_t:
                     //! NOT IMPLEMENTED YET
                     break;
                 default:
@@ -969,14 +988,31 @@ Point2D * c2d_get_center2D (Entity * e) {
 
     return c;
 }
+
+/* Returns the  */
+double c2d_measure_any_item (CAD2D * cad, Label * ls, Label * lt) {
+    Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
+    Point2D * p1, * p2;
+    double m;
+
+    /* check if given label's are exist */
+    if (s != NULL && t != NULL) {
+        p1 = c2d_get_center2D(s);
+        p2 = c2d_get_center2D(t);
+
+        m = u_get_euclidean_dist(p1, p2);
+    }    
+
+    return m;
+}
+
 /*
-Point Point Euclidean distance between two points.
-Point Polyline The distance closest line.
-Point Polygon The distance to the closest edge of the polygon.
-Point Arc The shortest distance to the arc.
-Any Item Any Item The shortest distance between these 2D shapes.
-Any Item Any Item The shortest distance between the centers of the 2D
-shapes. May need to define the center for each shape.
+# Point Polyline The distance closest line.
+# Point Polygon The distance to the closest edge of the polygon.
+# Point Arc The shortest distance to the arc.
+# Any Item Any Item The shortest distance between these 2D shapes.
+# Any Item Any Item The shortest distance between the centers of the 2D
+# shapes. May need to define the center for each shape.
 */
 
 
@@ -1018,6 +1054,31 @@ double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
 /*********************************************************************************
  * Snapping Labels
 *********************************************************************************/  
+/*
+Polyline    Point Define a strategy!
+Polyline    Polyline Define a strategy!
+Polyline    Polygon Define a strategy!
+Polygon     Point Define a strategy!
+Polygon     Polyline Define a strategy!
+Arc         Point Define a strategy!
+Arc         Polyline Define a strategy
+*/
+
+/* Snaps the source point to the target point */
+void u_snap_point_point (Point2D * s, Point2D * t) {
+    s->x = t->x;
+    s->y = t->y;
+    //! s->next; 
+}   
+
+/* Snaps the source point to the closest end of the line */
+void u_snap_point_line (Point2D * s, Point2D * t) {
+    //! NOT IMPLEMENTED YET
+}
+
+/* Snaps the source point to the center of the polygon */
+/* Snaps the source point to the center of the circle/Arc */
+
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
     Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
     Point2D * c1, * c2;
@@ -1027,24 +1088,26 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
             case point_t:
                 switch (lt->type) {
                     case point_t:
+                        u_snap_point_point(s->data, t->data);
                         break;
                     case line_t:
-                        break;
                     case spline_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
                     case polyline_t:
+                        u_snap_point_line(s->data, t->data);
+                        //! NOT IMPLEMENTED YET
                         break;
                     case polygon_t:
+                        u_get_center_polygon(t->data, s->data);
                         break;
                     case rectangle_t:
+                        u_get_center_rectangle(t->data, s->data);
                         break;
                     case circle_t:
-                        break;
                     case arc_t:
+                        u_get_center_circle(t->data, s->data);
                         break;
                     case ellipse_t:
-                        //! NOT IMPLEMENTED YET
+                        u_get_center_ellipse(t->data, s->data);
                         break;
                     case text_t:
                         //! NOT IMPLEMENTED YET
@@ -1052,25 +1115,31 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                 }
                 break;
             case line_t:
+                //! Define a strategy!
                 break;
             case spline_t:
-                //! NOT IMPLEMENTED YET
+                //! Define a strategy!
                 break;
             case polyline_t:
+                //! Define a strategy!
                 break;
             case polygon_t:
+                //! Define a strategy!
                 break;
             case rectangle_t:
+                //! Define a strategy!
                 break;
             case circle_t:
+                //! Define a strategy!
                 break;
             case arc_t:
+                //! Define a strategy!
                 break;
             case ellipse_t:
-                //! NOT IMPLEMENTED YET
+                //! Define a strategy!
                 break;
             case text_t:
-                //! NOT IMPLEMENTED YET
+                //! Define a strategy!
                 break;
         }
     } 
