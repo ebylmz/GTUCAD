@@ -4,7 +4,6 @@
 #include <math.h>
 #include "cad2d.h"
 
-
 // ! label için point olur birde textfield olur belkide hashcode olur
 /*
 1 0 0 		 setrgbcolor	red
@@ -21,11 +20,13 @@
 0.0 0.5 0.0  setrgbcolor	dark green
 */
 
+/*
 typedef enum {
     white, silver, gray, black, red, maroon, yellow, 
     olive, lime, green, aqua, teal, blue, navy,
     fuchsia, purple
 } ColorPalette;
+*/
 
 /*
     White 	#FFFFFF 	rgb(255, 255, 255)

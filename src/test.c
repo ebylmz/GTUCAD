@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+// #include <math.h>
 #include "cad2d.h"
 
 void test0 () {
@@ -46,21 +47,31 @@ void test1 () {
     cad = c2d_start_wh(1000, 1000);
     
     if (cad != NULL) {        
-        /* add a filled polyline or polygone */
+        /* Add a filled polyline or polygone */
         l_pline = c2d_add_polyline(cad, p, 9);
-        c2d_set_rgb(&c, 0, 0, 0);
-        c2d_set_entity_style(cad, l_pline, dashed, c, fill, 2);
 
-        /* draw a circle with dash */
+        if (l_pline != NULL) {
+            c2d_set_rgb(&c, 0, 0, 0);
+            c2d_set_entity_style(cad, l_pline, dashed, c, fill, 2);
+        }
+
+        /* Add a dashed circle */
         c2d_set_point(&start, 0, 0, NULL);  
         l_circle = c2d_add_circle(cad, start, x / (n - 1));
-        c2d_set_rgb(&c, 1, 0, 1);
-        c2d_set_entity_style(cad, l_circle, solid, c, stroke, 2);
 
+        if (l_circle != NULL) {
+            c2d_set_rgb(&c, 1, 0, 1);
+            c2d_set_entity_style(cad, l_circle, solid, c, stroke, 2);
+        }
+
+        /* Add text */
         c2d_set_point(&start, -400, -400, NULL);
         l_text = c2d_add_text(cad, start, text);
-        c2d_set_rgb(&c, 0.3, 0, 1);
-        c2d_set_text_style(cad, l_text, Coronet, c, 40);
+        
+        if (l_text != NULL) {
+            c2d_set_rgb(&c, 0.3, 0, 1);
+            c2d_set_text_style(cad, l_text, Coronet, c, 40);
+        }
 
         c2d_export(cad, "test1.eps", "eps");
         printf("<<< Test1 DONE >>>\n\n");
@@ -68,7 +79,53 @@ void test1 () {
     else 
         printf("CAD cannot started properly\n");
 }
- 
+
+void test2 () {
+    CAD2D * cad;    
+    Point2D center;
+    Label * l_ellipse1, * l_ellipse2, * l_text;
+    RGBColor c;
+    char * text = "Hello, World!";
+
+    double radius = 120, canvas_size = 500;
+
+    cad = c2d_start_wh(canvas_size, canvas_size);
+
+    if (cad != NULL) {
+        c2d_set_point(&center, 0, 0, NULL);
+
+        /* draw first ellipse as 2/1 ratio */
+        l_ellipse1 = c2d_add_ellipse(cad, center, radius * 2, radius);
+
+        if (l_ellipse1 != NULL) {
+            c2d_set_rgb(&c, 0, 0.5, 0);
+            c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, 2);
+        }
+        
+        /* draw first ellipse as 1/2 ratio */
+        l_ellipse2 = c2d_add_ellipse(cad, center, radius, radius * 2);
+
+        if (l_ellipse2 != NULL) {
+            c2d_set_rgb(&c, 0, 0.5, 1);
+            c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, 2);
+        }        
+
+          /* Add text */
+        c2d_set_point(&center, -80, -200, NULL);
+        l_text = c2d_add_text(cad, center, text);
+        
+        if (l_text != NULL) {
+            c2d_set_rgb(&c, 1, 0, 0.5);
+            c2d_set_text_style(cad, l_text, Courier, c, 20);
+        }
+
+        c2d_export(cad, "test2.eps", "eps");
+        printf("<<< Test2 DONE >>>\n\n");
+    }
+    else 
+        printf("CAD cannot started properly\n");
+}
+
 /*
 void test1 () {
     CAD2D * cad;
@@ -106,7 +163,7 @@ int main (void) {
     **/
     test0();
     test1();
-    /**
     test2();
+    /**
     **/
 }

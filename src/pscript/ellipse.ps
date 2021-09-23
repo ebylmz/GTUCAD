@@ -1,0 +1,44 @@
+%!PS-Adobe-3.0 EPSF-3.0
+%%BoundingBox: -150.00 -150.00 150.00 150.00
+
+/ellipse {
+%
+% RedGrittyBrick 20/10/2003
+% draw an ellipse using four bezier curves
+%
+/r2 exch def % 2nd parameter
+/r1 exch def % 1st parameter
+/kappa 0.5522847498 def
+
+newpath
+0 r2 moveto % start point of curve
+
+% top clockwise
+kappa r1 mul r2 % 1st Bezier control point
+r1 kappa r2 mul % 2nd Bezier control point
+r1 0 curveto    % end point of curve
+
+% right clockwise
+r1 kappa r2 mul neg
+kappa r1 mul r2 neg 
+0 r2 neg curveto
+
+% bottom clockwise
+kappa r1 mul neg r2 neg
+r1 neg kappa r2 mul neg
+r1 neg 0 curveto
+
+% left clockwise
+r1 neg kappa r2 mul
+kappa r1 mul neg r2
+0 r2 curveto
+
+} def % ellipse
+
+/inch 1 def
+
+30 rotate
+2.8 inch 1.4 inch ellipse
+0 0 1 setrgbcolor
+16 setlinewidth
+stroke

@@ -572,7 +572,7 @@ void u_free_entity (Entity * e) {
                     case line_t:
                     case polyline_t:
                     case polygon_t:
-                        u_free_point((Point2D *) e->data);
+                        u_free_point(e->data);
                         break;
                     case spline_t:
                         //! NOT IMPLEMENTED YET
@@ -635,6 +635,14 @@ int u_is_in_canvas_xy (Canvas * c, double x, double y) {
 int u_is_in_canvas_p (Canvas * c, Point2D * p) {
     return c == NULL ? 1 :
         (p->x >= c->start.x && p->y >= c->start.y && p->x <= c->end.x && p->y <= c->end.y);
+}
+
+double u_find_hypotenuse (double x, double y) {
+    return sqrt(x*x + y*y);
+} 
+
+double  u_get_euclidean_dist (Point2D * p1, Point2D * p2) {
+    return u_find_hypotenuse(p1->x - p2->x, p1->y - p2->y);
 }
 
 void c2d_set_point (Point2D * p, double x, double y, Point2D * next) {
@@ -820,6 +828,34 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
     return l;
 }
 
+Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y) {
+    Ellipse * d = (Ellipse *) malloc(sizeof(Ellipse));
+    Label * l;
+
+    if (d != NULL) {
+        if (u_is_in_canvas_xy(cad->canvas, center.x + radius_x, center.y + radius_y) &&
+            u_is_in_canvas_xy(cad->canvas, center.x - radius_x, center.y - radius_y)) {
+            
+            d->center = center;
+            d->radius_x = radius_x;
+            d->radius_y = radius_y;
+
+            l = c2d_create_label_default(cad, ellipse_t);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+        else {
+            free(d);
+        }
+    }
+
+    return l;
+}
+
+
 //* Label * c2d_add_rectangle (CAD2D * cad, Point2D center , double width, double hight) {
 
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC) {
@@ -871,26 +907,173 @@ Label * c2d_add_text (CAD2D * cad, Point2D point, char * text) {
 }
 
 /* 
-Label * c2d_add_ellipse(CAD2D * cad, ...) {}
 Label * c2d_add_image(CAD2D * cad, ...) {}
 */
 /*********************************************************************************
- * Measurement between two Labels
+ * Measurement Between Entity
 *********************************************************************************/
 
-/* measures the distance between two entity given by their label */
-// double c2d_measure (CAD2D * cad, const Label * ls, const Label * lt) {
+void u_get_center_polygon (Point2D * e, Point2D * c) {
+    int i = 0;
+
+    while (e != NULL) {
+        c->x += e->x;
+        c->y += e->y;
+        ++i;
+    }
+
+    if (i > 1) {
+        c->x /= i;
+        c->y /= i;
+    }
+}
+
+void u_get_center_rectangle (Rectangle * e, Point2D * c) {
+    c->x = (e->cornerA.x + e->cornerC.x) / 2;
+    c->y = (e->cornerA.y + e->cornerC.y) / 2;
+}
+
+void u_get_center_circle (Circle * e, Point2D * c) {
+    c->x = e->center.x; 
+    c->y = e->center.y; 
+}
+
+Point2D * c2d_get_center2D (Entity * e) {
+    Point2D * trav, * c = c2d_create_point(0, 0);
+
+    if (e != NULL) {
+        if (c != NULL) {
+            switch (e->label->type) {
+                case polygon_t:
+                    u_get_center_polygon(e->data, c);
+                    break;
+                case rectangle_t:
+                    u_get_center_rectangle(e->data, c);
+                    break;
+                case circle_t:
+                case arc_t:
+                    u_get_center_circle(e->data, c);
+                    break;
+                case ellipse_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case image_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                default:
+                    printf("Given entity is not a 2D shape\n");
+                    free(c);
+            }
+        }
+    }
+
+    return c;
+}
+/*
+Point Point Euclidean distance between two points.
+Point Polyline The distance closest line.
+Point Polygon The distance to the closest edge of the polygon.
+Point Arc The shortest distance to the arc.
+Any Item Any Item The shortest distance between these 2D shapes.
+Any Item Any Item The shortest distance between the centers of the 2D
+shapes. May need to define the center for each shape.
+*/
+
+
+/* measures the distance between two entity given by their labels */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
     Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
-    //! NOT IMPLEMENTED YET
+    double m;
+
+    /* check if given label's are exist */
+    if (s != NULL && t != NULL) {
+        
+    }    
+
+    return m;
 }
+
+double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
+    Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
+    Point2D * c1, * c2;
+    double m;
+
+    /* check if given label's are exist */
+    if (s != NULL && t != NULL) {
+        /* take center points of these two entity and calculate the distance */
+        c1 = c2d_get_center2D(s->data);
+        c2 = c2d_get_center2D(t->data);
+
+        m = u_get_euclidean_dist(c1, c2);
+        free(c1);
+        free(c2);
+    }    
+    else
+        m = -1;
+
+    return m;
+}
+
 
 /*********************************************************************************
  * Snapping Labels
-*********************************************************************************/
-
+*********************************************************************************/  
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
-    //! NOT IMPLEMENTED YET
+    Entity * s = c2d_get_entity(cad, ls), * t = c2d_get_entity(cad, lt);
+    Point2D * c1, * c2;
+
+    if (s != NULL && t != NULL) {
+        switch (ls->type) {
+            case point_t:
+                switch (lt->type) {
+                    case point_t:
+                        break;
+                    case line_t:
+                        break;
+                    case spline_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case polyline_t:
+                        break;
+                    case polygon_t:
+                        break;
+                    case rectangle_t:
+                        break;
+                    case circle_t:
+                        break;
+                    case arc_t:
+                        break;
+                    case ellipse_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case text_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                }
+                break;
+            case line_t:
+                break;
+            case spline_t:
+                //! NOT IMPLEMENTED YET
+                break;
+            case polyline_t:
+                break;
+            case polygon_t:
+                break;
+            case rectangle_t:
+                break;
+            case circle_t:
+                break;
+            case arc_t:
+                break;
+            case ellipse_t:
+                //! NOT IMPLEMENTED YET
+                break;
+            case text_t:
+                //! NOT IMPLEMENTED YET
+                break;
+        }
+    } 
 }
 
 /*********************************************************************************
@@ -987,6 +1170,19 @@ void u_print_circle (FILE * fid, Circle * e) {
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
 }
 
+double u_min (double a, double b) {
+    return a < b ? a : b;
+}
+
+void u_print_ellipse (FILE * fid, Ellipse * e) {
+    double  scale = e->radius_y / e->radius_x,
+            radius = u_min(e->radius_x, e->radius_y);   
+
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "1 %.2f scale\n", scale);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, radius, 0.0, 360.0);
+}
+
 void u_print_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->cornerC.y - e->cornerA.y),
             width = (e->cornerC.x - e->cornerA.x);
@@ -1071,7 +1267,7 @@ void u_export_hierarchy (FILE * fid, Hierarchy * h) {
                             u_print_circle(fid, e->data);
                             break;
                         case ellipse_t:
-                            //! NOT IMPLEMENTED YET
+                            u_print_ellipse(fid, e->data);
                             break;
                         case text_t:
                             u_print_text(fid, e->data);

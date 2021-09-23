@@ -150,19 +150,21 @@ typedef struct Text {
 */
 typedef struct Rectangle {
     Point2D cornerA, cornerC;
-    //* NOT IMPLMENTED YET
+    //! NOT IMPLMENTED YET
 } Rectangle;
 
 
 typedef struct Ellipse{
     Point2D center;
-    double width, hight;
-    //* NOT IMPLMENTED YET
+    double radius_x, radius_y;
 } Ellipse;
 
 typedef struct Image {
     //! NOT IMPLMENTED YET
 } Image;
+
+
+double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
 
 /*********************************************************************************
  * Function Definitions
@@ -184,11 +186,13 @@ Entity * c2d_get_entity (CAD2D * cad, Label * l);
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
 TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
 void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
+Point2D * c2d_get_center2D (Entity * e);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
+Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y);
 Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
