@@ -11,10 +11,13 @@ void test0 () {
     cad = c2d_start_wh(canvas_size, canvas_size);
     
     if (cad != NULL) {
-        /* draw arcs at the center of canvas */
+        /* draw a hexagon */
         c2d_set_point(&center, 0, 0, NULL);
-        c2d_add_arc(cad, center, radius, 30, 150);
-        c2d_add_arc(cad, center, radius, 210, 330);
+        c2d_add_regular_polygon(cad, 6, center, 100);        
+        
+        /* draw arcs at the center of canvas */
+        c2d_add_arc(cad, center, radius, 45 + 30, 225 - 30);
+        c2d_add_arc(cad, center, radius, 225 + 30, 15);
         
         /* draw x = y line */
         c2d_set_point(&start, -canvas_size / 2, -canvas_size / 2, NULL);
@@ -22,8 +25,8 @@ void test0 () {
         c2d_add_line(cad, start, end);
 
         /* draw an rectangle */
-        c2d_set_point(&start, -20, -20, NULL);
-        c2d_set_point(&end, 20, 20, NULL);
+        c2d_set_point(&start, 20, -20, NULL);
+        c2d_set_point(&end, -20, 20, NULL);
         c2d_add_rectangle(cad, start, end);
 
         /* export the data as eps mode */
@@ -52,7 +55,7 @@ void test1 () {
 
         if (l_pline != NULL) {
             c2d_set_rgb(&c, 0, 0, 0);
-            c2d_set_entity_style(cad, l_pline, dashed, c, fill, 2);
+            c2d_set_entity_style(cad, l_pline, dashed, c, fill, lw_medium);
         }
 
         /* Add a dashed circle */
@@ -61,7 +64,7 @@ void test1 () {
 
         if (l_circle != NULL) {
             c2d_set_rgb(&c, 1, 0, 1);
-            c2d_set_entity_style(cad, l_circle, solid, c, stroke, 2);
+            c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
         }
 
         /* Add text */
@@ -70,8 +73,10 @@ void test1 () {
         
         if (l_text != NULL) {
             c2d_set_rgb(&c, 0.3, 0, 1);
-            c2d_set_text_style(cad, l_text, Coronet, c, 40);
+            c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
         }
+
+        c2d_remove_entity(cad, &l_text);
 
         c2d_export(cad, "test1.eps", "eps");
         printf("<<< Test1 DONE >>>\n\n");
@@ -99,7 +104,7 @@ void test2 () {
 
         if (l_ellipse1 != NULL) {
             c2d_set_rgb(&c, 0, 0.5, 0);
-            c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, 2);
+            c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, lw_medium);
         }
         
         /* draw first ellipse as 1/2 ratio */
@@ -107,16 +112,16 @@ void test2 () {
 
         if (l_ellipse2 != NULL) {
             c2d_set_rgb(&c, 0, 0.5, 1);
-            c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, 2);
+            c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, lw_medium);
         }        
 
-          /* Add text */
+        /* Add text */
         c2d_set_point(&center, -80, -200, NULL);
         l_text = c2d_add_text(cad, center, text);
         
         if (l_text != NULL) {
             c2d_set_rgb(&c, 1, 0, 0.5);
-            c2d_set_text_style(cad, l_text, Courier, c, 20);
+            c2d_set_text_style(cad, l_text, Courier, c, fs_small);
         }
 
         c2d_export(cad, "test2.eps", "eps");

@@ -8,7 +8,7 @@
  * Fundamental Structures
 *********************************************************************************/
 typedef enum {
-    point_t, line_t, spline_t, polyline_t, polygon_t,
+    point_t, line_t, spline_t, polyline_t, regular_polygon_t, irregular_polygon_t,
     rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
 } EntityType;
 
@@ -33,16 +33,13 @@ typedef enum  {
     stroke, fill
 } DrawStyle;
 
-//! NOT IMPLEMENTED YET: Set proper values
-/*
 typedef enum {
-    small, medium, large
+    lw_small = 1, lw_medium = 2, lw_large = 3
 } LineWidth;
 
 typedef enum {
-    small, medium, large
+    fs_xsmall = 10, fs_small = 20, fs_medium = 40, fs_large = 80
 } FontScale;
-*/
 
 //* use -1 for default style choices
 typedef struct {
@@ -72,9 +69,9 @@ typedef struct Entity {
 
 typedef struct Hierarchy {
     struct CAD2D * cad;
-    char * name;
+    char * name;                    /* name of the hieararchy */
     struct Hierarchy * parent;
-    struct Hierarchy ** child;   /* array of child hierarchies */
+    struct Hierarchy ** child;      /* array of child hierarchies */
     int size;
 } Hierarchy;
 
@@ -97,10 +94,9 @@ typedef struct LabeList {
 typedef struct CAD2D {
     Canvas * canvas;
     LabeList * llist;
-    // int llsist_size;    //!!
     int elist_size;         
-    Entity ** elist;         /* hash table for keeping entities */
-    Hierarchy * hierarchy;  /* to reach all the CAD entities */   
+    Entity ** elist;            /* Entity list keeps entities by hashing */
+    Hierarchy * hierarchy;      /* hierarchy data of root CAD (this CAD) */   
 } CAD2D;
 
 /*********************************************************************************
@@ -130,29 +126,31 @@ typedef struct Spline {
 } Spline;
 
 */
+typedef struct PointList {
+    //! Type for keeping polyline polygon data
+} PointList;
 
 typedef struct Circle {
     Point2D center;
     double radius;
-    double start_angle, end_angle;
+    double start_angle, end_angle;  
 } Circle;
 
 typedef struct Text {
-    Point2D point;
+    Point2D point;  /* start point of text */
     char * text;
     TextStyle * style;
 } Text;
 
-/*
-    D--C        we need corners at down-left and top-right
-    |  |
-    A--B
-*/
 typedef struct Rectangle {
-    Point2D cornerA, cornerC;
-    //! NOT IMPLMENTED YET
+    Point2D corner1, corner2;   /* Takes two opposite corners as start and end point */
 } Rectangle;
 
+typedef struct RegularPolygon {
+    int n;                  /* the number of sides      */
+    double out_radius;      /* radius of outer circle   */
+    Point2D center;
+} RegularPolygon;
 
 typedef struct Ellipse{
     Point2D center;
@@ -182,10 +180,11 @@ void c2d_set_point (Point2D * p, double x, double y, Point2D * next);
 
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
-Entity * c2d_get_entity (CAD2D * cad, Label * l); 
+Entity * c2d_find_entity (CAD2D * cad, Label * l); 
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
 TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
 void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
+void c2d_remove_entity (CAD2D * cad, Label ** l);
 Point2D * c2d_get_center2D (Entity * e);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
@@ -193,11 +192,12 @@ Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
 Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y);
-Label * c2d_add_rectangle (CAD2D * cad, Point2D cornerA , Point2D cornerC);
+Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
-Label * c2d_add_polygone (CAD2D * cad, Point2D * p, int size);
-Label * c2d_add_text (CAD2D * cad, Point2D point, char * text);
+Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size);
+Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius);
+Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);
