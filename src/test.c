@@ -50,7 +50,7 @@ void test1 () {
     cad = c2d_start_wh(1000, 1000);
     
     if (cad != NULL) {        
-        /* Add a filled polyline or polygone */
+        /* Add a filled polyline(polygon) */
         l_pline = c2d_add_polyline(cad, p, 9);
 
         if (l_pline != NULL) {
@@ -66,6 +66,8 @@ void test1 () {
             c2d_set_rgb(&c, 1, 0, 1);
             c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
         }
+
+        c2d_remove_entity(cad, &l_circle);
 
         /* Add text */
         c2d_set_point(&start, -400, -400, NULL);

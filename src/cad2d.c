@@ -9,18 +9,22 @@
 
 int u_is_prime (int n);
 int u_find_close_prime (int n);
+
 int u_create_hash_code (char * key, int size);
 Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h);
 int u_check_unique_hierarchy (Hierarchy * child);
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 int u_get_tree_depth (Hierarchy * h);
+
 double u_min (double a, double b);
 char * u_deci_to_hexa (int deci);
 char * u_create_hierarchy_name (Hierarchy * h); 
+
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label (LabeList ** llist, Label ** l);
 int u_check_unique_label (CAD2D * cad, Label * l);
 char * u_create_label_name (CAD2D * cad, Label * l);
+
 int u_insert_entity_list (CAD2D * cad, Entity * e);
 void u_free_point (Point2D * p);
 void u_free_text (Text * t);
@@ -28,17 +32,19 @@ void u_free_entity (Entity * e);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
 int u_is_in_canvas_xy (Canvas * c, double x, double y);
 int u_is_in_canvas_p (Canvas * c, Point2D * p);
+
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-void u_get_center_irregular_polygon (Point2D * e, Point2D * c);
-void u_get_center_regular_polyone(RegularPolygon * e, Point2D * c);
+void u_get_center_line (Point2D * e, Point2D * c);
 void u_get_center_rectangle (Rectangle * e, Point2D * c);
-void u_get_center_circle (Circle * e, Point2D * c);
-void u_get_center_ellipse(Ellipse * e, Point2D * c);
+
+double u_measure_point_polyline (Point2D * point, Point2D * pline);
+
 void u_snap_point_point (Point2D * s, Point2D * t);
 void u_snap_point_line (Point2D * s, Point2D * t);
 void u_snap_arc_point (Circle * s, Point2D * t);
 RGBColor u_convert_rgb (Color c);
+
 void u_print_text_style (FILE * fid, TextStyle * s);
 void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
@@ -297,7 +303,6 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     
     /* get hierarchy information */
     h = u_deci_to_hexa(u_get_tree_depth(cad->hierarchy)); 
-
     strcat(r, h);
     free(h);
     
@@ -305,6 +310,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     n = strlen(r);
     l->name = r;
 
+    /* define the instance number from 1 to 9 and A to Z */
     do {
         if (c == '9' + 1)
             c = 'A';
@@ -359,7 +365,7 @@ void u_insert_label (LabeList ** llist, Label * l) {
 
 //! NOT TESTED
 void u_remove_label (LabeList ** llist, Label ** l) {
-    while (*llist != NULL && *l == NULL) {
+    while (*llist != NULL && *l != NULL) {
         if ((*llist)->label == *l) {
             *llist = (*llist)->next;
             free((*l)->name);
@@ -411,6 +417,7 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
     int r = u_check_unique_label(cad, *l);
 
     //! assume we are still in same hierarchy
+    //! r r is always -1 becasue it's there
     if (r != FAIL) {
         /* free allocated memory, and delete it's record from lists */
         u_free_entity(cad->elist[r]);
@@ -639,7 +646,6 @@ void c2d_set_point (Point2D * p, double x, double y, Point2D * next) {
     p->y = y;
     p->next = next; //!!! ??????
 }
-
 
 Point2D * c2d_create_point (double x, double y) {
     Point2D * p = (Point2D *) malloc(sizeof(Point2D));
@@ -881,29 +887,40 @@ int u_is_in_canvas_p (Canvas * c, Point2D * p) {
  * Measurement Between Entity
 *********************************************************************************/
 
-/*
-# Point Polyline The distance closest line.
-# Point Polygon The distance to the closest edge of the polygon.
-# Point Arc The shortest distance to the arc.
-# Any Item Any Item The shortest distance between these 2D shapes.
-# Any Item Any Item The shortest distance between the centers of the 2D
-# shapes. May need to define the center for each shape.
-*/
-
-
 /* measures the distance between two entity given by their labels */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
-    Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
+    Entity * e1 = c2d_find_entity(cad, ls), * e2 = c2d_find_entity(cad, lt);
     double m;
 
     /* check if given label's are exist */
-    if (s != NULL && t != NULL) {
-        
+    if (e1 != NULL && e2 != NULL) {
+        //! NOT IMPLEMENTED YET KEEP THE DECISION STRUCTURE
     }    
 
     return m;
 }
 
+/* Returns the closest distance between point and polyline */
+double u_measure_point_polyline (Point2D * point, Point2D * pline) {
+    double d = -1, tmp;
+
+    /* Take min distance by travelling each point on pline and calculating their ED  */
+    while (pline != NULL) {
+        tmp = u_get_euclidean_dist(point, pline);
+
+        if (tmp < d || d == -1)
+            d = tmp;
+        pline = pline->next;
+    }
+
+    return d;
+}
+
+double u_measure_point_arc (Point2D * p, Circle * c) {
+    //! NOT IMPLEMENTED YET
+}
+
+/* Measures the distance between center of given two entity */
 double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
     Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
     Point2D * c1, * c2;
@@ -925,51 +942,35 @@ double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
     return m;
 }
 
-double c2d_measure_any_item (CAD2D * cad, Label * ls, Label * lt) {
-    Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
-    Point2D * p1, * p2;
-    double m;
-
-    /* check if given label's are exist */
-    if (s != NULL && t != NULL) {
-        p1 = c2d_get_center2D(s);
-        p2 = c2d_get_center2D(t);
-
-        m = u_get_euclidean_dist(p1, p2);
-    }    
-
-    return m;
-}
-
-//! OPTIMIZATION NEEDED
+/* creates an point in center of given entity //! LABEL ? */
 Point2D * c2d_get_center2D (Entity * e) {
-    Point2D * trav, * c = c2d_create_point(0, 0);
+    Point2D * trav, * c = NULL;
 
     if (e != NULL) {
+        c = (Point2D *) malloc(sizeof(Point2D));
         if (c != NULL) {
             switch (e->label->type) {
                 case point_t:
-                    //! NOT IMPLEMENTED YET
+                    *c = *((Point2D *) e->data);
                     break;
                 case line_t:
-                case spline_t:
                 case polyline_t:
+                case irregular_polygon_t:
+                case regular_polygon_t:
+                    u_get_center_line (e->data, c);
+                    break;
+                case spline_t:
                     //! NOT IMPLEMENTED YET
                     break;
-                case irregular_polygon_t:
-                    u_get_center_irregular_polygon(e->data, c);
-                    break;
-                case regular_polygon_t:
-                    u_get_center_regular_polyone(e->data, c);
                 case rectangle_t:
                     u_get_center_rectangle(e->data, c);
                     break;
                 case circle_t:
                 case arc_t:
-                    u_get_center_circle(e->data, c);
+                    *c = ((Circle *) e->data)->center;
                     break;
                 case ellipse_t:
-                    u_get_center_ellipse(e->data, c);
+                    *c = ((Ellipse *) e->data)->center;
                     break;
                 case image_t:
                     //! NOT IMPLEMENTED YET
@@ -988,7 +989,7 @@ Point2D * c2d_get_center2D (Entity * e) {
 }
 
 /* c: center e: entity */
-void u_get_center_irregular_polygon (Point2D * e, Point2D * c) {
+void u_get_center_line (Point2D * e, Point2D * c) {
     int i = 0;
     c->y = c->x = 0;
 
@@ -1004,23 +1005,9 @@ void u_get_center_irregular_polygon (Point2D * e, Point2D * c) {
     }
 }
 
-void u_get_center_regular_polyone(RegularPolygon * e, Point2D * c) {
-    *c = e->center;
-}
-
 void u_get_center_rectangle (Rectangle * e, Point2D * c) {
     c->x = (e->corner1.x + e->corner2.x) / 2;
     c->y = (e->corner1.y + e->corner2.y) / 2;
-}
-
-void u_get_center_circle (Circle * e, Point2D * c) {
-    c->x = e->center.x; 
-    c->y = e->center.y; 
-}
-
-void u_get_center_ellipse(Ellipse * e, Point2D * c) {
-    c->x = e->center.x;
-    c->y = e->center.y;
 }
 
 /*********************************************************************************
@@ -1055,20 +1042,18 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                         //! NOT IMPLEMENTED YET
                         break;
                     case irregular_polygon_t:
-                        u_get_center_irregular_polygon(t->data, s->data);
-                        break;
                     case regular_polygon_t:
-                        u_get_center_regular_polyone(t->data, s->data);
+                        u_get_center_line(t->data, s->data);
                         break;
                     case rectangle_t:
                         u_get_center_rectangle(t->data, s->data);
                         break;
                     case circle_t:
                     case arc_t:
-                        u_get_center_circle(t->data, s->data);
+                        *((Point2D *) s->data) = ((Circle *) t->data)->center;
                         break;
                     case ellipse_t:
-                        u_get_center_ellipse(t->data, s->data);
+                        *((Point2D *) s->data) = ((Ellipse *) t->data)->center;
                         break;
                     case text_t:
                         //! NOT IMPLEMENTED YET
