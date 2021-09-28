@@ -9,7 +9,7 @@
 *********************************************************************************/
 typedef enum {
     point_t, line_t, spline_t, polyline_t, regular_polygon_t, irregular_polygon_t,
-    rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
+    triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
 } EntityType;
 
 typedef struct {
@@ -70,6 +70,7 @@ typedef struct Entity {
 typedef struct Hierarchy {
     struct CAD2D * cad;
     char * name;                    /* name of the hieararchy */
+    int hash_code;      
     struct Hierarchy * parent;
     struct Hierarchy ** child;      /* array of child hierarchies */
     int size;
@@ -78,7 +79,6 @@ typedef struct Hierarchy {
 /* Point2D can also treated as Line, Polyline, Polygone and Spline */
 typedef struct Point2D {
     double x, y;
-    struct Point2D * next;
 } Point2D;
 
 typedef struct Canvas {
@@ -127,7 +127,8 @@ typedef struct Spline {
 
 */
 typedef struct PointList {
-    //! Type for keeping polyline polygon data
+    Point2D point;
+    struct PointList * next;
 } PointList;
 
 typedef struct Circle {
@@ -141,6 +142,10 @@ typedef struct Text {
     char * text;
     TextStyle * style;
 } Text;
+
+typedef struct Triangle {
+    Point2D corner1, corner2, corner3;
+} Triangle;
 
 typedef struct Rectangle {
     Point2D corner1, corner2;   /* Takes two opposite corners as start and end point */
@@ -176,7 +181,7 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
 //* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
 Point2D * c2d_create_point (double x, double y);
-void c2d_set_point (Point2D * p, double x, double y, Point2D * next);
+void c2d_set_point (Point2D * p, double x, double y);
 
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
@@ -187,11 +192,14 @@ void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
 void c2d_remove_entity (CAD2D * cad, Label ** l);
 Point2D * c2d_get_center2D (Entity * e);
 
+PointList * c2d_create_point_list_p (Point2D p);
+
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);
 Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y);
+Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D corner3);
 Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2);
 // Label * c2d_add_polyline (CAD2D * cad, Point2D * p);
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);

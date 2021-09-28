@@ -11,14 +11,15 @@ int u_is_prime (int n);
 int u_find_close_prime (int n);
 
 int u_create_hash_code (char * key, int size);
-Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h);
-int u_check_unique_hierarchy (Hierarchy * child);
+int u_find_place_h (Hierarchy * h);
+int u_check_hierarchy (Hierarchy * root, Hierarchy * h);
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 int u_get_tree_depth (Hierarchy * h);
 
 double u_min (double a, double b);
 char * u_deci_to_hexa (int deci);
 char * u_create_hierarchy_name (Hierarchy * h); 
+Hierarchy * u_get_root_hierarchy (Hierarchy * h);
 
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label (LabeList ** llist, Label ** l);
@@ -26,7 +27,7 @@ int u_check_unique_label (CAD2D * cad, Label * l);
 char * u_create_label_name (CAD2D * cad, Label * l);
 
 int u_insert_entity_list (CAD2D * cad, Entity * e);
-void u_free_point (Point2D * p);
+void u_free_point_list (PointList * p);
 void u_free_text (Text * t);
 void u_free_entity (Entity * e);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
@@ -35,13 +36,14 @@ int u_is_in_canvas_p (Canvas * c, Point2D * p);
 
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-void u_get_center_line (Point2D * e, Point2D * c);
+void u_get_center_line (PointList * e, Point2D * c);
+void u_get_center_triangle(Triangle * e, Point2D * c);
 void u_get_center_rectangle (Rectangle * e, Point2D * c);
 
-double u_measure_point_polyline (Point2D * point, Point2D * pline);
+double u_measure_point_polyline (Point2D * point, PointList * pline);
 
 void u_snap_point_point (Point2D * s, Point2D * t);
-void u_snap_point_line (Point2D * s, Point2D * t);
+void u_snap_point_line (Point2D * s, PointList * t);
 void u_snap_arc_point (Circle * s, Point2D * t);
 RGBColor u_convert_rgb (Color c);
 
@@ -50,9 +52,10 @@ void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
 void u_print_circle (FILE * fid, Circle * e);
 void u_print_ellipse (FILE * fid, Ellipse * e);
+void u_print_triangle (FILE * fid, Triangle * e);
 void u_print_rectangle (FILE * fid, Rectangle * e);
-void u_print_line (FILE * fid, Point2D * e);
-void u_print_spline (FILE * fid, Point2D * e);
+void u_print_line (FILE * fid, PointList * e);
+void u_print_spline (FILE * fid, PointList * e);
 void u_print_regular_polygon (FILE * fid, RegularPolygon * e);
 void u_print_text (FILE * fid, Text * e);
 void u_export_hierarchy (FILE * fid, Hierarchy * h);
@@ -72,8 +75,8 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
         h->cad = cad;
         h->child = NULL;
         h->size = 0;
-        h->name = u_create_hierarchy_name(h);
         cad->hierarchy = h; //???????????????
+        h->name = u_create_hierarchy_name(h);
     }
 
     return h;
@@ -83,89 +86,106 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
 
 /* creates a hierarchy from given cad and add it as a child of given parent hierarchy */
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
-    Hierarchy * h = c2d_create_hierarchy(cad);
-    int i;
+    Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
     
     if (h != NULL) {
         h->parent = parent;
-
-        /* add new hierarchy as child of given parent */
+        h->cad = cad;
+        h->child = NULL;
+        h->size = 0;
+        cad->hierarchy = h; //???????????????
+        h->name = u_create_hierarchy_name(h);
         u_link_hierarchy(h, parent);
     }
+
 
     return h;
 }
 
+Hierarchy * u_get_root_hierarchy (Hierarchy * h) {
+    if (h->parent == NULL)
+        return h;
+    else
+        return u_get_root_hierarchy(h->parent); 
+}
+
 char * u_create_hierarchy_name (Hierarchy * h) {
-    char c = '0', * tmp, * r;
+    char c, * r = (char *) calloc(10, sizeof(char));
     int n;
-    
-    tmp = u_deci_to_hexa((u_get_tree_depth(h)));;
-    n = strlen(tmp);
-    r = (char *) calloc(strlen(tmp) + 3, sizeof(char));
-    
+
     if (r != NULL) {
-        r[0] = 'h';
-        strcpy(r + 1, tmp);
+        n = u_get_tree_depth(h);
+
+        /* assume tree depth is maxmimum 16 */
+        c = n < 9 ? '0' + n : 'A' + n; 
+        r[0] = 'h'; r[1] = c;
         h->name = r;
         
+        c = '0';
         do {
             if (c == '9' + 1)
                 c = 'A';
-
-            r[n + 1] = c++;
-        } while (c <= 'Z' && u_check_unique_hierarchy(h) == FAIL);
-        r[n + 2] = '\0';
+            r[2] = c++;
+            if (h->parent != NULL)
+                h->hash_code = u_create_hash_code(h->name, h->parent->size);
+            else
+                h->hash_code = u_create_hash_code(h->name, INIT_HASH);
+        } while (c <= 'Z' && u_find_place_h(h) == FAIL);
     }
 
-    free(tmp);
+    printf("New Hierarchy: %s\n", r);
     return r;    
 }
 
-int u_check_unique_hierarchy (Hierarchy * child) {
-    Hierarchy ** tmp, * parent = child->parent;
+int u_find_place_h (Hierarchy * h) {
+    return u_check_hierarchy(u_get_root_hierarchy(h), h);
+}
+
+/* In case of matching returns index of the hierarchy, o.w. returns FAIL(-1) */
+int u_check_hierarchy (Hierarchy * root, Hierarchy * h) {
     int i, r, hcode;
 
-    //! ALSO CHECK THE CHILD OF THE CHILD HIERARCHY
-    if (parent == NULL)
-        r = 1;
+    /* First hierarchy is unique since list initiliazed yet */
+    if (root != NULL || root->size == 0)
+        r = h->hash_code;
     else {
-        hcode = u_create_hash_code(child->name, parent->size);
-        /* First hierarchy is unique since list initiliazed yet */
-        if (parent->size == 0)
-            r = hcode;
-        else {
-            /* use hash-code as index of the unique hierarchy */
-            r = TRY;
-            for (i = 0; i < parent->size && r == TRY; ++i) {
-                if (hcode >= parent->size)
-                    hcode %= parent->size;
+        hcode = h->hash_code;
+        printf("%d\n", hcode);
 
-                /* same hash-code is a sign for same key values */
-                if (parent->child[hcode] != NULL) {
-                    if (strcmp(parent->child[hcode]->name, child->name) == 0)
-                        r = FAIL;
-                    else
-                        ++hcode;
-                }
-                else 
-                    r = hcode;
+        /* use hash-code as index of the unique hierarchy */
+        for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
+            if (hcode >= root->size)
+                hcode %= root->size;
+
+            /* same hash-code is a sign for same keys */
+            if (root->child[hcode] != NULL) {
+                if (strcmp(root->child[hcode]->name, h->name) == 0)
+                    r = FAIL;
+                else
+                    ++hcode;
             }
+            else 
+                r = hcode;
         }
+        //! ALSO CHECK THE CHILD OF THE CHILD HIERARCHY
+        /* If there isn't match yet, continue with children */
+        for (i = 0; i < root->size && r != FAIL; ++i)
+            if (root->child[i] != NULL)
+                r = u_find_place_h(h);
     }
-
+    printf("u_find_place_h() returns %d\n", r);
     return r;
 }
 
 /* links given two hiearchy as child-parent relationship */
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
     Hierarchy ** tmp;
-    int i = 0, n, r = u_check_unique_hierarchy(child);
+    int i = 0, n, r = u_find_place_h(child);
 
     if (r == FAIL)  //!!!!! Is it okay?
         printf("'%s' named Hierarchy already exist\n", child->name);
     else {
-        /*  u_check_unique_hierarchy() returns the next empty place
+        /*  u_find_place_h() returns the next empty place
             based on it's hash-func regarding the size of the array.
             So be sure we are not exceeding the size                */
         if (r >= parent->size) {
@@ -180,7 +200,7 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
 
             if (tmp != NULL) {
                 for (i = 0; i < n; ++i) 
-                    tmp[n] = parent->child[n];
+                    tmp[i] = parent->child[i];
 
                 free(parent->child);
                 parent->child = tmp;
@@ -189,32 +209,10 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
                 r = FAIL;
         }
         
-        if (r != FAIL)
+        if (r != FAIL) {
             parent->child[r] = child; 
-    }
-
-    return r;
-}
-
-//! NOT TESTED YET
-Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
-    int i, hcode = u_create_hash_code(h->name, h->size);
-    Hierarchy * r = NULL;
-
-    if (cad->hierarchy != h) {
-        /* look the child's of root hierarchy */
-        
-        for (i = 0; i < cad->hierarchy->size && r == NULL; ++i) {
-            if (hcode >= cad->hierarchy->size) 
-                hcode %= cad->hierarchy->size;
-
-            if (cad->hierarchy->child[hcode + i] == h)
-                r = h;
-        }
-        /* if isn't founded yet, look the children's children */
-        if (r == NULL) {
-            for (i = 0; i < cad->hierarchy->size && r == NULL; ++i)
-                r = u_find_hierarchy(cad->hierarchy->child[i]->cad, h);
+            child->parent = parent;
+            printf("%s inserted as child of %s\n\n\n", child->name, child->parent->name);
         }
     }
 
@@ -282,11 +280,14 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
         case irregular_polygon_t:
             r[0] = 'I';
             r[1] = 'P';
-            r[1] = 'g';    break;
+            r[2] = 'g';    break;
         case regular_polygon_t:
             r[0] = 'R';
             r[1] = 'P';
             r[2] = 'g';    break;
+        case triangle_t:
+            r[0] = 'T';
+            r[1] = 'r';    break;
         case rectangle_t:
             r[0] = 'R';    break;
         case circle_t:
@@ -462,8 +463,8 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
 }
 
 /* common for point and lines */
-void u_free_point (Point2D * p) {
-    Point2D * tmp;
+void u_free_point_list (PointList * p) {
+    PointList * tmp;
 
     while (p != NULL) {
         tmp = p;
@@ -482,30 +483,25 @@ void u_free_entity (Entity * e) {
         if (e->label != NULL) {
             if (e->data != NULL) {
                 switch (e->label->type) {
-                    case point_t:
                     case line_t:
                     case polyline_t:
                     case irregular_polygon_t:
-                        u_free_point(e->data);
+                        u_free_point_list(e->data);
                         break;
+                    case point_t:
                     case regular_polygon_t:
-                        free(e->data);
-                        break;
-                    case spline_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
+                    case triangle_t:
                     case rectangle_t:
-                        free(e->data);
-                        break;
                     case circle_t:
                     case arc_t:
-                        free(e->data);
-                        break;
                     case ellipse_t:
-                        //! NOT IMPLEMENTED YET
+                        free(e->data);
                         break;
                     case text_t:
                         u_free_text(e->data);       
+                        break;
+                    case spline_t:
+                        //! NOT IMPLEMENTED YET
                         break;
                     case image_t:
                         //! NOT IMPLEMENTED YET
@@ -566,8 +562,8 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = c2d_start_wh(width, height);
 
     if (cad != NULL) {
+        cad->hierarchy->parent = h;
         u_link_hierarchy(cad->hierarchy, h);
-        h->parent = h;
     }
 
     return cad;
@@ -593,7 +589,6 @@ Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
         d = c2d_create_point(x, y);
         if (d != NULL) {
             l = c2d_create_label_default(cad, point_t);
-            
             if (l != NULL)
                 u_create_entity(cad, l, d, NULL);
             else
@@ -615,10 +610,8 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
         d = (Point2D *) malloc(sizeof(Point2D));
         if (d != NULL) {
             *d = p; 
-            d->next = NULL;
 
             l = c2d_create_label_default(cad, point_t);
-            
             if (l != NULL)
                 u_create_entity(cad, l, d, NULL);
             else
@@ -631,69 +624,78 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
 
 //! NOT TESTED YET:
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
-    Hierarchy * f = u_find_hierarchy(cad, h);
+    int r = u_find_place_h(h);
     /* add point at desired hiearchy as if it's root */
 
-    return f != NULL ? c2d_add_point_p(f->cad, p) : NULL;
+    return r != FAIL ? c2d_add_point_p(h->cad, p) : NULL;
 }
 
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {
     //! NOT IMPLEMENTED YET
 }
 
-void c2d_set_point (Point2D * p, double x, double y, Point2D * next) {
+void c2d_set_point (Point2D * p, double x, double y) {
     p->x = x;
     p->y = y;
-    p->next = next; //!!! ??????
+}
+
+PointList * c2d_create_point_list_p (Point2D p) {
+    PointList * l = (PointList *) malloc(sizeof(PointList));
+    if (l != NULL) {
+        l->point = p;
+        l->next = NULL;
+    }
+
+    return l;
 }
 
 Point2D * c2d_create_point (double x, double y) {
     Point2D * p = (Point2D *) malloc(sizeof(Point2D));
-
     if (p != NULL) {
         p->x = x;
         p->y = y;
-        p->next = NULL;
     }
 
     return p;
 }
 
 Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
-    Point2D * head;
+    PointList * head;
     Label * l = NULL;
 
     if (u_is_in_canvas_p(cad->canvas, &start) && u_is_in_canvas_p(cad->canvas, &end)) {
-        head = c2d_create_point(start.x, start.y);
-        head->next = c2d_create_point(end.x, end.y);
+        head = c2d_create_point_list_p(start);
+        head->next = c2d_create_point_list_p(end);
         
         l = c2d_create_label_default(cad, line_t);
         
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point(head);
+            u_free_point_list(head);
     }
 
     return l;
 }
 
+/* takes an point array */
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
-    Point2D * head, ** trav;
+    PointList * head, ** trav;
     Label * l = NULL;
     int i;
 
     trav = &head;
 
     for (i = 0; i < size; ++i) {
-        *trav = c2d_create_point(p[i].x, p[i].y);
-        
-        if (*trav == NULL || !u_is_in_canvas_p(cad->canvas, *trav)) {
-            u_free_point(head);
-            head = NULL;
+        if (u_is_in_canvas_p(cad->canvas, p + i)) {
+            *trav = c2d_create_point_list_p(p[i]);
+            if (*trav != NULL)
+                trav = &(*trav)->next;
+            else {
+                u_free_point_list(head);
+                head = NULL;
+            }
         }
-        else
-            trav = &(*trav)->next;
     }
     
     if (head != NULL) {
@@ -702,7 +704,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point(head);
+            u_free_point_list(head);
     }
     
     return l;
@@ -817,6 +819,31 @@ Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double rad
     return l;
 }
 
+//! ADD THIN TRIANGLE TYPE TO SWITCH CASES
+Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D corner3) {
+    Triangle * d;
+    Label * l = NULL;
+
+    if (u_is_in_canvas_p(cad->canvas, &corner1) && 
+        u_is_in_canvas_p(cad->canvas, &corner2) &&
+        u_is_in_canvas_p(cad->canvas, &corner3)) {
+        d = (Triangle *) malloc(sizeof(Triangle));
+        if (d != NULL) {
+            d->corner1 = corner1;
+            d->corner2 = corner2;
+            d->corner3 = corner3;
+
+            l = c2d_create_label_default(cad, triangle_t);
+            if (l != NULL) 
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
 Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
     Rectangle * d;
     Label * l = NULL;
@@ -901,12 +928,12 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
 }
 
 /* Returns the closest distance between point and polyline */
-double u_measure_point_polyline (Point2D * point, Point2D * pline) {
+double u_measure_point_polyline (Point2D * point, PointList * pline) {
     double d = -1, tmp;
 
     /* Take min distance by travelling each point on pline and calculating their ED  */
     while (pline != NULL) {
-        tmp = u_get_euclidean_dist(point, pline);
+        tmp = u_get_euclidean_dist(point, &pline->point);
 
         if (tmp < d || d == -1)
             d = tmp;
@@ -957,10 +984,13 @@ Point2D * c2d_get_center2D (Entity * e) {
                 case polyline_t:
                 case irregular_polygon_t:
                 case regular_polygon_t:
-                    u_get_center_line (e->data, c);
+                    u_get_center_line(e->data, c);
                     break;
                 case spline_t:
                     //! NOT IMPLEMENTED YET
+                    break;
+                case triangle_t:
+                    u_get_center_triangle(e->data, c);
                     break;
                 case rectangle_t:
                     u_get_center_rectangle(e->data, c);
@@ -989,13 +1019,15 @@ Point2D * c2d_get_center2D (Entity * e) {
 }
 
 /* c: center e: entity */
-void u_get_center_line (Point2D * e, Point2D * c) {
+void u_get_center_line (PointList * e, Point2D * c) {
     int i = 0;
     c->y = c->x = 0;
 
     while (e != NULL) {
-        c->x += e->x;
-        c->y += e->y;
+        c->x += e->point.x;
+        c->y += e->point.y;
+
+        e = e->next;
         ++i;
     }
 
@@ -1003,6 +1035,11 @@ void u_get_center_line (Point2D * e, Point2D * c) {
         c->x /= i;
         c->y /= i;
     }
+}
+
+void u_get_center_triangle(Triangle * e, Point2D * c) {
+    c->x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3;
+    c->x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3;
 }
 
 void u_get_center_rectangle (Rectangle * e, Point2D * c) {
@@ -1099,7 +1136,7 @@ void u_snap_point_point (Point2D * s, Point2D * t) {
 }   
 
 /* Snaps the source point to the closest end of the line */
-void u_snap_point_line (Point2D * s, Point2D * t) {
+void u_snap_point_line (Point2D * s, PointList * t) {
     //! NOT IMPLEMENTED YET
 }
 
@@ -1265,11 +1302,11 @@ void u_export_hierarchy (FILE * fid, Hierarchy * h) {
                         case regular_polygon_t:
                             u_print_regular_polygon(fid, e->data);
                             break;
-                        case spline_t:
-                            u_print_spline (fid, e->data);
-                            break;
                         case rectangle_t:
                             u_print_rectangle(fid, e->data);
+                            break;
+                        case triangle_t:
+                            u_print_triangle (fid, e->data);
                             break;
                         case circle_t:
                         case arc_t:
@@ -1280,6 +1317,10 @@ void u_export_hierarchy (FILE * fid, Hierarchy * h) {
                             break;
                         case text_t:
                             u_print_text(fid, e->data);
+                            break;
+                        case spline_t:
+                            u_print_spline (fid, e->data);
+                            //! NOT IMPLEMENTED YET
                             break;
                         case image_t:
                             //! NOT IMPLEMENTED YET
@@ -1297,8 +1338,10 @@ void u_export_hierarchy (FILE * fid, Hierarchy * h) {
                 }
         }
         /* export child of the root hierarchy */
+        printf("hsize: %d\n", h->size);
         for (i = 0; i < h->size; ++i)
-            u_export_hierarchy(fid, h->child[i]);
+            if (h->child[i] != NULL)
+                u_export_hierarchy(fid, h->child[i]);
     }
 }
 
@@ -1368,6 +1411,14 @@ void u_print_ellipse (FILE * fid, Ellipse * e) {
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, radius, 0.0, 360.0);
 }
 
+void u_print_triangle (FILE * fid, Triangle * e) {
+    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "%.2f %.2f moveto\n", e->corner1.x, e->corner1.y);
+    fprintf(fid, "%.2f %.2f lineto\n", e->corner2.x, e->corner2.y);
+    fprintf(fid, "%.2f %.2f lineto\n", e->corner3.x, e->corner3.y);
+    fprintf(fid, "closepath\n");
+}
+
 void u_print_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->corner2.y - e->corner1.y),
             width = (e->corner2.x - e->corner1.x);
@@ -1381,26 +1432,26 @@ void u_print_rectangle (FILE * fid, Rectangle * e) {
 } 
 
 /* common function for line, polyline and polygon types */
-void u_print_line (FILE * fid, Point2D * e) {
+void u_print_line (FILE * fid, PointList * e) {
     fprintf(fid, "\nnewpath\n");
-    fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
+    fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     e = e->next;
     
     while (e != NULL) {
-        fprintf(fid, "%.2f %.2f lineto\n", e->x, e->y);
+        fprintf(fid, "%.2f %.2f lineto\n", e->point.x, e->point.y);
         e = e->next;
     }
 }
 
-void u_print_spline (FILE * fid, Point2D * e) {
+void u_print_spline (FILE * fid, PointList * e) {
     int i;
     fprintf(fid, "\nnewpath\n");
-    fprintf(fid, "%.2f %.2f moveto\n", e->x , e->y);
+    fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     //! NOT IMPLEMENTED YET
     //! At least 3 or 4 point needed 
 
     for (i = 0; i < 3; ++i) {
-        fprintf(fid, "%.2f %.2f ", e->x, e->y);
+        fprintf(fid, "%.2f %.2f ", e->point.x, e->point.y);
         e = e->next;
     }    
     fprintf(fid, "curveto\n");
@@ -1488,6 +1539,20 @@ int u_get_tree_depth (Hierarchy * h) {
     else
         r = 1 + u_get_tree_depth(h->parent);
     return r;
+}
+
+//! DELETE 
+char u_get_hierarchy_level (Hierarchy * h) {
+    int d = u_get_tree_depth(h);
+    char l;
+    if (d < 16)
+        l = d <= 9 ? '0' + d : 'A' + d;
+    else {
+
+        printf("Max hierarchy level reached\n");
+    }
+    
+    return l;
 }
 
 char * u_deci_to_hexa (int deci) {

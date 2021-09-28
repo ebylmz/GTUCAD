@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include "cad2d.h"
+#define FAIL -1
 
 // ! label için point olur birde textfield olur belkide hashcode olur
 /*
@@ -46,3 +47,79 @@ typedef enum {
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
 */
+       
+	    /*  u_check_unique_hierarchy() returns the next empty place
+            based on it's hash-func regarding the size of the array.
+            So be sure we are not exceeding the size                */
+
+int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
+    Hierarchy ** tmp;
+    int i = 0, n, r = u_check_unique_hierarchy(child);
+
+    if (r == FAIL)  //!!!!! Is it okay?
+        printf("'%s' named Hierarchy already exist\n", child->name);
+    else {
+        if (r >= parent->size) {
+            n = parent->size;
+
+            if (parent->size == 0)
+                parent->size = INIT_HASH;
+            else
+                parent->size *= 2;
+
+            tmp = (Hierarchy **) calloc(parent->size, sizeof(Hierarchy *));
+
+            if (tmp != NULL) {
+                for (i = 0; i < n; ++i) 
+                    tmp[i] = parent->child[i];
+
+                free(parent->child);
+                parent->child = tmp;
+            }
+            else
+                r = FAIL;
+        }
+        
+        if (r != FAIL) {
+            parent->child[r] = child; 
+            child->parent = parent;
+        }
+    }
+
+    return r;
+}
+
+//! NOT TESTED YET
+Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
+    int i, hcode = u_create_hash_code(h->name, h->size);
+    Hierarchy * r = NULL;
+    Hierarchy * trav;
+
+    if (cad->hierarchy != NULL) {
+        trav = cad->hierarchy;
+
+        /* Go to the root Hierarchy and check up to down */
+        /*
+        while (trav->parent != NULL)
+            trav = trav->parent;
+        */
+        
+        for (i = 0; i < cad->hierarchy->size && r == NULL; ++i)
+            
+            /* look the child's of root hierarchy */
+            for (i = 0; i < cad->hierarchy->size && r == NULL; ++i) {
+                if (hcode >= cad->hierarchy->size)
+                    hcode %= cad->hierarchy->size;
+
+                if (cad->hierarchy->child[(hcode + i) % cad->hierarchy->size] == h)
+                    r = h;
+            }
+            /* if isn't founded yet, look the children's children */
+            if (r == NULL) {
+                for (i = 0; i < cad->hierarchy->size && r == NULL; ++i)
+                    r = u_find_hierarchy(cad->hierarchy->child[i]->cad, h);
+            }
+    }
+
+    return r;
+}
