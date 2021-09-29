@@ -4,8 +4,52 @@
 #include <math.h>
 #include "cad2d.h"
 #define FAIL -1
+#define TRY -2
 
 // ! label için point olur birde textfield olur belkide hashcode olur
+
+
+
+/* In case of matching returns index of the hierarchy, o.w. returns FAIL(-1) */
+int u_check_hierarchy (Hierarchy * root, Hierarchy * h) {
+    int i, r, hcode;
+
+    /* First hierarchy is unique since list initiliazed yet */
+    if (root != NULL || root->size == 0)
+        r = h->hash_code;
+    else {
+        hcode = h->hash_code;
+        printf("%d\n", hcode);
+
+        /* use hash-code as index of the unique hierarchy */
+        for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
+            if (hcode >= root->size)
+                hcode %= root->size;
+
+            /* same hash-code is a sign for same keys */
+            if (root->child[hcode] != NULL) {
+                if (strcmp(root->child[hcode]->name, h->name) == 0)
+                    r = FAIL;
+                else
+                    ++hcode;
+            }
+            else 
+                r = hcode;
+        }
+        //! ALSO CHECK THE CHILD OF THE CHILD HIERARCHY
+        /* If there isn't match yet, continue with children */
+        for (i = 0; i < root->size && r != FAIL; ++i)
+            if (root->child[i] != NULL)
+                r = u_find_hierarchy(h->cad ,h); //! delete h->cad
+    }
+    printf("u_find_hierarchy() returns %d\n", r);
+    return r;
+}
+
+
+
+
+
 /*
 1 0 0 		 setrgbcolor	red
 0 1 0 		 setrgbcolor	green

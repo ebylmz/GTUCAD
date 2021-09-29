@@ -11,8 +11,7 @@ int u_is_prime (int n);
 int u_find_close_prime (int n);
 
 int u_create_hash_code (char * key, int size);
-int u_find_place_h (Hierarchy * h);
-int u_check_hierarchy (Hierarchy * root, Hierarchy * h);
+int u_find_hierarchy (Hierarchy * root, Hierarchy * h);
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 int u_get_tree_depth (Hierarchy * h);
 
@@ -110,6 +109,7 @@ Hierarchy * u_get_root_hierarchy (Hierarchy * h) {
 }
 
 char * u_create_hierarchy_name (Hierarchy * h) {
+    Hierarchy * root = u_get_root_hierarchy(h);
     char c, * r = (char *) calloc(10, sizeof(char));
     int n;
 
@@ -126,75 +126,90 @@ char * u_create_hierarchy_name (Hierarchy * h) {
             if (c == '9' + 1)
                 c = 'A';
             r[2] = c++;
+       
             if (h->parent != NULL)
                 h->hash_code = u_create_hash_code(h->name, h->parent->size);
             else
                 h->hash_code = u_create_hash_code(h->name, INIT_HASH);
-        } while (c <= 'Z' && u_find_place_h(h) == FAIL);
+        } while (c <= 'Z' && u_find_hierarchy(root, h) != FAIL);
     }
 
     printf("New Hierarchy: %s\n", r);
     return r;    
 }
 
-int u_find_place_h (Hierarchy * h) {
-    return u_check_hierarchy(u_get_root_hierarchy(h), h);
-}
 
 /* In case of matching returns index of the hierarchy, o.w. returns FAIL(-1) */
-int u_check_hierarchy (Hierarchy * root, Hierarchy * h) {
-    int i, r, hcode;
+int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
+    int i, r, n;
 
     /* First hierarchy is unique since list initiliazed yet */
-    if (root != NULL || root->size == 0)
-        r = h->hash_code;
+    if (root == NULL || root->size == 0 || h == root) //!! || h == root is needed
+        r = FAIL;
     else {
-        hcode = h->hash_code;
-        printf("%d\n", hcode);
-
         /* use hash-code as index of the unique hierarchy */
-        for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
-            if (hcode >= root->size)
-                hcode %= root->size;
+        for (i = 0, n = h->hash_code, r = TRY; i < root->size && r == TRY; ++i) {
+            if (n >= root->size)
+                n %= root->size;
 
             /* same hash-code is a sign for same keys */
-            if (root->child[hcode] != NULL) {
-                if (strcmp(root->child[hcode]->name, h->name) == 0)
-                    r = FAIL;
+            if (root->child[n] != NULL) {
+                if (strcmp(root->child[n]->name, h->name) == 0)
+                    r = n;
                 else
-                    ++hcode;
+                    ++n;
             }
+            //! USE FLAG FOR DELETED ITEMS
+            /* Not in this hiearchy */
             else 
-                r = hcode;
+                break;
         }
-        //! ALSO CHECK THE CHILD OF THE CHILD HIERARCHY
+        //! NOT SURE
         /* If there isn't match yet, continue with children */
-        for (i = 0; i < root->size && r != FAIL; ++i)
+        for (i = 0, r = FAIL; i < root->size && r == FAIL; ++i)
             if (root->child[i] != NULL)
-                r = u_find_place_h(h);
+                r = u_find_hierarchy(root->child[i], h);
     }
-    printf("u_find_place_h() returns %d\n", r);
+    printf("for %s - %d: u_find_hierarchy() returns %d\n", h->name, h->hash_code, r);
     return r;
 }
 
 /* links given two hiearchy as child-parent relationship */
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
     Hierarchy ** tmp;
-    int i = 0, n, r = u_find_place_h(child);
+    int i = 0, n, r;
 
-    if (r == FAIL)  //!!!!! Is it okay?
-        printf("'%s' named Hierarchy already exist\n", child->name);
-    else {
-        /*  u_find_place_h() returns the next empty place
-            based on it's hash-func regarding the size of the array.
-            So be sure we are not exceeding the size                */
+    /* Find a proper where in the hash-table */
+    if (parent->child != NULL) {
+        for (i = 0, r = TRY, n = child->hash_code; i < parent->size && r == TRY; ++i) {
+            if (n >= parent->size)
+                n %= parent->size;
+            
+            /* In case of matching, check if they are same */
+            if (parent->child[n] != NULL) {
+                if (strcmp(parent->child[n]->name, child->name) == 0)
+                    r = FAIL;
+                else
+                    ++n;
+            }
+            else
+                r = n;
+        }            
+    }
+    else
+        r = child->hash_code;
+    
+    /* Locate the child hierarchy to the place indexed by r */
+    if (r != FAIL) {
+        /* We cannot find place inside of the current hash-table */
+        if (r == TRY) 
+            r = n;
+        
+        /* Current size exceeding, we need more memory */
         if (r >= parent->size) {
             n = parent->size;
 
-            if (parent->size == 0)
-                parent->size = INIT_HASH;
-            else
-                parent->size *= 2;
+            parent->size = parent->size == 0 ? INIT_HASH : parent->size * 2;
 
             tmp = (Hierarchy **) calloc(parent->size, sizeof(Hierarchy *));
 
@@ -559,13 +574,32 @@ CAD2D * c2d_start_wh (double width, double height) {
 
 /* Initialize a new CAD at child of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
-    CAD2D * cad = c2d_start_wh(width, height);
+    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
 
     if (cad != NULL) {
-        cad->hierarchy->parent = h;
-        u_link_hierarchy(cad->hierarchy, h);
-    }
+        cad->elist = NULL;
+        cad->elist_size = 0;
+        cad->llist = NULL;
+        cad->canvas = (Canvas *) malloc(sizeof(Canvas));
+        
+        if (cad->canvas != NULL) {
+            cad->canvas->start.x = -width / 2;
+            cad->canvas->start.y = -height / 2;
+            cad->canvas->end.x = width / 2; 
+            cad->canvas->end.y = height / 2; 
+            cad->hierarchy = c2d_create_hierarchy_parent(cad, h);
 
+            if (cad->hierarchy == NULL) {
+                free(cad->canvas);
+                free(cad);
+                cad = NULL;
+            }
+        }
+        else {
+            free(cad);
+            cad = NULL;
+        }
+    }
     return cad;
 }
 
@@ -624,7 +658,7 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
 
 //! NOT TESTED YET:
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
-    int r = u_find_place_h(h);
+    int r = u_find_hierarchy(u_get_root_hierarchy(h), h);
     /* add point at desired hiearchy as if it's root */
 
     return r != FAIL ? c2d_add_point_p(h->cad, p) : NULL;
