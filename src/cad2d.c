@@ -344,11 +344,10 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
 int u_find_label (CAD2D * cad, Label * l) {
     int i, r, n;
 
-    /* First label is unique since elist uninitiliazed yet */
-    if (cad->elist_size == 0) //! be careful cad == NULL ||  
+    if (cad->elist_size == 0)  
         r = FAIL;
     else {
-        /* hashing by linear-probing */
+        /* Search in current hierarchy */
         n = l->hash_code;
         for (i = 0, r = TRY; i < cad->elist_size && r == TRY; ++i) {
             if (n >= cad->elist_size)
@@ -362,23 +361,25 @@ int u_find_label (CAD2D * cad, Label * l) {
                     ++n;
             }
             //! USE FLAG FOR DELETED ITEMS: first implement delete hierarchy
-            /* Not in this LabelList */
+            /* Not in this elist */
             else
-                break; 
-        }
-        
-        if (r == TRY) {
-            /* If there isn't match yet, continue with children */
-            for (i = 0, r = FAIL; i < cad->hierarchy->size && r == FAIL; ++i)
-                if (cad->hierarchy->child[i] != NULL)
-                    r = u_find_label(cad->hierarchy->child[i]->cad, l);
+                r = FAIL;
         }
     }
 
+    /* If label haven't find yet, continue with child hierarchies */
+    if (r == FAIL) {
+        for (i = 0; i < cad->hierarchy->size && r == FAIL; ++i)
+            if (cad->hierarchy->child[i] != NULL) {
+printf("Search %s in hierarchy %s\n", l->name, cad->hierarchy->name);
+                r = u_find_label(cad->hierarchy->child[i]->cad, l);
+            }
+    }
+
     if (r == FAIL && cad->hierarchy != NULL)
-        printf("(-) FAIL (%s %-2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
+        printf("NOT FIND (%s, %2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
     else
-        printf("(+) FIND (%s %-2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
+        printf("FIND (%s, %2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
     return r;
 }
 
@@ -510,7 +511,7 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
         }
     }
 
-    if (r == NULL)
+    if (r == FAIL)
         printf("(-) INSERT FAIL (%s %-2d) to %s\n\n", e->label->name, e->label->hash_code, cad->hierarchy->name);
 
 
@@ -1496,6 +1497,10 @@ void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s) {
     fprintf(fid, "%.2f setlinewidth\n", s->line_width);
     fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
     fprintf(fid, s->draw == stroke && l->type != irregular_polygon_t ? "stroke\n" : "fill\n");
+}
+
+void c2d_show_xy_plane () {
+    //! NOT IMPLEMENTED YET
 }
 
 void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {

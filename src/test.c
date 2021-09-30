@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-// #include <math.h>
 #include "cad2d.h"
 
 void test0 () {
@@ -37,6 +36,7 @@ void test0 () {
         printf("CAD cannot started properly\n");
 }
 
+/* Draws a life is good page */
 void test1 () {
     CAD2D * cad;
     Point2D start;
@@ -67,7 +67,6 @@ void test1 () {
             c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
         }
 
-
         /* Add text */
         c2d_set_point(&start, -400, -400);
         l_text = c2d_add_text(cad, start, text);
@@ -88,6 +87,7 @@ void test1 () {
         printf("CAD cannot started properly\n");
 }
 
+/* Draws a Hello World page :) */
 void test2 () {
     CAD2D * cad;    
     Point2D center;
@@ -134,17 +134,18 @@ void test2 () {
         printf("CAD cannot started properly\n");
 }
 
+/* Draws a sweet home */
 void test3 () {
     CAD2D * cad_root, * cad_body, * cad_roof;
     Point2D p1, p2, p3;
-    double body_x = 400, body_y = 300;
-    double margin;
-    double  roof_w = 1000, roof_h = 250,
-            chimney_w = 70, chimney_h = 150,
-            win_circle_r = 100, 
-            win_rect_w = 150, win_rect_h = 350, 
-            door_w = 150, door_h = 250; 
-
+    double  margin;
+    double  body_x          = 400,  body_y      = 300;
+    double  roof_w          = 1000, roof_h      = 250,
+            chimney_w       = 70,   chimney_h   = 150,
+            win_circle_r    = 100, 
+            win_rect_w      = 150,  win_rect_h  = 350, 
+            door_w          = 100,  door_h      = 250; 
+    
     cad_root = c2d_start_wh(1500, 1500);
     if (cad_root != NULL) {
         cad_body = c2d_start_wh_hier(1500, 1500, cad_root->hierarchy);
@@ -154,24 +155,12 @@ void test3 () {
             c2d_set_point(&p2, body_x, body_y);
             c2d_add_rectangle(cad_body, p1, p2);
             
-            /* Set body part of the building */
-            c2d_set_point(&p1, -body_x + 100, -body_y);
-            c2d_set_point(&p2, body_x - 100, body_y);
-            c2d_add_rectangle(cad_body, p1, p2);
-            
-            /* Set door as two rectangle */
-            //! I dıd not understand it's just take first one and not the others
-            c2d_set_point(&p1, -body_y, -body_x);
-            c2d_set_point(&p2, body_y, body_x);
-            c2d_add_line(cad_body, p1, p2);
-            //! .....
-
             /* Set a circle window */
             c2d_set_point(&p1, body_x / 2, body_y / 2);
             c2d_add_circle(cad_body, p1, win_circle_r);
 
             /* Set two rectangle windows */
-            margin =  (body_x - (win_rect_w * 2)) / 2;
+            margin =  (body_x - (win_rect_w * 2)) * 3/4;
 
             c2d_set_point(&p1, -margin -win_rect_w, win_rect_h * 4/5);
             c2d_set_point(&p2, -margin, -win_rect_h * 1/4);
@@ -179,7 +168,15 @@ void test3 () {
 
             c2d_set_point(&p2, -margin - 2 * win_rect_w, -win_rect_h * 2/5);
             c2d_add_rectangle(cad_body, p1, p2);
-        
+            
+            /* Set door as two rectangle */
+            c2d_set_point(&p1, body_x - margin, -body_y);
+            c2d_set_point(&p2, body_x - margin - door_w, -body_y + door_h);
+            c2d_add_rectangle(cad_body, p1, p2);
+
+            c2d_set_point(&p1, body_x - margin - door_w, -body_y);
+            c2d_set_point(&p2, body_x - margin - 2 * door_w, -body_y + door_h);
+            c2d_add_rectangle(cad_body, p1, p2);
         }
 
         cad_roof = c2d_start_wh_hier(1500, 1500, cad_root->hierarchy);
@@ -196,9 +193,9 @@ void test3 () {
             c2d_add_rectangle(cad_roof, p1, p2);
         }
 
+        /* To export all the hierarchy give ROOT CAD to export function */
         c2d_export(cad_root, "test3.eps", "eps");
         printf("<<< Test3 DONE >>>\n\n");
-        /* export the root cad */
     }
     else 
         printf("CAD cannot started properly\n");
@@ -229,16 +226,18 @@ void test4 () {
     printf("<<< Test4 DONE >>>\n\n");
 }
 
+/* Draws more sweet home */
 void test5 () {
+    //! NOT IMPLEMENTED YET
 }
 
 int main (void) {
     test3();
-    /**
     test4();
     test0();
     test1();
     test2();
+    /**
     test5();
     **/
 }
