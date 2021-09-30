@@ -19,10 +19,11 @@ double u_min (double a, double b);
 char * u_deci_to_hexa (int deci);
 char * u_create_hierarchy_name (Hierarchy * h); 
 Hierarchy * u_get_root_hierarchy (Hierarchy * h);
+CAD2D * u_get_root_cad (CAD2D * cad);
 
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label (LabeList ** llist, Label ** l);
-int u_check_unique_label (CAD2D * cad, Label * l);
+int u_find_label (CAD2D * cad, Label * l);
 char * u_create_label_name (CAD2D * cad, Label * l);
 
 int u_insert_entity_list (CAD2D * cad, Entity * e);
@@ -101,11 +102,17 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
     return h;
 }
 
+/* Assumes given h is not NULL */
 Hierarchy * u_get_root_hierarchy (Hierarchy * h) {
     if (h->parent == NULL)
         return h;
     else
         return u_get_root_hierarchy(h->parent); 
+}
+
+CAD2D * u_get_root_cad (CAD2D * cad) {
+    Hierarchy * h = u_get_root_hierarchy(cad->hierarchy);
+    return h->cad;
 }
 
 char * u_create_hierarchy_name (Hierarchy * h) {
@@ -139,16 +146,17 @@ char * u_create_hierarchy_name (Hierarchy * h) {
 }
 
 
-/* In case of matching returns index of the hierarchy, o.w. returns FAIL(-1) */
+/* In case of matching returns nonnegative index value of the hierarchy, o.w. returns FAIL(-1) */
 int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
     int i, r, n;
 
-    /* First hierarchy is unique since list initiliazed yet */
+    /* First hierarchy is unique since list uninitiliazed yet */
     if (root == NULL || root->size == 0 || h == root) //!! || h == root is needed
         r = FAIL;
     else {
         /* use hash-code as index of the unique hierarchy */
-        for (i = 0, n = h->hash_code, r = TRY; i < root->size && r == TRY; ++i) {
+        n = h->hash_code;
+        for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
             if (n >= root->size)
                 n %= root->size;
 
@@ -159,16 +167,16 @@ int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
                 else
                     ++n;
             }
-            //! USE FLAG FOR DELETED ITEMS
+            //! USE FLAG FOR DELETED ITEMS: first implement delete hierarchy
             /* Not in this hiearchy */
             else 
                 break;
         }
-        //! NOT SURE
         /* If there isn't match yet, continue with children */
-        for (i = 0, r = FAIL; i < root->size && r == FAIL; ++i)
-            if (root->child[i] != NULL)
-                r = u_find_hierarchy(root->child[i], h);
+        if (r == TRY) 
+            for (i = 0, r = FAIL; i < root->size && r == FAIL; ++i)
+                if (root->child[i] != NULL)
+                    r = u_find_hierarchy(root->child[i], h);
     }
     printf("for %s - %d: u_find_hierarchy() returns %d\n", h->name, h->hash_code, r);
     return r;
@@ -234,14 +242,6 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
     return r;
 }
 
-Hierarchy * u_check_child_hierarchy (const Hierarchy * h) {
-    //! NOT IMPLEMENTED YET
-}
-
-Hierarchy * u_check_parent_hierarchy (const Hierarchy * h) {
-    //! NOT IMPLEMENTED YET
-}
-
 /*********************************************************************************
  * Label
 *********************************************************************************/
@@ -266,7 +266,7 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
         l->name = name;
         l->hash_code = u_create_hash_code(name, cad->elist_size); 
 
-        if (u_check_unique_label(cad, l) == FAIL) {
+        if (u_find_label(cad, l) != FAIL) {
             printf("\"%s\" named Label is already exist\n", name);
             free(l);
             l = NULL;
@@ -277,6 +277,7 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 }
 
 char * u_create_label_name (CAD2D * cad, Label * l) {
+    CAD2D * cad_root = u_get_root_cad(cad);
     char c = '0', * r = calloc(10, sizeof(char)), * h;
     int n = 0;
 
@@ -327,44 +328,57 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     l->name = r;
 
     /* define the instance number from 1 to 9 and A to Z */
+    /* check if given */
     do {
         if (c == '9' + 1)
             c = 'A';
         r[n] = c++;
         /* calculate the hash-code of new created name */
         l->hash_code = u_create_hash_code(l->name, cad->elist_size); 
-    } while (c <= 'Z' && u_check_unique_label(cad, l) == FAIL);
+    } while (c <= 'Z' && u_find_label(cad_root, l) != FAIL);
 
     return r;
 }
 
-/* returns the index of it's index if it's unique, o.w. returns -1 */
-int u_check_unique_label (CAD2D * cad, Label * l) {
-    int i, r, hcode = l->hash_code;
+/* In case of matching returns nonnegative index value of the label, o.w. returns FAIL(-1) */
+int u_find_label (CAD2D * cad, Label * l) {
+    int i, r, n;
 
-    /* First label is unique since elist initiliazed yet */
-    if (cad->elist_size == 0) 
-        r = hcode;
+    /* First label is unique since elist uninitiliazed yet */
+    if (cad->elist_size == 0) //! be careful cad == NULL ||  
+        r = FAIL;
     else {
         /* hashing by linear-probing */
-        r = TRY;
-        for (i = 0; i < cad->elist_size && r == TRY; ++i) {
-            if (hcode >= cad->elist_size)
-                hcode %= cad->elist_size;
+        n = l->hash_code;
+        for (i = 0, r = TRY; i < cad->elist_size && r == TRY; ++i) {
+            if (n >= cad->elist_size)
+                n %= cad->elist_size;
             
-            /* same hash-code is a sign for same key values */
-            if (cad->elist[hcode] != NULL) {
-                if (strcmp(cad->elist[hcode]->label->name, l->name) == 0)
-                    r = FAIL;
+            /* same hash-code is a sign for same keys */
+            if (cad->elist[n] != NULL) {
+                if (strcmp(cad->elist[n]->label->name, l->name) == 0)
+                    r = n;
                 else
-                    ++hcode;
+                    ++n;
             }
+            //! USE FLAG FOR DELETED ITEMS: first implement delete hierarchy
+            /* Not in this LabelList */
             else
-                r = hcode; 
+                break; 
+        }
+        
+        if (r == TRY) {
+            /* If there isn't match yet, continue with children */
+            for (i = 0, r = FAIL; i < cad->hierarchy->size && r == FAIL; ++i)
+                if (cad->hierarchy->child[i] != NULL)
+                    r = u_find_label(cad->hierarchy->child[i]->cad, l);
         }
     }
 
-    printf("%s\t%d\t[%d]\n", l->name, l->hash_code, r);
+    if (r == FAIL && cad->hierarchy != NULL)
+        printf("(-) FAIL (%s %-2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
+    else
+        printf("(+) FIND (%s %-2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
     return r;
 }
 
@@ -379,7 +393,7 @@ void u_insert_label (LabeList ** llist, Label * l) {
     }
 }
 
-//! NOT TESTED
+//! NOT TESTED YET
 void u_remove_label (LabeList ** llist, Label ** l) {
     while (*llist != NULL && *l != NULL) {
         if ((*llist)->label == *l) {
@@ -429,8 +443,9 @@ Entity * c2d_find_entity (CAD2D * cad, Label * l) {
     return e;
 }
 
+//! NOT TESTED YET
 void c2d_remove_entity (CAD2D * cad, Label ** l) {
-    int r = u_check_unique_label(cad, *l);
+    int r = u_find_label(cad, *l);
 
     //! assume we are still in same hierarchy
     //! r r is always -1 becasue it's there
@@ -444,35 +459,60 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
 
 int u_insert_entity_list (CAD2D * cad, Entity * e) {
     Entity ** tmp;
-    int i, n, r = u_check_unique_label(cad, e->label);
+    int i, n, r;
 
-    /*  u_check_unique_label() returns the next empty place
-        based on it's hash-func regarding the size of the array.
-        So be sure we are not exceeding the size                */
-    if (r >= cad->elist_size) {
-        n = cad->elist_size;
-
-        if (cad->elist_size == 0)
-            cad->elist_size = INIT_HASH;
-        else
-            cad->elist_size *= 2;
-
-        /* reallocate new memory */
-        tmp = (Entity **) calloc(cad->elist_size, sizeof(Entity *));
-
-        if (tmp != NULL) {
-            for (i = 0; i < n; ++i)
-                tmp[i] = cad->elist[i];
-            
-            free(cad->elist);
-            cad->elist = tmp;
+    /* Find proper where for given entity */
+    for (i = 0, r = TRY, n = e->label->hash_code; i < cad->elist_size && r == TRY; ++i) {
+        if (n >= cad->elist_size)
+            n %= cad->elist_size;
+        
+        if (cad->elist[n] != NULL) {
+            if (strcmp(cad->elist[n]->label->name, e->label->name) == 0)
+                r = FAIL;
+            else
+                ++n;
         }
-        else
-            r = FAIL;
+        else        /* We find an empty place */
+            r = n; 
     }
 
-    if (r != FAIL)
-        cad->elist[r] = e;
+    if (r != FAIL) {
+        /* We cannot find place inside of the current hash-table */
+        if (r == TRY)
+            r = n;
+        
+        /* Be sure we are not exceeding current size of hash-table */
+        if (r >= cad->elist_size) {
+            n = cad->elist_size;
+
+            if (cad->elist_size == 0)
+                cad->elist_size = INIT_HASH;
+            else
+                cad->elist_size *= 2;
+
+            tmp = (Entity **) calloc(cad->elist_size, sizeof(Entity *));
+
+            if (tmp != NULL) {
+                for (i = 0; i < n; ++i)
+                    tmp[i] = cad->elist[i];
+                
+                free(cad->elist);
+                cad->elist = tmp;
+            }
+            else
+                r = FAIL;
+        }
+
+        /* Assign it */
+        if (r != FAIL) {
+            cad->elist[r] = e;
+            printf("(->) INSERT (%s %-2d) to %s\n\n", e->label->name, e->label->hash_code, cad->hierarchy->name);
+        }
+    }
+
+    if (r == NULL)
+        printf("(-) INSERT FAIL (%s %-2d) to %s\n\n", e->label->name, e->label->hash_code, cad->hierarchy->name);
+
 
     return r;
 }
@@ -619,7 +659,7 @@ Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
     Point2D * d;
     Label * l = NULL;
 
-    if (u_is_in_canvas_p(cad->canvas, d)) {
+    if (u_is_in_canvas_xy(cad->canvas, x, y)) {
         d = c2d_create_point(x, y);
         if (d != NULL) {
             l = c2d_create_label_default(cad, point_t);
@@ -659,13 +699,24 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
 //! NOT TESTED YET:
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
     int r = u_find_hierarchy(u_get_root_hierarchy(h), h);
-    /* add point at desired hiearchy as if it's root */
 
+    /* add point at desired hiearchy as if it's root */
     return r != FAIL ? c2d_add_point_p(h->cad, p) : NULL;
 }
 
 Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {
-    //! NOT IMPLEMENTED YET
+    Point2D * d;
+    //! assumes given label is unique
+    if (l != NULL && u_is_in_canvas_p(cad->canvas, &p)) {
+        d = (Point2D *) malloc(sizeof(Point2D));
+        if (d != NULL) {
+            *d = p; 
+            
+            u_create_entity(cad, l, d, NULL);
+        }
+    }
+    
+    return l;
 }
 
 void c2d_set_point (Point2D * p, double x, double y) {
@@ -712,6 +763,14 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
     return l;
 }
 
+Label * c2d_add_line_h (CAD2D * cad, Point2D start, Point2D end, Hierarchy * h) {
+    //! NOT IMPLEMENTED YET
+}
+
+Label * c2d_add_line_hl (CAD2D * cad, Point2D start, Point2D end, Hierarchy * h, Label * l) {
+    //! NOT IMPLEMENTED YET
+}
+
 /* takes an point array */
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     PointList * head, ** trav;
@@ -744,8 +803,24 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     return l;
 }
 
+Label * c2d_add_polyline_h (CAD2D * cad, Point2D * p, int size, Hierarchy * h) {
+    //! NOT IMPLEMENTED YET
+}
+
+Label * c2d_add_polyline_hl (CAD2D * cad, Point2D * p, int size, Hierarchy * h, Label * l) {
+    //! NOT IMPLEMENTED YET
+}
+
 Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
     return c2d_add_polyline(cad, p, size);
+}
+
+Label * c2d_add_irregular_polygon_h (CAD2D * cad, Point2D * p, int size, Hierarchy * h) {
+    //! NOT IMPLEMENTED YET
+}
+
+Label * c2d_add_irregular_polygon_hl (CAD2D * cad, Point2D * p, int size, Hierarchy * h, Label * l) {
+    //! NOT IMPLEMENTED YET
 }
 
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius) {
@@ -1424,7 +1499,8 @@ void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s) {
 }
 
 void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% X-Y Plane\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
     fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
@@ -1432,7 +1508,8 @@ void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
 }
 
 void u_print_circle (FILE * fid, Circle * e) {
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Circle\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
 }
 
@@ -1440,13 +1517,15 @@ void u_print_ellipse (FILE * fid, Ellipse * e) {
     double  scale = e->radius_y / e->radius_x,
             radius = u_min(e->radius_x, e->radius_y);   
 
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Ellipse\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "1 %.2f scale\n", scale);
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, radius, 0.0, 360.0);
 }
 
 void u_print_triangle (FILE * fid, Triangle * e) {
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Triangle\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->corner1.x, e->corner1.y);
     fprintf(fid, "%.2f %.2f lineto\n", e->corner2.x, e->corner2.y);
     fprintf(fid, "%.2f %.2f lineto\n", e->corner3.x, e->corner3.y);
@@ -1457,7 +1536,8 @@ void u_print_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->corner2.y - e->corner1.y),
             width = (e->corner2.x - e->corner1.x);
 
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Rectangle\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->corner1.x, e->corner1.y);
     fprintf(fid, "%.2f %.2f rlineto\n", 0.0, height);
     fprintf(fid, "%.2f %.2f rlineto\n", width, 0.0);
@@ -1479,7 +1559,8 @@ void u_print_line (FILE * fid, PointList * e) {
 
 void u_print_spline (FILE * fid, PointList * e) {
     int i;
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Spline\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     //! NOT IMPLEMENTED YET
     //! At least 3 or 4 point needed 
@@ -1497,7 +1578,8 @@ void u_print_regular_polygon (FILE * fid, RegularPolygon * e) {
     /*  (cos(angle) * radius) defines the x-distance from center then 
         add to it center point to establish the x-component of target point */
 
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Regular Polygon\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f cos %.2f mul %.2f add %.2f sin %.2f mul %.2f add moveto\n", angle, e->out_radius, e->center.x, angle, e->out_radius, e->center.y);
     
     for (angle = d; angle < 360; angle += d)
@@ -1506,7 +1588,8 @@ void u_print_regular_polygon (FILE * fid, RegularPolygon * e) {
 }
 
 void u_print_text (FILE * fid, Text * e) {
-    fprintf(fid, "\nnewpath\n");
+    fprintf(fid, "\n%% Text\n");
+    fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     u_print_text_style(fid, e->style);
     fprintf(fid, "(%s) show\n", e->text);
@@ -1542,12 +1625,12 @@ int u_create_hash_code (char * key, int size) {
 }
 
 int u_is_prime (int n) {
-    int i, r = 1, b = sqrt(n);
+    int i, r, b = sqrt(n);
 
     if (n < 2)
     	r = 0;
     else 
-	    for (i = 2; i <= b && r == 1; ++i)
+	    for (i = 2, r = 1; i <= b && r == 1; ++i)
 	        if (n % i == 0)
 	            r = 0;
     return r;

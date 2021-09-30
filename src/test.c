@@ -67,7 +67,6 @@ void test1 () {
             c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
         }
 
-        c2d_remove_entity(cad, &l_circle);
 
         /* Add text */
         c2d_set_point(&start, -400, -400);
@@ -78,7 +77,9 @@ void test1 () {
             c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
         }
 
-        c2d_remove_entity(cad, &l_text);
+        //! we get error
+        // c2d_remove_entity(cad, &l_circle);
+        // c2d_remove_entity(cad, &l_text);
 
         c2d_export(cad, "test1.eps", "eps");
         printf("<<< Test1 DONE >>>\n\n");
@@ -140,18 +141,30 @@ void test3 () {
     double margin;
     double  roof_w = 1000, roof_h = 250,
             chimney_w = 70, chimney_h = 150,
-            win_circle_r = 150, 
-            win_rect_w = 150, win_rect_h = 350; 
+            win_circle_r = 100, 
+            win_rect_w = 150, win_rect_h = 350, 
+            door_w = 150, door_h = 250; 
 
     cad_root = c2d_start_wh(1500, 1500);
     if (cad_root != NULL) {
-
         cad_body = c2d_start_wh_hier(1500, 1500, cad_root->hierarchy);
         if (cad_body != NULL) {
             /* Set body part of the building */
             c2d_set_point(&p1, -body_x, -body_y);
             c2d_set_point(&p2, body_x, body_y);
             c2d_add_rectangle(cad_body, p1, p2);
+            
+            /* Set body part of the building */
+            c2d_set_point(&p1, -body_x + 100, -body_y);
+            c2d_set_point(&p2, body_x - 100, body_y);
+            c2d_add_rectangle(cad_body, p1, p2);
+            
+            /* Set door as two rectangle */
+            //! I dıd not understand it's just take first one and not the others
+            c2d_set_point(&p1, -body_y, -body_x);
+            c2d_set_point(&p2, body_y, body_x);
+            c2d_add_line(cad_body, p1, p2);
+            //! .....
 
             /* Set a circle window */
             c2d_set_point(&p1, body_x / 2, body_y / 2);
@@ -167,7 +180,6 @@ void test3 () {
             c2d_set_point(&p2, -margin - 2 * win_rect_w, -win_rect_h * 2/5);
             c2d_add_rectangle(cad_body, p1, p2);
         
-            /* Set door as two rectangle */
         }
 
         cad_roof = c2d_start_wh_hier(1500, 1500, cad_root->hierarchy);
@@ -184,9 +196,9 @@ void test3 () {
             c2d_add_rectangle(cad_roof, p1, p2);
         }
 
-        /* export the root cad */
         c2d_export(cad_root, "test3.eps", "eps");
         printf("<<< Test3 DONE >>>\n\n");
+        /* export the root cad */
     }
     else 
         printf("CAD cannot started properly\n");
@@ -199,24 +211,34 @@ void test4 () {
     CAD2D * cse = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
     CAD2D * security = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
     CAD2D * home = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
-    
+    Label l[10];
+    int i, n;
+
     c2d_set_point(&p1, 100, 100);
     c2d_set_point(&p2, 200, 100);
     c2d_set_point(&p3, 100, 200);
     c2d_add_triangle(cad_root, p1, p2, p3);
 
+    for (i = 0; i < 1000; i += 100) {
+        c2d_set_point(&p1, -i, -i);
+        c2d_set_point(&p2, i, i);
+        c2d_add_rectangle(data, p1, p2);
+    }
+
     c2d_export(cad_root, "test4.eps", "eps");
     printf("<<< Test4 DONE >>>\n\n");
 }
 
+void test5 () {
+}
+
 int main (void) {
-    /**
-    test0();
-    test1();
-    test2();
-    **/
     test3();
     /**
     test4();
+    test0();
+    test1();
+    test2();
+    test5();
     **/
 }
