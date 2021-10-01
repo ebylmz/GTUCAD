@@ -167,3 +167,41 @@ Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
 
     return r;
 }
+
+void u_free_entity (Entity * e) {
+    if (e != NULL) {
+        if (e->label != NULL) {
+            if (e->data != NULL) {
+                switch (e->label->type) {
+                    case line_t:
+                    case polyline_t:
+                    case irregular_polygon_t:
+                        u_free_point_list(e->data);
+                        break;
+                    case point_t:
+                    case regular_polygon_t:
+                    case triangle_t:
+                    case rectangle_t:
+                    case circle_t:
+                    case arc_t:
+                    case ellipse_t:
+                        free(e->data);
+                        break;
+                    case text_t:
+                        u_free_text(e->data);       
+                        break;
+                    case spline_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case image_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                }
+            }
+        } 
+        else //! NOT SURE
+            free(e->data);
+        free(e->style);
+        free(e);
+    }
+}

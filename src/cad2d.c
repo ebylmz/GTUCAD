@@ -4,8 +4,9 @@
 #include <math.h>
 #include "cad2d.h"
 
-#define TRY -2
-#define FAIL -1
+#define DELETED (void *) -3
+#define TRY     -2
+#define FAIL    -1
 
 int u_is_prime (int n);
 int u_find_close_prime (int n);
@@ -29,16 +30,16 @@ char * u_create_label_name (CAD2D * cad, Label * l);
 int u_insert_entity_list (CAD2D * cad, Entity * e);
 void u_free_point_list (PointList * p);
 void u_free_text (Text * t);
-void u_free_entity (Entity * e);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
 int u_is_in_canvas_xy (Canvas * c, double x, double y);
 int u_is_in_canvas_p (Canvas * c, Point2D * p);
 
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-void u_get_center_line (PointList * e, Point2D * c);
-void u_get_center_triangle(Triangle * e, Point2D * c);
-void u_get_center_rectangle (Rectangle * e, Point2D * c);
+Point2D u_get_center_rectangle (Rectangle * e);
+Point2D u_get_center_rectangle (Rectangle * e); 
+Point2D u_get_center_triangle(Triangle * e);
+Point2D u_get_center_line (PointList * e);
 
 double u_measure_point_polyline (Point2D * point, PointList * pline);
 
@@ -100,6 +101,15 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
 
 
     return h;
+}
+
+//! NO IMPLEMENTED YET
+void c2d_delete_hierarchy (Hierarchy * h) {
+    if (h != NULL) {
+        /* Check if there is a hierarchy like that */
+        /* Remove it from it's parent */
+        /* Remove it's child hierarchies and lastly remove it */
+    }
 }
 
 /* Assumes given h is not NULL */
@@ -353,23 +363,20 @@ int u_find_label (CAD2D * cad, Label * l) {
             if (n >= cad->elist_size)
                 n %= cad->elist_size;
             
-            /* same hash-code is a sign for same keys */
-            if (cad->elist[n] != NULL) {
-                if (strcmp(cad->elist[n]->label->name, l->name) == 0)
-                    r = n;
-                else
-                    ++n;
-            }
-            //! USE FLAG FOR DELETED ITEMS: first implement delete hierarchy
             /* Not in this elist */
-            else
+            if (cad->elist[n] == NULL)
                 r = FAIL;
+            /* same hash-code is a sign for same keys */
+            else if (cad->elist[n] != DELETED && strcmp(cad->elist[n]->label->name, l->name) == 0)
+                r = n;
+            else
+                ++n;
         }
     }
 
     /* If label haven't find yet, continue with child hierarchies */
-    if (r == FAIL) {
-        for (i = 0; i < cad->hierarchy->size && r == FAIL; ++i)
+    if (r == FAIL || r == TRY) {
+        for (i = 0, r = FAIL; i < cad->hierarchy->size && r == FAIL; ++i)
             if (cad->hierarchy->child[i] != NULL) {
 printf("Search %s in hierarchy %s\n", l->name, cad->hierarchy->name);
                 r = u_find_label(cad->hierarchy->child[i]->cad, l);
@@ -394,7 +401,7 @@ void u_insert_label (LabeList ** llist, Label * l) {
     }
 }
 
-//! NOT TESTED YET
+/* Removes the source label from given LabeList */
 void u_remove_label (LabeList ** llist, Label ** l) {
     while (*llist != NULL && *l != NULL) {
         if ((*llist)->label == *l) {
@@ -444,17 +451,58 @@ Entity * c2d_find_entity (CAD2D * cad, Label * l) {
     return e;
 }
 
-//! NOT TESTED YET
+
+void u_remove_entity (CAD2D * cad, Label ** l) {
+
+}
+
 void c2d_remove_entity (CAD2D * cad, Label ** l) {
     int r = u_find_label(cad, *l);
-
-    //! assume we are still in same hierarchy
-    //! r r is always -1 becasue it's there
+    Entity * e;
+    
+    //! IMPLEMENT SEARCHING
+    
+    /* free allocated memory, and delete it's record from lists */
     if (r != FAIL) {
-        /* free allocated memory, and delete it's record from lists */
-        u_free_entity(cad->elist[r]);
-        cad->elist[r] = NULL;
+        e = cad->elist[r];
+        /* Free entity data */
+        
+        printf("Delete %s: ", (*l)->name);
+        
+        if (e->data != NULL) {
+            switch (e->label->type) {
+                case line_t:
+                case polyline_t:
+                case irregular_polygon_t:
+                    u_free_point_list(e->data);
+                    break;
+                case point_t:
+                case regular_polygon_t:
+                case triangle_t:
+                case rectangle_t:
+                case circle_t:
+                case arc_t:
+                case ellipse_t:
+                    free(e->data);
+                    break;
+                case text_t:
+                    u_free_text(e->data);       
+                    break;
+                case spline_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case image_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+            }
+        }
+        /* Free label and style */
         u_remove_label(&cad->llist, l);
+        free(e->style);
+        free(e);
+        /* Set Deleted flag in hash-table to maintain linear-probing */
+        cad->elist[r] = DELETED;    
+        printf("Done\n");
     }    
 }
 
@@ -467,14 +515,14 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
         if (n >= cad->elist_size)
             n %= cad->elist_size;
         
-        if (cad->elist[n] != NULL) {
-            if (strcmp(cad->elist[n]->label->name, e->label->name) == 0)
-                r = FAIL;
-            else
-                ++n;
-        }
-        else        /* We find an empty place */
+        /* We find an empty place */
+        if (cad->elist[n] == NULL || cad->elist[n] == DELETED)        
             r = n; 
+        else if (strcmp(cad->elist[n]->label->name, e->label->name) == 0)
+            r = FAIL;
+        /* check next empty place */
+        else                
+            ++n;
     }
 
     if (r != FAIL) {
@@ -518,7 +566,6 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
     return r;
 }
 
-/* common for point and lines */
 void u_free_point_list (PointList * p) {
     PointList * tmp;
 
@@ -532,46 +579,6 @@ void u_free_point_list (PointList * p) {
 void u_free_text (Text * t) {
     free(t->text);
     free(t->style);
-}
-
-void u_free_entity (Entity * e) {
-    if (e != NULL) {
-        if (e->label != NULL) {
-            if (e->data != NULL) {
-                switch (e->label->type) {
-                    case line_t:
-                    case polyline_t:
-                    case irregular_polygon_t:
-                        u_free_point_list(e->data);
-                        break;
-                    case point_t:
-                    case regular_polygon_t:
-                    case triangle_t:
-                    case rectangle_t:
-                    case circle_t:
-                    case arc_t:
-                    case ellipse_t:
-                        free(e->data);
-                        break;
-                    case text_t:
-                        u_free_text(e->data);       
-                        break;
-                    case spline_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case image_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                }
-            }
-            free(e->label->name);
-            free(e->label);
-        } 
-        else //! NOT SURE
-            free(e->data);
-        free(e->style);
-        free(e);
-    }
 }
 
 /*********************************************************************************
@@ -929,7 +936,6 @@ Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double rad
     return l;
 }
 
-//! ADD THIN TRIANGLE TYPE TO SWITCH CASES
 Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D corner3) {
     Triangle * d;
     Label * l = NULL;
@@ -1039,13 +1045,15 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
 
 /* Returns the closest distance between point and polyline */
 double u_measure_point_polyline (Point2D * point, PointList * pline) {
-    double d = -1, tmp;
+    double d, tmp;
+
+    d = u_get_euclidean_dist(point, &pline->point);
+    pline = pline->next;
 
     /* Take min distance by travelling each point on pline and calculating their ED  */
     while (pline != NULL) {
         tmp = u_get_euclidean_dist(point, &pline->point);
-
-        if (tmp < d || d == -1)
+        if (tmp < d)
             d = tmp;
         pline = pline->next;
     }
@@ -1060,7 +1068,7 @@ double u_measure_point_arc (Point2D * p, Circle * c) {
 /* Measures the distance between center of given two entity */
 double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
     Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
-    Point2D * c1, * c2;
+    Point2D c1, c2;
     double m;
 
     /* check if given label's are exist */
@@ -1069,9 +1077,7 @@ double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
         c1 = c2d_get_center2D(s->data);
         c2 = c2d_get_center2D(t->data);
 
-        m = u_get_euclidean_dist(c1, c2);
-        free(c1);
-        free(c2);
+        m = u_get_euclidean_dist(&c1, &c2);
     }    
     else
         m = -1;
@@ -1080,48 +1086,45 @@ double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
 }
 
 /* creates an point in center of given entity //! LABEL ? */
-Point2D * c2d_get_center2D (Entity * e) {
-    Point2D * trav, * c = NULL;
+Point2D c2d_get_center2D (Entity * e) {
+    Point2D c;
 
     if (e != NULL) {
-        c = (Point2D *) malloc(sizeof(Point2D));
-        if (c != NULL) {
-            switch (e->label->type) {
-                case point_t:
-                    *c = *((Point2D *) e->data);
-                    break;
-                case line_t:
-                case polyline_t:
-                case irregular_polygon_t:
-                case regular_polygon_t:
-                    u_get_center_line(e->data, c);
-                    break;
-                case spline_t:
-                    //! NOT IMPLEMENTED YET
-                    break;
-                case triangle_t:
-                    u_get_center_triangle(e->data, c);
-                    break;
-                case rectangle_t:
-                    u_get_center_rectangle(e->data, c);
-                    break;
-                case circle_t:
-                case arc_t:
-                    *c = ((Circle *) e->data)->center;
-                    break;
-                case ellipse_t:
-                    *c = ((Ellipse *) e->data)->center;
-                    break;
-                case image_t:
-                    //! NOT IMPLEMENTED YET
-                    break;
-                case text_t:
-                    //! NOT IMPLEMENTED YET
-                    break;
-                default:
-                    printf("Given entity is not a 2D shape\n");
-                    free(c);
-            }
+        switch (e->label->type) {
+            case point_t:
+                c = *((Point2D *) e->data);
+                break;
+            case line_t:
+            case polyline_t:
+            case irregular_polygon_t:
+            case regular_polygon_t:
+                c = u_get_center_line(e->data);
+                break;
+            case spline_t:
+                //! NOT IMPLEMENTED YET
+                break;
+            case triangle_t:
+                c = u_get_center_triangle(e->data);
+                break;
+            case rectangle_t:
+                c = u_get_center_rectangle(e->data);
+                break;
+            case circle_t:
+            case arc_t:
+                c = ((Circle *) e->data)->center;
+                break;
+            case ellipse_t:
+                c = ((Ellipse *) e->data)->center;
+                break;
+            case image_t:
+                //! NOT IMPLEMENTED YET
+                break;
+            case text_t:
+                //! NOT IMPLEMENTED YET
+                break;
+            default:
+                c.x = c.y = -1;
+                printf("Given entity is not a 2D shape\n");
         }
     }
 
@@ -1129,32 +1132,38 @@ Point2D * c2d_get_center2D (Entity * e) {
 }
 
 /* c: center e: entity */
-void u_get_center_line (PointList * e, Point2D * c) {
+Point2D u_get_center_line (PointList * e) {
+    Point2D c;
     int i = 0;
-    c->y = c->x = 0;
+    c.y = c.x = 0;
 
     while (e != NULL) {
-        c->x += e->point.x;
-        c->y += e->point.y;
+        c.x += e->point.x;
+        c.y += e->point.y;
 
         e = e->next;
         ++i;
     }
 
     if (i > 1) {
-        c->x /= i;
-        c->y /= i;
+        c.x /= i;
+        c.y /= i;
     }
+    return c;
 }
 
-void u_get_center_triangle(Triangle * e, Point2D * c) {
-    c->x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3;
-    c->x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3;
+Point2D u_get_center_triangle(Triangle * e) {
+    Point2D c;
+    c.x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3;
+    c.x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3;
+    return c;
 }
 
-void u_get_center_rectangle (Rectangle * e, Point2D * c) {
-    c->x = (e->corner1.x + e->corner2.x) / 2;
-    c->y = (e->corner1.y + e->corner2.y) / 2;
+Point2D u_get_center_rectangle (Rectangle * e) {
+    Point2D c;
+    c.x = (e->corner1.x + e->corner2.x) / 2;
+    c.y = (e->corner1.y + e->corner2.y) / 2;
+    return c;
 }
 
 /*********************************************************************************
@@ -1190,11 +1199,14 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                         break;
                     case irregular_polygon_t:
                     case regular_polygon_t:
-                        u_get_center_line(t->data, s->data);
+                        // (s->data) = u_get_center_line(t->data);
                         break;
                     case rectangle_t:
-                        u_get_center_rectangle(t->data, s->data);
+                        // (s->data) = u_get_center_rectangle(t->data);
                         break;
+                    case triangle_t:
+                        //! NOT IMPLEMENTED YET
+                        break;                        
                     case circle_t:
                     case arc_t:
                         *((Point2D *) s->data) = ((Circle *) t->data)->center;
@@ -1604,8 +1616,47 @@ void u_print_text (FILE * fid, Text * e) {
  * Memory Deletion
 *********************************************************************************/
 
+/* Deletes the memory allocated for entity list */
+void u_free_elist (Entity ** elist, int size) {
+    int i;
+
+    /*
+    for (i = 0; i < size; ++i)
+        if (elist[i] != NULL)
+            c2d_remove_entity(cad, elist[i]->label);
+    */
+}
+/* Deletes the memory allocated for label list */
+void u_free_llist (LabeList * llist) {
+    if (llist != NULL) {
+        u_free_llist(llist->next);
+
+        free(llist->label->name);
+        free(llist->label);
+    }
+}
+
+/* Takes root CAD and deletes all the content inside of it */
 void c2d_delete (CAD2D * cad) {
-    //! NOT IMPLEMENTED YET
+    int i;
+
+    if (cad != NULL) {
+        /* First delete it's child hierarchies */
+        if (cad->hierarchy != NULL) {
+            for (i = 0; i < cad->hierarchy->size; ++i)
+                if (cad->hierarchy->child[i] != NULL)
+                    c2d_delete(cad->hierarchy->child[i]->cad);
+            
+            free(cad->hierarchy->name);
+            free(cad->hierarchy->child);
+            free(cad->hierarchy);
+        }
+        /* Lastly free given cad and it's entities */
+        //! NOT YET u_free_elist(cad->elist);
+        u_free_llist(cad->llist);
+        free(cad->canvas);
+        free(cad);
+    }
 }
 
 /*********************************************************************************

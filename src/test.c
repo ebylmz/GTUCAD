@@ -50,7 +50,7 @@ void test1 () {
     cad = c2d_start_wh(1000, 1000);
     
     if (cad != NULL) {        
-        /* Add a filled polyline(polygon) */
+        /* Add a polyline */
         l_pline = c2d_add_polyline(cad, p, 9);
 
         if (l_pline != NULL) {
@@ -76,9 +76,12 @@ void test1 () {
             c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
         }
 
-        //! we get error
-        // c2d_remove_entity(cad, &l_circle);
-        // c2d_remove_entity(cad, &l_text);
+        /* Delete specific entity */
+            c2d_remove_entity(cad, &l_text);
+            c2d_remove_entity(cad, &l_pline);
+        /*
+            c2d_remove_entity(cad, &l_circle);
+        */
 
         c2d_export(cad, "test1.eps", "eps");
         printf("<<< Test1 DONE >>>\n\n");
@@ -229,15 +232,88 @@ void test4 () {
 /* Draws more sweet home */
 void test5 () {
     //! NOT IMPLEMENTED YET
+    CAD2D * cad;
+
+    cad = c2d_start_wh(1500, 1500);
+    if (cad != NULL) {
+        
+        c2d_export(cad, "test5.eps", "eps");
+        printf("<<< Test5 DONE >>>\n\n");
+    } 
+}
+
+/* Draw a cool CAD example */
+void test6 () {
+    CAD2D * cad;
+    double  canvas_size = 1600.0,
+            plane_size = canvas_size / 2,
+            k = plane_size / 20;
+    Point2D pc, p1, p2, p3;
+
+    cad = c2d_start_wh(canvas_size, canvas_size);
+    if (cad != NULL) {
+        /* Left side */
+        /* Set center point for circles */
+        c2d_set_point(&pc, -plane_size * 1/3, 0);    
+        p3.x = pc.x;
+        p3.y = 7 * k;
+
+        /* Add half circle whose radius is 7k */
+        c2d_add_arc(cad, pc, 7 * k, 90, 270);
+        
+        /* Add two circle whose radius are 4k and 3k */
+        c2d_add_circle(cad, pc, 4 * k);
+        c2d_add_circle(cad, pc, 3 * k);
+
+        pc.y = 5.5 * k; 
+        c2d_add_circle(cad, pc, 0.5 * k);
+
+        pc.y = -5.5 * k; 
+        c2d_add_circle(cad, pc, 0.5 * k);
+
+        pc.x = -12.5 * k, pc.y = 0;
+        c2d_add_circle(cad, pc, 0.5 * k);
+
+        /* Right side */
+        c2d_set_point(&pc, 4 * k, 0);
+        c2d_add_arc(cad, pc, 2 * k, 90, 270);
+        
+        /* To add line later, keep center point inside p1 with changing it's y value */
+        p1.x = pc.x;
+        p1.y = 2 * k;
+
+        /* Add two arc whose radius are 2k and 4k */
+        pc.x += 7 * k;
+        c2d_add_arc(cad, pc, 2 * k, 270, 90);
+        c2d_add_arc(cad, pc, 4 * k, 270, 90);
+
+        p2.x = pc.x;
+        p2.y = 2 * k;
+        c2d_add_line(cad, p1, p2);
+
+        p1.y = p2.y = -2 * k;
+        c2d_add_line(cad, p1, p2);
+       
+        p2.y = 4 * k;
+        c2d_add_line(cad, p3, p2);
+        
+        p3.y *= -1;
+        p2.y *= -1;
+        c2d_add_line(cad, p3, p2);
+
+        c2d_export(cad, "test6.eps", "eps");
+        printf("<<< Test6 DONE >>>\n\n");
+    } 
 }
 
 int main (void) {
-    test3();
-    test4();
+    test6();
+    /**
     test0();
     test1();
     test2();
-    /**
+    test3();
+    test4();
     test5();
     **/
 }

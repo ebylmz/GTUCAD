@@ -131,6 +131,12 @@ typedef struct PointList {
     struct PointList * next;
 } PointList;
 
+/* To measure the distance between entities */
+typedef struct Measurement {
+    Point2D start, end;
+    double value;
+} Measurement;
+
 typedef struct Circle {
     Point2D center;
     double radius;
@@ -190,8 +196,7 @@ EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGB
 TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
 void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
 void c2d_remove_entity (CAD2D * cad, Label ** l);
-Point2D * c2d_get_center2D (Entity * e);
-
+Point2D c2d_get_center2D (Entity * e);
 PointList * c2d_create_point_list_p (Point2D p);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
