@@ -99,6 +99,13 @@ typedef struct CAD2D {
     Hierarchy * hierarchy;      /* hierarchy data of root CAD (this CAD) */   
 } CAD2D;
 
+
+typedef struct EntityInfo {
+    Entity * entity;    /* Entity itself                    */
+    CAD2D * cad;        /* Container cad of entity          */
+    int index;          /* index inside of the entity list  */
+} EntityInfo;
+
 /*********************************************************************************
  * Basic CAD Entities:
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
@@ -172,26 +179,25 @@ typedef struct Image {
     //! NOT IMPLMENTED YET
 } Image;
 
-
-double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-
 /*********************************************************************************
  * Function Definitions
 *********************************************************************************/
-CAD2D * c2d_start();
+CAD2D * c2d_start ();
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h);
 
 Hierarchy * c2d_create_hierarchy (CAD2D * cad);
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
-//* Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
+void c2d_delete_hierarchy (Hierarchy ** h);
 
 Point2D * c2d_create_point (double x, double y);
 void c2d_set_point (Point2D * p, double x, double y);
 
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 
-Entity * c2d_find_entity (CAD2D * cad, Label * l); 
+Hierarchy * c2d_get_root_hierarchy (Hierarchy * h);
+CAD2D * c2d_get_root_cad (CAD2D * cad);
+EntityInfo * c2d_find_entity (CAD2D * root, Label * l); 
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
 TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
 void c2d_set_rgb (RGBColor * c, double red, double green, double blue);
@@ -214,7 +220,7 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);
-void c2d_delete (CAD2D * cad);
+void c2d_delete (CAD2D ** cad);
 
 #endif
 

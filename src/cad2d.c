@@ -12,6 +12,7 @@ int u_is_prime (int n);
 int u_find_close_prime (int n);
 
 int u_create_hash_code (char * key, int size);
+int u_is_empty (void * p);
 int u_find_hierarchy (Hierarchy * root, Hierarchy * h);
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 int u_get_tree_depth (Hierarchy * h);
@@ -19,8 +20,6 @@ int u_get_tree_depth (Hierarchy * h);
 double u_min (double a, double b);
 char * u_deci_to_hexa (int deci);
 char * u_create_hierarchy_name (Hierarchy * h); 
-Hierarchy * u_get_root_hierarchy (Hierarchy * h);
-CAD2D * u_get_root_cad (CAD2D * cad);
 
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label (LabeList ** llist, Label ** l);
@@ -99,34 +98,59 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
         u_link_hierarchy(h, parent);
     }
 
-
     return h;
 }
 
-//! NO IMPLEMENTED YET
-void c2d_delete_hierarchy (Hierarchy * h) {
-    if (h != NULL) {
-        /* Check if there is a hierarchy like that */
+void c2d_delete_hierarchy (Hierarchy ** h) {
+    Hierarchy * parent;
+    int i, n;
+
+    /* Check if there is a hierarchy like that */
+    if (u_find_hierarchy(c2d_get_root_hierarchy(*h), *h) >= 0) {
+        
         /* Remove it from it's parent */
-        /* Remove it's child hierarchies and lastly remove it */
-    }
+        parent = (*h)->parent;
+        if (parent != NULL) {
+            for (i = 0, n = (*h)->hash_code; i < parent->size; ++i) {
+                if (n >= parent->size)
+                    n %= parent->size;
+                
+                /* Nth child definitly different from NULL */
+                if (parent->child[n] != DELETED && strcmp(parent->child[n]->name, (*h)->name) == 0)
+                    parent->child[n] = DELETED;
+                /* Deleted or not empty, check next index */
+                else
+                    ++n;
+            }
+        }
+        /* Remove all the content inside of the hierarchy */
+        printf("DELETED Hierarchy %s\n", (*h)->name);
+        c2d_delete(&(*h)->cad);
+        *h = NULL;        
+    }        
 }
 
-/* Assumes given h is not NULL */
-Hierarchy * u_get_root_hierarchy (Hierarchy * h) {
-    if (h->parent == NULL)
+Hierarchy * c2d_get_root_hierarchy (Hierarchy * h) {
+    if (h != NULL && h->parent == NULL)
         return h;
     else
-        return u_get_root_hierarchy(h->parent); 
+        return c2d_get_root_hierarchy(h->parent); 
 }
 
-CAD2D * u_get_root_cad (CAD2D * cad) {
-    Hierarchy * h = u_get_root_hierarchy(cad->hierarchy);
-    return h->cad;
+CAD2D * c2d_get_root_cad (CAD2D * cad) {
+    Hierarchy * h;
+
+    if (cad != NULL) {
+        /* Since every CAD has hierarchy inf. h must be different from NULL */
+        h = c2d_get_root_hierarchy(cad->hierarchy);
+        return h->cad;
+    }
+    else   
+        return NULL;
 }
 
 char * u_create_hierarchy_name (Hierarchy * h) {
-    Hierarchy * root = u_get_root_hierarchy(h);
+    Hierarchy * root = c2d_get_root_hierarchy(h);
     char c, * r = (char *) calloc(10, sizeof(char));
     int n;
 
@@ -161,29 +185,28 @@ int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
     int i, r, n;
 
     /* First hierarchy is unique since list uninitiliazed yet */
-    if (root == NULL || root->size == 0 || h == root) //!! || h == root is needed
+    if (h == NULL || root == NULL || root->size == 0 || root == h)
         r = FAIL;
     else {
+        //! if (root == h) it's true but what we will return ?
         /* use hash-code as index of the unique hierarchy */
         n = h->hash_code;
         for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
             if (n >= root->size)
                 n %= root->size;
-
-            /* same hash-code is a sign for same keys */
-            if (root->child[n] != NULL) {
-                if (strcmp(root->child[n]->name, h->name) == 0)
-                    r = n;
-                else
-                    ++n;
-            }
-            //! USE FLAG FOR DELETED ITEMS: first implement delete hierarchy
+            
             /* Not in this hiearchy */
+            if (root->child[n] == NULL)
+                r = FAIL;
+            /* same hash-code is a sign for same keys */
+            else if (root->child[n] != DELETED && strcmp(root->child[n]->name, h->name) == 0)             
+                r = n;
+            /* Deleted or not empty */
             else 
-                break;
+                ++n;
         }
         /* If there isn't match yet, continue with children */
-        if (r == TRY) 
+        if (r == TRY || r == FAIL) 
             for (i = 0, r = FAIL; i < root->size && r == FAIL; ++i)
                 if (root->child[i] != NULL)
                     r = u_find_hierarchy(root->child[i], h);
@@ -287,7 +310,7 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 }
 
 char * u_create_label_name (CAD2D * cad, Label * l) {
-    CAD2D * cad_root = u_get_root_cad(cad);
+    CAD2D * cad_root = c2d_get_root_cad(cad);
     char c = '0', * r = calloc(10, sizeof(char)), * h;
     int n = 0;
 
@@ -376,11 +399,13 @@ int u_find_label (CAD2D * cad, Label * l) {
 
     /* If label haven't find yet, continue with child hierarchies */
     if (r == FAIL || r == TRY) {
-        for (i = 0, r = FAIL; i < cad->hierarchy->size && r == FAIL; ++i)
-            if (cad->hierarchy->child[i] != NULL) {
-printf("Search %s in hierarchy %s\n", l->name, cad->hierarchy->name);
-                r = u_find_label(cad->hierarchy->child[i]->cad, l);
-            }
+        r = FAIL;
+        if (cad->hierarchy != NULL) 
+            for (i = 0; i < cad->hierarchy->size && r == FAIL; ++i)
+                if (cad->hierarchy->child[i] != NULL && cad->hierarchy->child[i] != DELETED) {
+    printf("Search %s in hierarchy %s\n", l->name, cad->hierarchy->name);
+                    r = u_find_label(cad->hierarchy->child[i]->cad, l);
+                }
     }
 
     if (r == FAIL && cad->hierarchy != NULL)
@@ -435,40 +460,61 @@ Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
     return e;
 }
 
-/* Returns the entity by given it's label */
-Entity * c2d_find_entity (CAD2D * cad, Label * l) {
-    Entity * e = NULL, * tmp;    
-    int i, h = l->hash_code;
+/*  In case of matching returns the entity, it's index
+    at entitylist and it's contianer cad                 */
+EntityInfo * c2d_find_entity (CAD2D * root, Label * l) {
+    int i, r, n;
+    EntityInfo * e_info = NULL;
 
-    for (i = 0; i < cad->elist_size && e == NULL; ++i) {
-        if (h >= cad->elist_size)
-            h %= cad->elist_size;
-        tmp = cad->elist[h + i];
-        if (tmp != NULL && strcmp(l->name, tmp->label->name) == 0)
-            e = tmp;
-    } 
-    //! NOT IMPLEMENTED YET: Also check other hierarchies 
-    return e;
+    if (root != NULL && l != NULL) {
+        n = l->hash_code;
+        for (i = 0, r = TRY; i < root->elist_size && r == TRY; ++i) {
+            if (n >= root->elist_size)
+                n %= root->elist_size;
+            
+            /* Not in this list */
+            if (root->elist[n] == NULL) 
+                r = FAIL;     
+            /* Finded, Return e_info */
+            else if (root->elist[n] != DELETED && strcmp(l->name, root->elist[n]->label->name) == 0) {
+                r = n;
+                e_info = (EntityInfo *) malloc(sizeof(EntityInfo));
+                if (e_info != NULL) {
+                    e_info->entity = root->elist[n];
+                    e_info->cad = root;
+                    e_info->index = n; 
+                }
+            }
+            /* Still can be there, continue searching */
+            else
+                ++n;
+        }
+
+        /* Continue searching with child hierarchies */
+        if (r = TRY || r == FAIL) {
+            if (root->hierarchy != NULL)
+                for (i = 0; i < root->hierarchy->size && e_info == NULL; ++i)
+                    if (root->hierarchy->child[i] != NULL && root->hierarchy->child[i] != DELETED)
+                        e_info = c2d_find_entity(root->hierarchy->child[i]->cad, l);
+        } 
+    }
+    return e_info;
 }
 
-
-void u_remove_entity (CAD2D * cad, Label ** l) {
-
-}
 
 void c2d_remove_entity (CAD2D * cad, Label ** l) {
-    int r = u_find_label(cad, *l);
+    EntityInfo * e_info = c2d_find_entity(c2d_get_root_cad(cad), *l);
     Entity * e;
-    
-    //! IMPLEMENT SEARCHING
-    
+
     /* free allocated memory, and delete it's record from lists */
-    if (r != FAIL) {
-        e = cad->elist[r];
-        /* Free entity data */
+    if (e_info != NULL) {
+        /* Be sure given cad is container of given label */
+        cad = e_info->cad;
+        e = cad->elist[e_info->index];
         
         printf("Delete %s: ", (*l)->name);
         
+        /* Free entity data */
         if (e->data != NULL) {
             switch (e->label->type) {
                 case line_t:
@@ -500,10 +546,12 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
         u_remove_label(&cad->llist, l);
         free(e->style);
         free(e);
+
         /* Set Deleted flag in hash-table to maintain linear-probing */
-        cad->elist[r] = DELETED;    
+        cad->elist[e_info->index] = DELETED;    
         printf("Done\n");
-    }    
+        free(e_info);
+    }
 }
 
 int u_insert_entity_list (CAD2D * cad, Entity * e) {
@@ -706,7 +754,7 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
 
 //! NOT TESTED YET:
 Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
-    int r = u_find_hierarchy(u_get_root_hierarchy(h), h);
+    int r = u_find_hierarchy(c2d_get_root_hierarchy(h), h);
 
     /* add point at desired hiearchy as if it's root */
     return r != FAIL ? c2d_add_point_p(h->cad, p) : NULL;
@@ -1032,15 +1080,6 @@ int u_is_in_canvas_p (Canvas * c, Point2D * p) {
 
 /* measures the distance between two entity given by their labels */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
-    Entity * e1 = c2d_find_entity(cad, ls), * e2 = c2d_find_entity(cad, lt);
-    double m;
-
-    /* check if given label's are exist */
-    if (e1 != NULL && e2 != NULL) {
-        //! NOT IMPLEMENTED YET KEEP THE DECISION STRUCTURE
-    }    
-
-    return m;
 }
 
 /* Returns the closest distance between point and polyline */
@@ -1067,17 +1106,23 @@ double u_measure_point_arc (Point2D * p, Circle * c) {
 
 /* Measures the distance between center of given two entity */
 double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
-    Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
+    EntityInfo * s_info = c2d_find_entity(cad, ls), * t_info = c2d_find_entity(cad, lt);;
+    Entity * s, * t; 
     Point2D c1, c2;
     double m;
 
     /* check if given label's are exist */
-    if (s != NULL && t != NULL) {
+    if (s_info != NULL && t_info != NULL) {
+        s = s_info->entity;
+        t = t_info->entity;
         /* take center points of these two entity and calculate the distance */
         c1 = c2d_get_center2D(s->data);
         c2 = c2d_get_center2D(t->data);
 
         m = u_get_euclidean_dist(&c1, &c2);
+
+        free(s_info);
+        free(t_info);
     }    
     else
         m = -1;
@@ -1181,10 +1226,13 @@ Arc         Polyline    Define a strategy
 */
 
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
-    Entity * s = c2d_find_entity(cad, ls), * t = c2d_find_entity(cad, lt);
+    EntityInfo * se_info = c2d_find_entity(cad, ls), * te_info = c2d_find_entity(cad, lt);
+    Entity * s, * t;
     Point2D * c1, * c2;
 
-    if (s != NULL && t != NULL) {
+    if (se_info != NULL && te_info != NULL) {
+        s = se_info->entity;
+        t = te_info->entity;
         switch (ls->type) {
             case point_t:
                 switch (lt->type) {
@@ -1247,6 +1295,8 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                 //! Define a strategy!
                 break;
         }
+        free(se_info);
+        free(te_info);
     } 
 }
 
@@ -1274,18 +1324,18 @@ void u_snap_arc_point (Circle * s, Point2D * t) {
 /* set's the style of entity by given it's label */
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
     EntityStyle * style = NULL;
-    Entity * e = c2d_find_entity(cad, label); 
+    EntityInfo * e_info = c2d_find_entity(cad, label); 
     
-    if (e != NULL) {
+    if (e_info != NULL) {
         style = (EntityStyle *) malloc(sizeof(EntityStyle));
-
         if (style != NULL) {
             style->color = c;
             style->draw = d;
             style->line = l;
             style->line_width = w;
-            e->style = style;
+            e_info->entity->style = style;
         }
+        free(e_info);
     }
 
     return style;
@@ -1293,20 +1343,20 @@ EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGB
 
 TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s) {
     TextStyle * style;
-    Entity * e = c2d_find_entity(cad, label);
+    EntityInfo * e_info = c2d_find_entity(cad, label); 
     Text * d;
     
-    if (e != NULL) {
+    if (e_info != NULL) {
         style = (TextStyle *) malloc(sizeof(TextStyle));
-
         if (style != NULL) {
             style->color = c;
             style->font = f;
             style->scale = s;
             
-            d = (Text *) e->data;
+            d = (Text *) e_info->entity->data;
             d->style = style;
         }
+        free(e_info);
     }
 
     return style;
@@ -1358,16 +1408,19 @@ RGBColor u_convert_rgb (Color c) {
 
 /* takes ROOT CAD cad, and exports all the content inside it */
 void c2d_export (CAD2D * cad, char * file_name, char * options) {
-    FILE * fid = fopen(file_name, "wt");
+    FILE * fid;
 
-    if (fid != NULL) {
-        if (strcmp(options, "eps") == 0)
-            u_export_eps(cad, fid);
-        else if (strcmp(options, "gtucad") == 0)
-            u_export_gtucad(cad, fid);
-        else printf("%s is not a valid file format\nPlease select 'gtucad' or 'eps'\n", options);
+    if (cad != NULL) {
+        fid = fopen(file_name, "wt");
+        if (fid != NULL) {
+            if (strcmp(options, "eps") == 0)
+                u_export_eps(cad, fid);
+            else if (strcmp(options, "gtucad") == 0)
+                u_export_gtucad(cad, fid);
+            else printf("%s is not a valid file format\nPlease select 'gtucad' or 'eps'\n", options);
 
-        fclose(fid);
+            fclose(fid);
+        }
     }
 }
 
@@ -1392,77 +1445,81 @@ void u_export_gtucad(CAD2D * cad, FILE * fid) {
     //! NOT IMPLEMENTED YET
 }
 
-//! NOT TESTED YET
 void u_export_hierarchy (FILE * fid, Hierarchy * h) {
     int i;
     CAD2D * cad; 
     Entity * e;
+    EntityInfo * e_info;
     LabeList * l; 
 
-    if (h != NULL) {
+    if (h != NULL && h != DELETED) {
         cad = h->cad;
         l = cad->llist;
         
-        printf("Hierarchy: %s\n", cad->hierarchy->name);
+        printf("\nHierarchy: %s\n", cad->hierarchy->name);
         
         /* export current cad */
         while (l != NULL) {
-                e = c2d_find_entity(cad, l->label);
+            e_info = c2d_find_entity(cad, l->label);
+            
+            if (e_info != NULL) {
+                e = e_info->entity;
                 
-                if (e != NULL) {
-                    printf("%s\t%d\n", e->label->name, e->label->hash_code);
-                    
-                    switch (e->label->type) {
-                        case point_t:
-                            //! NOT IMPLEMENTED YET
-                            break;
-                        case line_t:
-                        case polyline_t:
-                        case irregular_polygon_t:
-                            u_print_line(fid, e->data);
-                            break;
-                        case regular_polygon_t:
-                            u_print_regular_polygon(fid, e->data);
-                            break;
-                        case rectangle_t:
-                            u_print_rectangle(fid, e->data);
-                            break;
-                        case triangle_t:
-                            u_print_triangle (fid, e->data);
-                            break;
-                        case circle_t:
-                        case arc_t:
-                            u_print_circle(fid, e->data);
-                            break;
-                        case ellipse_t:
-                            u_print_ellipse(fid, e->data);
-                            break;
-                        case text_t:
-                            u_print_text(fid, e->data);
-                            break;
-                        case spline_t:
-                            u_print_spline (fid, e->data);
-                            //! NOT IMPLEMENTED YET
-                            break;
-                        case image_t:
-                            //! NOT IMPLEMENTED YET
-                            break;
-                        default:
-                            continue;
-                    }
-
-                    if (e->style != NULL) 
-                        u_print_entity_style(fid, e->label, e->style);
-                    else if (e->label->type != text_t)
-                        fprintf(fid, "stroke\n");
-
-                    l = l->next;
+                switch (e->label->type) {
+                    case point_t:
+                        //! NOT IMPLEMENTED YET
+                printf("\t%s\t%d\n", e->label->name, e->label->hash_code);
+                        break;
+                    case line_t:
+                    case polyline_t:
+                    case irregular_polygon_t:
+                        u_print_line(fid, e->data);
+                        break;
+                    case regular_polygon_t:
+                        u_print_regular_polygon(fid, e->data);
+                        break;
+                    case rectangle_t:
+                        u_print_rectangle(fid, e->data);
+                        break;
+                    case triangle_t:
+                        u_print_triangle (fid, e->data);
+                        break;
+                    case circle_t:
+                    case arc_t:
+                        u_print_circle(fid, e->data);
+                        break;
+                    case ellipse_t:
+                        u_print_ellipse(fid, e->data);
+                        break;
+                    case text_t:
+                        u_print_text(fid, e->data);
+                        break;
+                    case spline_t:
+                        u_print_spline (fid, e->data);
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case image_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    default:
+                        continue;
                 }
+
+                if (e->style != NULL) 
+                    u_print_entity_style(fid, e->label, e->style);
+                else if (e->label->type != text_t)
+                    fprintf(fid, "stroke\n");
+
+                free(e_info);
+            }
+            else
+                printf("%s not find in %s at exporting process\n", l->label->name, cad->hierarchy->name);
+            l = l->next;
         }
         /* export child of the root hierarchy */
-        printf("hsize: %d\n", h->size);
+        printf("Child hiearchy number: %d\n", h->size);
         for (i = 0; i < h->size; ++i)
-            if (h->child[i] != NULL)
+            if (h->child[i] != NULL && h->child[i] != DELETED)
                 u_export_hierarchy(fid, h->child[i]);
     }
 }
@@ -1617,45 +1674,75 @@ void u_print_text (FILE * fid, Text * e) {
 *********************************************************************************/
 
 /* Deletes the memory allocated for entity list */
-void u_free_elist (Entity ** elist, int size) {
+void u_delete_elist (Entity ** elist, int size) {
     int i;
 
-    /*
-    for (i = 0; i < size; ++i)
-        if (elist[i] != NULL)
-            c2d_remove_entity(cad, elist[i]->label);
-    */
+    for (i = 0; i < size; ++i) {
+        if (elist[i] != NULL && elist[i] != DELETED) {
+            /* Free entity data */
+            if (elist[i]->data != NULL) {
+                switch (elist[i]->label->type) {
+                    case line_t:
+                    case polyline_t:
+                    case irregular_polygon_t:
+                        u_free_point_list(elist[i]->data);
+                        break;
+                    case point_t:
+                    case regular_polygon_t:
+                    case triangle_t:
+                    case rectangle_t:
+                    case circle_t:
+                    case arc_t:
+                    case ellipse_t:
+                        free(elist[i]->data);
+                        break;
+                    case text_t:
+                        u_free_text(elist[i]->data);       
+                        break;
+                    case spline_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case image_t:
+                        //! NOT IMPLEMENTED YET
+                        break;
+                }
+            }
+            /* Free entity style */
+            free(elist[i]->style);
+            free(elist[i]->label->name);
+            free(elist[i]->label);
+        }
+    }
 }
-/* Deletes the memory allocated for label list */
-void u_free_llist (LabeList * llist) {
+/* Deletes the memory allocated for label list, since label's are already freed just free the list */
+void u_delete_llist (LabeList * llist) {
     if (llist != NULL) {
-        u_free_llist(llist->next);
-
-        free(llist->label->name);
-        free(llist->label);
+        u_delete_llist(llist->next);
+        free(llist);
     }
 }
 
 /* Takes root CAD and deletes all the content inside of it */
-void c2d_delete (CAD2D * cad) {
+void c2d_delete (CAD2D ** cad) {
     int i;
 
-    if (cad != NULL) {
+    if (*cad != NULL) {
         /* First delete it's child hierarchies */
-        if (cad->hierarchy != NULL) {
-            for (i = 0; i < cad->hierarchy->size; ++i)
-                if (cad->hierarchy->child[i] != NULL)
-                    c2d_delete(cad->hierarchy->child[i]->cad);
+        if ((*cad)->hierarchy != NULL && (*cad)->hierarchy != DELETED) {
+            for (i = 0; i < (*cad)->hierarchy->size; ++i)
+                if ((*cad)->hierarchy->child[i] != NULL)
+                    c2d_delete(&(*cad)->hierarchy->child[i]->cad);
             
-            free(cad->hierarchy->name);
-            free(cad->hierarchy->child);
-            free(cad->hierarchy);
+            free((*cad)->hierarchy->name);
+            free((*cad)->hierarchy->child);
+            free((*cad)->hierarchy);
         }
-        /* Lastly free given cad and it's entities */
-        //! NOT YET u_free_elist(cad->elist);
-        u_free_llist(cad->llist);
-        free(cad->canvas);
-        free(cad);
+        /* Lastly free given (*cad) and it's entities */
+        u_delete_elist((*cad)->elist, (*cad)->elist_size);
+        u_delete_llist((*cad)->llist);
+        free((*cad)->canvas);
+        free(*cad);
+        *cad = NULL;
     }
 }
 
@@ -1678,6 +1765,11 @@ int u_create_hash_code (char * key, int size) {
     for (i = 0; key[i] != '\0'; ++i)
         code = (code * q + key[i]) % p;
     return code;
+}
+
+/* Returns if given block at hash table is empty or not */
+int u_is_empty (void * p) {
+    return p == NULL || p == DELETED;
 }
 
 int u_is_prime (int n) {

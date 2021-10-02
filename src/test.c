@@ -30,6 +30,7 @@ void test0 () {
 
         /* export the data as eps mode */
         c2d_export(cad, "test0.eps", "eps");
+        c2d_delete(&cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
     else 
@@ -77,13 +78,14 @@ void test1 () {
         }
 
         /* Delete specific entity */
+            c2d_remove_entity(cad, &l_circle);
+        /*
             c2d_remove_entity(cad, &l_text);
             c2d_remove_entity(cad, &l_pline);
-        /*
-            c2d_remove_entity(cad, &l_circle);
         */
 
         c2d_export(cad, "test1.eps", "eps");
+        c2d_delete(&cad);
         printf("<<< Test1 DONE >>>\n\n");
     }
     else 
@@ -131,6 +133,7 @@ void test2 () {
         }
 
         c2d_export(cad, "test2.eps", "eps");
+        c2d_delete(&cad);
         printf("<<< Test2 DONE >>>\n\n");
     }
     else 
@@ -198,6 +201,7 @@ void test3 () {
 
         /* To export all the hierarchy give ROOT CAD to export function */
         c2d_export(cad_root, "test3.eps", "eps");
+        c2d_delete(&cad_root);
         printf("<<< Test3 DONE >>>\n\n");
     }
     else 
@@ -211,7 +215,6 @@ void test4 () {
     CAD2D * cse = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
     CAD2D * security = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
     CAD2D * home = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
-    Label l[10];
     int i, n;
 
     c2d_set_point(&p1, 100, 100);
@@ -225,11 +228,20 @@ void test4 () {
         c2d_add_rectangle(data, p1, p2);
     }
 
+
+/*
+    c2d_delete_hierarchy(&data->hierarchy);
+    c2d_delete_hierarchy(&cse->hierarchy);
+    c2d_delete_hierarchy(&security->hierarchy);
+    c2d_delete_hierarchy(&home->hierarchy);
+*/
+
     c2d_export(cad_root, "test4.eps", "eps");
+    c2d_delete(&cad_root);
     printf("<<< Test4 DONE >>>\n\n");
 }
 
-/* Draws more sweet home */
+/* Draws a more sweet home */
 void test5 () {
     //! NOT IMPLEMENTED YET
     CAD2D * cad;
@@ -238,11 +250,12 @@ void test5 () {
     if (cad != NULL) {
         
         c2d_export(cad, "test5.eps", "eps");
+        c2d_delete(&cad);    
         printf("<<< Test5 DONE >>>\n\n");
     } 
 }
 
-/* Draw a cool CAD example */
+/* Draw an engine */
 void test6 () {
     CAD2D * cad;
     double  canvas_size = 1600.0,
@@ -302,18 +315,19 @@ void test6 () {
         c2d_add_line(cad, p3, p2);
 
         c2d_export(cad, "test6.eps", "eps");
+        c2d_delete(&cad);
         printf("<<< Test6 DONE >>>\n\n");
     } 
 }
 
 int main (void) {
-    test6();
+    test4();
     /**
     test0();
     test1();
     test2();
     test3();
-    test4();
     test5();
+    test6();
     **/
 }
