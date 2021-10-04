@@ -141,7 +141,7 @@ typedef struct PointList {
 /* To measure the distance between entities */
 typedef struct Measurement {
     Point2D start, end;
-    double value;
+    double distance;
 } Measurement;
 
 typedef struct Circle {
@@ -170,7 +170,7 @@ typedef struct RegularPolygon {
     Point2D center;
 } RegularPolygon;
 
-typedef struct Ellipse{
+typedef struct Ellipse {
     Point2D center;
     double radius_x, radius_y;
 } Ellipse;
@@ -188,7 +188,7 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h);
 
 Hierarchy * c2d_create_hierarchy (CAD2D * cad);
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
-void c2d_delete_hierarchy (Hierarchy ** h);
+void c2d_delete_hierarchy (Hierarchy * h);
 
 Point2D * c2d_create_point (double x, double y);
 void c2d_set_point (Point2D * p, double x, double y);
@@ -220,7 +220,7 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 
 void c2d_export (CAD2D * cad, char * file_name, char * options);
 CAD2D * c2d_import (char * file_name, char * options);
-void c2d_delete (CAD2D ** cad);
+void c2d_delete (CAD2D * cad);
 
 #endif
 

@@ -30,7 +30,7 @@ void test0 () {
 
         /* export the data as eps mode */
         c2d_export(cad, "test0.eps", "eps");
-        c2d_delete(&cad);
+        c2d_delete(cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
     else 
@@ -85,7 +85,7 @@ void test1 () {
         */
 
         c2d_export(cad, "test1.eps", "eps");
-        c2d_delete(&cad);
+        c2d_delete(cad);
         printf("<<< Test1 DONE >>>\n\n");
     }
     else 
@@ -133,7 +133,7 @@ void test2 () {
         }
 
         c2d_export(cad, "test2.eps", "eps");
-        c2d_delete(&cad);
+        c2d_delete(cad);
         printf("<<< Test2 DONE >>>\n\n");
     }
     else 
@@ -201,7 +201,7 @@ void test3 () {
 
         /* To export all the hierarchy give ROOT CAD to export function */
         c2d_export(cad_root, "test3.eps", "eps");
-        c2d_delete(&cad_root);
+        c2d_delete(cad_root);
         printf("<<< Test3 DONE >>>\n\n");
     }
     else 
@@ -210,34 +210,32 @@ void test3 () {
 
 void test4 () {
     Point2D p1, p2, p3;
-    CAD2D * cad_root = c2d_start_wh(1000, 1000);
-    CAD2D * data = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
-    CAD2D * cse = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
-    CAD2D * security = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
-    CAD2D * home = c2d_start_wh_hier(1000, 1000, cad_root->hierarchy);
+    CAD2D * root = c2d_start_wh(1000, 1000);
+    CAD2D * cad1 = c2d_start_wh_hier(1000, 1000, root->hierarchy);
+    CAD2D * cad2 = c2d_start_wh_hier(1000, 1000, root->hierarchy);
+    CAD2D * cad3 = c2d_start_wh_hier(1000, 1000, root->hierarchy);
+    CAD2D * cad4 = c2d_start_wh_hier(1000, 1000, root->hierarchy);
     int i, n;
 
     c2d_set_point(&p1, 100, 100);
     c2d_set_point(&p2, 200, 100);
     c2d_set_point(&p3, 100, 200);
-    c2d_add_triangle(cad_root, p1, p2, p3);
+    c2d_add_triangle(root, p1, p2, p3);
 
     for (i = 0; i < 1000; i += 100) {
         c2d_set_point(&p1, -i, -i);
         c2d_set_point(&p2, i, i);
-        c2d_add_rectangle(data, p1, p2);
+        c2d_add_rectangle(cad1, p1, p2);
     }
-
-
 /*
-    c2d_delete_hierarchy(&data->hierarchy);
-    c2d_delete_hierarchy(&cse->hierarchy);
-    c2d_delete_hierarchy(&security->hierarchy);
-    c2d_delete_hierarchy(&home->hierarchy);
+    c2d_delete_hierarchy(cad2->hierarchy);
+    c2d_delete_hierarchy(cad3->hierarchy);
+    c2d_delete_hierarchy(cad4->hierarchy);
+    c2d_delete_hierarchy(cad1->hierarchy);
 */
-
-    c2d_export(cad_root, "test4.eps", "eps");
-    c2d_delete(&cad_root);
+    
+    c2d_export(root, "test4.eps", "eps");
+    c2d_delete(root);
     printf("<<< Test4 DONE >>>\n\n");
 }
 
@@ -250,7 +248,7 @@ void test5 () {
     if (cad != NULL) {
         
         c2d_export(cad, "test5.eps", "eps");
-        c2d_delete(&cad);    
+        c2d_delete(cad);    
         printf("<<< Test5 DONE >>>\n\n");
     } 
 }
@@ -315,19 +313,22 @@ void test6 () {
         c2d_add_line(cad, p3, p2);
 
         c2d_export(cad, "test6.eps", "eps");
-        c2d_delete(&cad);
+        c2d_delete(cad);
         printf("<<< Test6 DONE >>>\n\n");
     } 
 }
 
 int main (void) {
-    test4();
-    /**
+    test0();
+    //! https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
+    //! Handle errors casued invalid write ... 
     test0();
     test1();
     test2();
     test3();
+    test4();
     test5();
     test6();
+    /**
     **/
 }
