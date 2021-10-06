@@ -4,10 +4,6 @@
 #include <math.h>
 #include "cad2d.h"
 
-#define DELETED (void *) -3
-#define TRY     -2
-#define FAIL    -1
-
 int u_is_prime (int n);
 int u_find_close_prime (int n);
 
@@ -40,29 +36,35 @@ Point2D u_get_center_rectangle (Rectangle * e);
 Point2D u_get_center_triangle(Triangle * e);
 Point2D u_get_center_line (PointList * e);
 
-double u_measure_point_polyline (Point2D * point, PointList * pline);
+Measurement u_measure_point_polyline (Point2D * point, PointList * pline);
 
 void u_snap_point_point (Point2D * s, Point2D * t);
 void u_snap_point_line (Point2D * s, PointList * t);
 void u_snap_arc_point (Circle * s, Point2D * t);
 RGBColor u_convert_rgb (Color c);
 
-void u_print_text_style (FILE * fid, TextStyle * s);
-void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s);
-void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
-void u_print_circle (FILE * fid, Circle * e);
-void u_print_ellipse (FILE * fid, Ellipse * e);
-void u_print_triangle (FILE * fid, Triangle * e);
-void u_print_rectangle (FILE * fid, Rectangle * e);
-void u_print_line (FILE * fid, PointList * e);
-void u_print_spline (FILE * fid, PointList * e);
-void u_print_regular_polygon (FILE * fid, RegularPolygon * e);
-void u_print_text (FILE * fid, Text * e);
+void u_export_eps (FILE * fid, Hierarchy * h);
+void u_export_eps_text_style (FILE * fid, TextStyle * s);
+void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
+void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
+void u_export_eps_circle (FILE * fid, Circle * e);
+void u_export_eps_ellipse (FILE * fid, Ellipse * e);
+void u_export_eps_triangle (FILE * fid, Triangle * e);
+void u_export_eps_rectangle (FILE * fid, Rectangle * e);
+void u_export_eps_line (FILE * fid, PointList * e);
+void u_export_eps_spline (FILE * fid, PointList * e);
+void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e);
+void u_export_eps_text (FILE * fid, Text * e);
 
-void u_export_eps (CAD2D * cad, char * file_name);
-void u_export_eps_hierarchy (FILE * fid, Hierarchy * h);
-void u_export_gtucad (CAD2D * cad, char * file_name);
+void u_export_gtucad (FILE * fid, CAD2D * cad);
+void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size);
+void u_export_gtucad_llist (FILE * fid, LabeList * llist);
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h);
+
+CAD2D * u_import_gtucad (FILE * fid);
+Entity ** u_import_gtucad_elist (FILE * fid, int elist_size);
+LabeList * u_import_gtucad_llist (FILE * fid);
+Hierarchy * u_import_gtucad_hierarchy (FILE * fid);
 
 /*********************************************************************************
  * Hierarchy
@@ -778,29 +780,6 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     return l;
 }
 
-//! NOT TESTED YET:
-Label * c2d_add_point_ph (CAD2D * cad, Point2D p, const Hierarchy * h) {
-    int r = u_find_hierarchy(c2d_get_root_hierarchy(h), h); 
-    //! r will be always true, so this statment is wrong DELETE
-    /* add point at desired hiearchy as if it's root */
-    return r != FAIL ? c2d_add_point_p(h->cad, p) : NULL;
-}
-
-Label * c2d_add_point_phl (CAD2D * cad, Point2D p, const Hierarchy * h, const Label * l) {
-    Point2D * d;
-    //! assumes given label is unique
-    if (l != NULL && u_is_in_canvas_p(cad->canvas, &p)) {
-        d = (Point2D *) malloc(sizeof(Point2D));
-        if (d != NULL) {
-            *d = p; 
-            
-            u_create_entity(cad, l, d, NULL);
-        }
-    }
-    
-    return l;
-}
-
 void c2d_set_point (Point2D * p, double x, double y) {
     p->x = x;
     p->y = y;
@@ -845,14 +824,6 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
     return l;
 }
 
-Label * c2d_add_line_h (CAD2D * cad, Point2D start, Point2D end, Hierarchy * h) {
-    //! NOT IMPLEMENTED YET
-}
-
-Label * c2d_add_line_hl (CAD2D * cad, Point2D start, Point2D end, Hierarchy * h, Label * l) {
-    //! NOT IMPLEMENTED YET
-}
-
 /* takes an point array */
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     PointList * head, ** trav;
@@ -883,26 +854,6 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     }
     
     return l;
-}
-
-Label * c2d_add_polyline_h (CAD2D * cad, Point2D * p, int size, Hierarchy * h) {
-    //! NOT IMPLEMENTED YET
-}
-
-Label * c2d_add_polyline_hl (CAD2D * cad, Point2D * p, int size, Hierarchy * h, Label * l) {
-    //! NOT IMPLEMENTED YET
-}
-
-Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
-    return c2d_add_polyline(cad, p, size);
-}
-
-Label * c2d_add_irregular_polygon_h (CAD2D * cad, Point2D * p, int size, Hierarchy * h) {
-    //! NOT IMPLEMENTED YET
-}
-
-Label * c2d_add_irregular_polygon_hl (CAD2D * cad, Point2D * p, int size, Hierarchy * h, Label * l) {
-    //! NOT IMPLEMENTED YET
 }
 
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius) {
@@ -1126,27 +1077,37 @@ int u_is_in_canvas_p (Canvas * c, Point2D * p) {
  * Measurement Between Entity
 *********************************************************************************/
 
-/* measures the distance between two entity given by their labels */
-double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
+/* Measures the distance between two entity given by their labels */
+Measurement c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
     Measurement m; //! Is returnining measurment suitable
+
+    /* Define the types of given two entity to implement specific algorithm */
+        /* Get the measurement and return it */
+    /* o.w. return m.distance = -1 */
+    return m;
 }
 
 /* Returns the closest distance between point and polyline */
-double u_measure_point_polyline (Point2D * point, PointList * pline) {
-    double d, tmp;
+Measurement u_measure_point_polyline (Point2D * point, PointList * pline) {
+    Measurement m;
+    double d;
 
-    d = u_get_euclidean_dist(point, &pline->point);
+    m.start = *point;
+    m.distance = u_get_euclidean_dist(point, &pline->point);
+
     pline = pline->next;
-
+    //! THIS ALGO IS WRONG
     /* Take min distance by travelling each point on pline and calculating their ED  */
     while (pline != NULL) {
-        tmp = u_get_euclidean_dist(point, &pline->point);
-        if (tmp < d)
-            d = tmp;
+        d = u_get_euclidean_dist(point, &pline->point);
+        if (d < m.distance) {
+            m.distance = d;
+            m.end = pline->point;
+        }
         pline = pline->next;
     }
 
-    return d;
+    return m;
 }
 
 double u_measure_point_arc (Point2D * p, Circle * c) {
@@ -1154,24 +1115,24 @@ double u_measure_point_arc (Point2D * p, Circle * c) {
 }
 
 /* Measures the distance between center of given two entity */
-double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
-    EntityInfo * s_info = c2d_find_entity(cad, ls), * t_info = c2d_find_entity(cad, lt);;
-    Entity * s, * t; 
+Measurement c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
+    EntityInfo * s_info = c2d_find_entity(cad, ls), * t_info = c2d_find_entity(cad, lt);
     Point2D c1, c2;
-    double m;
+    Measurement m;
 
-    /* check if given label's are exist */
+    /* Check if given label's are exist */
     if (s_info != NULL && t_info != NULL) {
-        s = s_info->entity;
-        t = t_info->entity;
         /* take center points of these two entity and calculate the distance */
-        c1 = c2d_get_center2D(s->data);
-        c2 = c2d_get_center2D(t->data);
+        c1 = c2d_get_center2D(s_info->entity->data);
+        c2 = c2d_get_center2D(t_info->entity->data);
 
-        m = u_get_euclidean_dist(&c1, &c2);
+        m.start = c1;
+        m.end = c2;
+        m.distance = u_get_euclidean_dist(&c1, &c2);
     }    
-    else
-        m = -1;
+    else 
+        m.distance = -1;
+    //! Check if distance is valid
     
     free(s_info);
     free(t_info);
@@ -1194,9 +1155,6 @@ Point2D c2d_get_center2D (Entity * e) {
             case regular_polygon_t:
                 c = u_get_center_line(e->data);
                 break;
-            case spline_t:
-                //! NOT IMPLEMENTED YET
-                break;
             case triangle_t:
                 c = u_get_center_triangle(e->data);
                 break;
@@ -1209,6 +1167,9 @@ Point2D c2d_get_center2D (Entity * e) {
                 break;
             case ellipse_t:
                 c = ((Ellipse *) e->data)->center;
+                break;
+            case spline_t:
+                //! NOT IMPLEMENTED YET
                 break;
             case image_t:
                 //! NOT IMPLEMENTED YET
@@ -1225,7 +1186,7 @@ Point2D c2d_get_center2D (Entity * e) {
     return c;
 }
 
-/* c: center e: entity */
+/* Common function for line, polyline and polygone */
 Point2D u_get_center_line (PointList * e) {
     Point2D c;
     int i = 0;
@@ -1246,7 +1207,7 @@ Point2D u_get_center_line (PointList * e) {
     return c;
 }
 
-Point2D u_get_center_triangle(Triangle * e) {
+Point2D u_get_center_triangle (Triangle * e) {
     Point2D c;
     c.x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3;
     c.x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3;
@@ -1268,7 +1229,7 @@ Point2D u_get_center_rectangle (Rectangle * e) {
 Polyline    Point       Define a strategy!
 Polyline    Polyline    Define a strategy!
 Polyline    Polygon     Define a strategy!
-Polygon     Point       set polgon as it's center is given target point
+Polygon     Point       stle polgon as it's center is given target point
 Polygon     Polyline    Define a strategy!
 // Arc         Point       set arc as it's center is given target point
 Arc         Polyline    Define a strategy
@@ -1455,62 +1416,300 @@ RGBColor u_convert_rgb (Color c) {
  * Import & Export
 *********************************************************************************/
 
+/* Import's a CAD object from given file, for now only gtucad format available */
+CAD2D * c2d_import (char * file_name, char * options) {
+    FILE * fid;
+    CAD2D * cad;
+
+    /* Import in GTUCAD format */
+    if (strcmp(options, "gtucad") == 0) {
+        fid = fopen(file_name, "rb");
+        if (fid != NULL) {
+            cad = u_import_gtucad(fid);
+            fclose(fid);
+        }
+    }
+    else 
+        printf("%s is not a valid file format\nPlease select 'gtucad'\n", options);
+
+    return cad;
+}
+
+CAD2D * u_import_gtucad (FILE * fid) {
+    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
+    
+    if (cad != NULL) {
+        /* Read the CAD object and read the specific data by checking ... */
+        fread(cad, sizeof(CAD2D), 1, fid);
+        
+        /*  If cad element points different than NULL, it means
+            we need to allocate memory for that data and read from the file */
+
+        /* Read the canvas */
+        if (cad->canvas != NULL) {
+            cad->canvas = (Canvas *) malloc(sizeof(Canvas));
+            if (cad->canvas != NULL)
+                fread(cad->canvas, sizeof(Canvas), 1, fid);
+        }
+        
+        if (cad->elist != NULL)
+            cad->elist = u_import_gtucad_elist(fid, cad->elist_size);
+
+        if (cad->llist != NULL)
+            cad->llist = u_import_gtucad_llist(fid);
+        
+        
+        if (cad->hierarchy != NULL) {
+            cad->hierarchy = u_import_gtucad_hierarchy(fid);
+            if (cad->hierarchy != NULL) {
+                cad->hierarchy->cad = cad;
+                //! cad->hierarchy->parent;
+            }
+        }
+    }
+    
+    return cad;
+}
+
+//! NOT IMPLEMENTED YET
+Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
+    Entity ** elist;
+    int i;
+    
+    elist = (Entity **) calloc(elist_size, sizeof(Entity *));
+    if (elist != NULL) {
+        /* Read the entities array, then read each filled space by seperatly */
+        fread(elist, sizeof(Entity *), elist_size, fid);
+
+        for (i = 0; i < elist_size; ++i) {
+            if (elist[i] != NULL) {
+                elist[i] = (Entity *) malloc(sizeof(Entity));
+                if (elist[i] != NULL){
+                    fread(elist[i], sizeof(Entity), 1, fid);
+                    //! NOT IMPLEMENTED YET
+                    /*  If given entity consist of linked list
+                        than read them one by one                */
+                }
+            } 
+        }
+    } 
+    return elist;
+}
+
+//! NOT IMPLEMENTED YET
+LabeList * u_import_gtucad_llist (FILE * fid) {
+    LabeList * head = NULL;
+    LabeList ** l = &head;
+    int i;
+    
+    /* Read the one list element then read it's label */
+    do {
+        *l = (LabeList *) malloc(sizeof(LabeList));
+        if (*l != NULL) {
+            fread(*l, sizeof(LabeList), 1, fid);
+            fread((*l)->label, sizeof(Label), 1, fid);
+            //! read label->name withf for loop
+
+            l = (*l)->next;
+        }
+    } while (*l != NULL);
+    
+    return head;
+}
+
+Hierarchy * u_import_gtucad_hierarchy (FILE * fid) {
+    Hierarchy * h;
+    char tmp[30];
+    int i;
+
+    h = (Hierarchy *) malloc(sizeof(Hierarchy));
+    if (h != NULL) {
+        fread(h, sizeof(Hierarchy), 1, fid);
+        
+        /* Read the hierarchy name */
+        if (h->name != NULL) {
+            i = 0;
+            do fread(tmp + i, sizeof(char), 1, fid);
+            while (tmp[i++] != '\0');
+
+            if (i > 0) {
+                h->name = (char *) calloc(i + 1, sizeof(char));
+                if (h->name != NULL)
+                    strcpy(h->name, tmp);
+            }
+        }
+
+        /* Import the child hierarchies */
+        if (h->child != NULL) {
+            h->child = (Hierarchy **) calloc(h->size, sizeof(Hierarchy *));
+            if (h->child != NULL) {
+                fread(h->child, sizeof(Hierarchy *), h->size, fid);
+                //! Recursive call but not sure
+                for (i = 0; i < h->size; ++i)
+                    if (h->child[i] != NULL)
+                        h->child[i]->cad = u_import_gtucad(fid);    
+                        //! linking ?? h->parent we do not know
+            }
+        }
+    }
+
+    return h;
+}
+
 /* takes ROOT CAD cad, and exports all the content inside it */
 void c2d_export (CAD2D * cad, char * file_name, char * options) {
+    FILE * fid;
+
     if (cad != NULL) {
-        if (strcmp(options, "eps") == 0)
-            u_export_eps(cad, file_name);
-        else if (strcmp(options, "gtucad") == 0)
-            u_export_gtucad(cad, file_name);
-        else printf("%s is not a valid file format\nPlease select 'gtucad' or 'eps'\n", options);
+        /* Export in eps format */
+        if (strcmp(options, "eps") == 0) {
+            fid = fopen(file_name, "wt");
+            if (fid != NULL) {
+                printf("EXPORT EPS:\n");
+
+                /* Write the file specification and settings of CAD */
+                fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
+
+                /* Check if canvas is decleared or not */
+                if (cad->canvas != NULL)
+                    fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
+
+                /* Export given CAD by recursivly */
+                u_export_eps(fid, cad->hierarchy);
+
+                fprintf(fid, "\nshowpage\n");
+
+                fclose(fid);
+            }  
+        }
+        /* Export in gtucad format */
+        else if (strcmp(options, "gtucad") == 0) {
+            fid = fopen(file_name, "wb");
+            if (fid != NULL) {
+                printf("EXPORT GTUCAD:\n");
+                u_export_gtucad(fid, cad);
+                fclose(fid);
+            }            
+        }
+        else 
+            printf("%s is not a valid file format\nPlease select 'gtucad' or 'eps'\n", options);
     }
 }
 
-/* import option for now consist of only "GTUCAD", in the future it can be improved */
-CAD2D * c2d_import (char * file_name, char * options) {
-    //! NOT IMPLEMENTED YET
+/* Exports all the CAD content by recursivly with it's utility functions it's hierarchy data by recursivly */
+void u_export_gtucad (FILE * fid, CAD2D * cad) {
+    /* Export CAD object */
+    fwrite(cad, sizeof(CAD2D), 1, fid);
+
+    /* Export canvas */        
+    if (cad->canvas != NULL)
+        fwrite(cad->canvas, sizeof(Canvas), 1, fid);
+
+    if (cad->elist != NULL)
+        u_export_gtucad_elist(fid, cad->elist, cad->elist_size);
+
+    if (cad->llist != NULL)
+        u_export_gtucad_llist(fid, cad->llist);
+
+    if (cad->hierarchy != NULL)
+        u_export_gtucad_hierarchy(fid, cad->hierarchy);
 }
 
-
-/* Export's given CAD data to a binary file to import later */
-void u_export_gtucad (CAD2D * cad, char * file_name) {
-    FILE * fid = fopen(file_name, "wb");
+//! NOT IMPLEMENTED YET
+void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
     int i;
-    if (fid != NULL) {
-        /* export the root cad than continue to export with it's hierarchies */
-        printf("EXPORT GTUCAD:\n");
-        //! What is the problem
-        /*
-            
-        */
+    Entity * e;
+    size_t e_data_size;
 
-        u_export_gtucad_hierarchy(fid, cad->hierarchy);
+    fwrite(elist, sizeof(Entity *), elist_size, fid);
+    /* Export the data of filled blocks with entity data */
+    for (i = 0; i < elist_size; ++i) {
+        if (elist[i] != NULL) {
+            e = elist[i];
+            fwrite(e, sizeof(Entity), 1, fid);
+            
+            /* Export entity label and it's data */
+            fwrite(e->label, sizeof(Label), 1, fid);
+            fwrite(e->label->name, sizeof(char), strlen(e->label->name) + 1, fid);
+
+            //! actualy we allocate memeory two times for label
+            //! importing elist and llist
+
+            /* To export entity data, define the e_data_size */
+            switch (e->label->type) {
+                case line_t:
+                case polyline_t:
+                case irregular_polygon_t:
+                    e_data_size = sizeof(PointList);       break;
+                case point_t:
+                    e_data_size = sizeof(Point2D);         break;
+                case regular_polygon_t:
+                    e_data_size = sizeof(RegularPolygon);  break;
+                case triangle_t:
+                    e_data_size = sizeof(Triangle);        break;
+                case rectangle_t:
+                    e_data_size = sizeof(Rectangle);       break;
+                case circle_t:
+                case arc_t:
+                    e_data_size = sizeof(Circle);          break;
+                case ellipse_t:
+                    e_data_size = sizeof(Ellipse);         break;
+                case text_t:
+                    e_data_size = sizeof(Text);            break;
+                case spline_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                case image_t:
+                    //! NOT IMPLEMENTED YET
+                    break;
+                default:
+                    e_data_size = 0;
+            }
+
+            fwrite(e->data, e_data_size, 1, fid);
+            //! for line, polyline... we need to export each node
+            
+            /* Export entity style */
+            if (e->style != NULL)
+                fwrite(e->style, sizeof(EntityStyle), 1, fid);
+        }
+    }
+}
+
+void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
+    while (llist != NULL) {
+        fwrite(llist, sizeof(LabeList), 1, fid);
+        fwrite(llist->label, sizeof(Label), 1, fid);
+        fwrite(llist->label->name, sizeof(char), strlen(llist->label->name) + 1, fid);
+        llist = llist->next;
     }
 }
 
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h) {
+    int i;
+
+    //! How we connect h->cad and h->parent during importing process
+    //* In importing process we can do some tricky things 
+
+    fwrite(h, sizeof(Hierarchy), 1, fid);
+    
+    fwrite(h->name, sizeof(char), strlen(h->name) + 1, fid);
+    
+    /* Export the childs */
+    if (h->child != NULL) {
+        fwrite(h->child, sizeof(Hierarchy *), h->size, fid);
+        
+        /*  Actualy u_export_gtucad is recursive function 
+            because this function called by u_export_gtucad  */
+        //! Here recursive comes the scene
+        for (i = 0; i < h->size; ++i) 
+            if (h->child[i] != NULL) 
+                u_export_gtucad(fid, h->child[i]->cad);
+    } 
 
 }
 
-/* Exports all the CAD data by travelling recursively CAD hierarchies */
-void u_export_eps (CAD2D * cad, char * file_name) {
-    FILE * fid = fopen(file_name, "wt");
-
-    if (fid != NULL) {
-    printf("EXPORT EPS:\n");
-        fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
-        /* Check if canvas is decleared or not */
-        if (cad->canvas != NULL)
-            fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
-
-        u_export_eps_hierarchy(fid, cad->hierarchy);
-
-        fprintf(fid, "\nshowpage\n");
-        fclose(fid);
-    }
-}
-
-void u_export_eps_hierarchy (FILE * fid, Hierarchy * h) {
+void u_export_eps (FILE * fid, Hierarchy * h) {
     int i;
     CAD2D * cad; 
     Entity * e;
@@ -1538,29 +1737,29 @@ void u_export_eps_hierarchy (FILE * fid, Hierarchy * h) {
                     case line_t:
                     case polyline_t:
                     case irregular_polygon_t:
-                        u_print_line(fid, e->data);
+                        u_export_eps_line(fid, e->data);
                         break;
                     case regular_polygon_t:
-                        u_print_regular_polygon(fid, e->data);
+                        u_export_eps_regular_polygon(fid, e->data);
                         break;
                     case rectangle_t:
-                        u_print_rectangle(fid, e->data);
+                        u_export_eps_rectangle(fid, e->data);
                         break;
                     case triangle_t:
-                        u_print_triangle (fid, e->data);
+                        u_export_eps_triangle (fid, e->data);
                         break;
                     case circle_t:
                     case arc_t:
-                        u_print_circle(fid, e->data);
+                        u_export_eps_circle(fid, e->data);
                         break;
                     case ellipse_t:
-                        u_print_ellipse(fid, e->data);
+                        u_export_eps_ellipse(fid, e->data);
                         break;
                     case text_t:
-                        u_print_text(fid, e->data);
+                        u_export_eps_text(fid, e->data);
                         break;
                     case spline_t:
-                        u_print_spline (fid, e->data);
+                        u_export_eps_spline (fid, e->data);
                         //! NOT IMPLEMENTED YET
                         break;
                     case image_t:
@@ -1571,7 +1770,7 @@ void u_export_eps_hierarchy (FILE * fid, Hierarchy * h) {
                 }
 
                 if (e->style != NULL) 
-                    u_print_entity_style(fid, e->label, e->style);
+                    u_export_eps_entity_style(fid, e->label, e->style);
                 else if (e->label->type != text_t)
                     fprintf(fid, "stroke\n");
 
@@ -1585,14 +1784,14 @@ void u_export_eps_hierarchy (FILE * fid, Hierarchy * h) {
         printf("Child hiearchy number: %d\n", h->size);
         for (i = 0; i < h->size; ++i)
             if (h->child[i] != NULL && h->child[i] != DELETED)
-                u_export_eps_hierarchy(fid, h->child[i]);
+                u_export_eps(fid, h->child[i]);
     }
 }
 
 /* set font, color and scale of the text */
-void u_print_text_style (FILE * fid, TextStyle * s) {
+void u_export_eps_text_style (FILE * fid, TextStyle * s) {
     fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
-
+    
     switch (s->font) {
         case Helvetica:
             fprintf(fid, "/Helvetica");
@@ -1626,18 +1825,21 @@ void u_print_text_style (FILE * fid, TextStyle * s) {
     fprintf(fid, " findfont %.2f scalefont setfont\n", s->scale);
 }
 
-void u_print_entity_style (FILE * fid, Label * l, EntityStyle * s) {
+void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s) {
     fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
-    fprintf(fid, "%.2f setlinewidth\n", s->line_width);
-    fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
-    fprintf(fid, s->draw == stroke && l->type != irregular_polygon_t ? "stroke\n" : "fill\n");
+    if (s->line_width != DEFAULT) 
+        fprintf(fid, "%.2f setlinewidth\n", s->line_width);
+    if (s->line != DEFAULT) 
+        fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
+    if (s->draw != DEFAULT)
+        fprintf(fid, s->draw == stroke && l->type != irregular_polygon_t ? "stroke\n" : "fill\n");
 }
 
 void c2d_show_xy_plane () {
     //! NOT IMPLEMENTED YET
 }
 
-void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
+void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "\n%% X-Y Plane\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
@@ -1646,13 +1848,13 @@ void u_print_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
 }
 
-void u_print_circle (FILE * fid, Circle * e) {
+void u_export_eps_circle (FILE * fid, Circle * e) {
     fprintf(fid, "\n%% Circle\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, e->radius, e->start_angle, e->end_angle);
 }
 
-void u_print_ellipse (FILE * fid, Ellipse * e) {
+void u_export_eps_ellipse (FILE * fid, Ellipse * e) {
     double  scale = e->radius_y / e->radius_x,
             radius = u_min(e->radius_x, e->radius_y);   
 
@@ -1662,7 +1864,7 @@ void u_print_ellipse (FILE * fid, Ellipse * e) {
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n", e->center.x, e->center.y, radius, 0.0, 360.0);
 }
 
-void u_print_triangle (FILE * fid, Triangle * e) {
+void u_export_eps_triangle (FILE * fid, Triangle * e) {
     fprintf(fid, "\n%% Triangle\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->corner1.x, e->corner1.y);
@@ -1671,7 +1873,7 @@ void u_print_triangle (FILE * fid, Triangle * e) {
     fprintf(fid, "closepath\n");
 }
 
-void u_print_rectangle (FILE * fid, Rectangle * e) {
+void u_export_eps_rectangle (FILE * fid, Rectangle * e) {
     double  height = (e->corner2.y - e->corner1.y),
             width = (e->corner2.x - e->corner1.x);
 
@@ -1685,7 +1887,7 @@ void u_print_rectangle (FILE * fid, Rectangle * e) {
 } 
 
 /* common function for line, polyline and polygon types */
-void u_print_line (FILE * fid, PointList * e) {
+void u_export_eps_line (FILE * fid, PointList * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     e = e->next;
@@ -1696,7 +1898,7 @@ void u_print_line (FILE * fid, PointList * e) {
     }
 }
 
-void u_print_spline (FILE * fid, PointList * e) {
+void u_export_eps_spline (FILE * fid, PointList * e) {
     int i;
     fprintf(fid, "\n%% Spline\n");
     fprintf(fid, "newpath\n");
@@ -1711,7 +1913,7 @@ void u_print_spline (FILE * fid, PointList * e) {
     fprintf(fid, "curveto\n");
 }
 
-void u_print_regular_polygon (FILE * fid, RegularPolygon * e) {
+void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e) {
     double angle, d = 360 / e->n;
 
     /*  (cos(angle) * radius) defines the x-distance from center then 
@@ -1726,11 +1928,11 @@ void u_print_regular_polygon (FILE * fid, RegularPolygon * e) {
     fprintf(fid, "closepath\n");
 }
 
-void u_print_text (FILE * fid, Text * e) {
+void u_export_eps_text (FILE * fid, Text * e) {
     fprintf(fid, "\n%% Text\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
-    u_print_text_style(fid, e->style);
+    u_export_eps_text_style(fid, e->style);
     fprintf(fid, "(%s) show\n", e->text);
 }
 
@@ -1789,7 +1991,7 @@ void u_delete_llist (LabeList * llist) {
     }
 }
 
-/* Takes root CAD and deletes all the content inside of it */
+/* Takes the root CAD and deletes all the content inside of it */
 void c2d_delete (CAD2D * cad) {
     int i;
     

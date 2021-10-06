@@ -1,12 +1,17 @@
 #ifndef cad2d
 #define cad2d
 
-#define INIT_HASH 10 /* Size of hash table */
-#define PRIME 17 /* Prime number for hash function */
+#define INIT_HASH   10 /* Size of hash table */
+#define PRIME       17 /* Prime number for hash function */
+#define DELETED     (void *) -3
+#define TRY         -2
+#define FAIL        -1
+#define DEFAULT     -1  /* Default design chocie     */
 
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
+
 typedef enum {
     point_t, line_t, spline_t, polyline_t, regular_polygon_t, irregular_polygon_t,
     triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
@@ -88,7 +93,7 @@ typedef struct Canvas {
 
 typedef struct LabeList {
     Label * label;
-    struct LabeList * next;
+    struct LabeList * next;     
 } LabeList;
 
 typedef struct CAD2D {
@@ -99,40 +104,17 @@ typedef struct CAD2D {
     Hierarchy * hierarchy;      /* hierarchy data of root CAD (this CAD) */   
 } CAD2D;
 
-
 typedef struct EntityInfo {
-    Entity * entity;    /* Entity itself                    */
-    CAD2D * cad;        /* Container cad of entity          */
-    int index;          /* index inside of the entity list  */
+    Entity * entity;            /* Entity itself                    */
+    CAD2D * cad;                /* Container cad of entity          */
+    int index;                  /* index inside of the entity list  */
 } EntityInfo;
 
 /*********************************************************************************
  * Basic CAD Entities:
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
-/*
-typedef struct Line {
-    Point2D start, end;
-    EntityStyle style;
-} Line;
 
-typedef struct Polyline {
-    Point2D point;
-    struct Polyline * next;
-} Polyline;
-
-
-typedef struct Polygon {
-    Point2D point;
-    struct Polyline * next;
-} Polygon;
-
-typedef struct Spline {
-    Point2D point;
-    struct Polyline * next;
-} Spline;
-
-*/
 typedef struct PointList {
     Point2D point;
     struct PointList * next;
@@ -140,8 +122,9 @@ typedef struct PointList {
 
 /* To measure the distance between entities */
 typedef struct Measurement {
-    Point2D start, end;
+    Point2D start, end;     /* Two points for line */
     double distance;
+    EntityStyle * style;    /* Style for line */
 } Measurement;
 
 typedef struct Circle {

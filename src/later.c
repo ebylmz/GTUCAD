@@ -3,52 +3,24 @@
 #include <string.h>
 #include <math.h>
 #include "cad2d.h"
-#define FAIL -1
-#define TRY -2
 
 // ! label için point olur birde textfield olur belkide hashcode olur
 
+/* ****************************************************************
+! NOT IMPLEMENTED YET
+**************************************************************** */ 
 
-
-/* In case of matching returns index of the hierarchy, o.w. returns FAIL(-1) */
-int u_check_hierarchy (Hierarchy * root, Hierarchy * h) {
-    int i, r, hcode;
-
-    /* First hierarchy is unique since list initiliazed yet */
-    if (root != NULL || root->size == 0)
-        r = h->hash_code;
-    else {
-        hcode = h->hash_code;
-        printf("%d\n", hcode);
-
-        /* use hash-code as index of the unique hierarchy */
-        for (i = 0, r = TRY; i < root->size && r == TRY; ++i) {
-            if (hcode >= root->size)
-                hcode %= root->size;
-
-            /* same hash-code is a sign for same keys */
-            if (root->child[hcode] != NULL) {
-                if (strcmp(root->child[hcode]->name, h->name) == 0)
-                    r = FAIL;
-                else
-                    ++hcode;
-            }
-            else 
-                r = hcode;
-        }
-        //! ALSO CHECK THE CHILD OF THE CHILD HIERARCHY
-        /* If there isn't match yet, continue with children */
-        for (i = 0; i < root->size && r != FAIL; ++i)
-            if (root->child[i] != NULL)
-                r = u_find_hierarchy(h->cad ,h); //! delete h->cad
-    }
-    printf("u_find_hierarchy() returns %d\n", r);
-    return r;
-}
-
-
-
-
+void u_print_gtucad_text_style (FILE * fid, TextStyle * s) {}
+void u_print_gtucad_entity_style (FILE * fid, Label * l, EntityStyle * s) {}
+void u_print_gtucad_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {}
+void u_print_gtucad_circle (FILE * fid, Circle * e) {}
+void u_print_gtucad_ellipse (FILE * fid, Ellipse * e) {}
+void u_print_gtucad_triangle (FILE * fid, Triangle * e) {}
+void u_print_gtucad_rectangle (FILE * fid, Rectangle * e) {}
+void u_print_gtucad_line (FILE * fid, PointList * e) {}
+void u_print_gtucad_spline (FILE * fid, PointList * e) {}
+void u_print_gtucad_regular_polygon (FILE * fid, RegularPolygon * e) {}
+void u_print_gtucad_text (FILE * fid, Text * e) {}
 
 /*
 1 0 0 		 setrgbcolor	red
@@ -91,117 +63,3 @@ typedef enum {
 	Fuchsia #FF00FF 	rgb(255, 0, 255)
 	Purple 	#800080 	rgb(128, 0, 128)
 */
-       
-	    /*  u_check_unique_hierarchy() returns the next empty place
-            based on it's hash-func regarding the size of the array.
-            So be sure we are not exceeding the size                */
-
-int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
-    Hierarchy ** tmp;
-    int i = 0, n, r = u_check_unique_hierarchy(child);
-
-    if (r == FAIL)  //!!!!! Is it okay?
-        printf("'%s' named Hierarchy already exist\n", child->name);
-    else {
-        if (r >= parent->size) {
-            n = parent->size;
-
-            if (parent->size == 0)
-                parent->size = INIT_HASH;
-            else
-                parent->size *= 2;
-
-            tmp = (Hierarchy **) calloc(parent->size, sizeof(Hierarchy *));
-
-            if (tmp != NULL) {
-                for (i = 0; i < n; ++i) 
-                    tmp[i] = parent->child[i];
-
-                free(parent->child);
-                parent->child = tmp;
-            }
-            else
-                r = FAIL;
-        }
-        
-        if (r != FAIL) {
-            parent->child[r] = child; 
-            child->parent = parent;
-        }
-    }
-
-    return r;
-}
-
-//! NOT TESTED YET
-Hierarchy * u_find_hierarchy (CAD2D * cad, const Hierarchy * h) {
-    int i, hcode = u_create_hash_code(h->name, h->size);
-    Hierarchy * r = NULL;
-    Hierarchy * trav;
-
-    if (cad->hierarchy != NULL) {
-        trav = cad->hierarchy;
-
-        /* Go to the root Hierarchy and check up to down */
-        /*
-        while (trav->parent != NULL)
-            trav = trav->parent;
-        */
-        
-        for (i = 0; i < cad->hierarchy->size && r == NULL; ++i)
-            
-            /* look the child's of root hierarchy */
-            for (i = 0; i < cad->hierarchy->size && r == NULL; ++i) {
-                if (hcode >= cad->hierarchy->size)
-                    hcode %= cad->hierarchy->size;
-
-                if (cad->hierarchy->child[(hcode + i) % cad->hierarchy->size] == h)
-                    r = h;
-            }
-            /* if isn't founded yet, look the children's children */
-            if (r == NULL) {
-                for (i = 0; i < cad->hierarchy->size && r == NULL; ++i)
-                    r = u_find_hierarchy(cad->hierarchy->child[i]->cad, h);
-            }
-    }
-
-    return r;
-}
-
-void u_free_entity (Entity * e) {
-    if (e != NULL) {
-        if (e->label != NULL) {
-            if (e->data != NULL) {
-                switch (e->label->type) {
-                    case line_t:
-                    case polyline_t:
-                    case irregular_polygon_t:
-                        u_free_point_list(e->data);
-                        break;
-                    case point_t:
-                    case regular_polygon_t:
-                    case triangle_t:
-                    case rectangle_t:
-                    case circle_t:
-                    case arc_t:
-                    case ellipse_t:
-                        free(e->data);
-                        break;
-                    case text_t:
-                        u_free_text(e->data);       
-                        break;
-                    case spline_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case image_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                }
-            }
-        } 
-        else //! NOT SURE
-            free(e->data);
-        free(e->style);
-        free(e);
-    }
-}
