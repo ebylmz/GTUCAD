@@ -12,7 +12,7 @@ void test0 () {
     if (cad != NULL) {
         /* Draw a hexagon */
         c2d_set_point(&center, 0.0, 0.0);
-        c2d_add_regular_polygon(cad, 5.0, center, 100.0);        
+        c2d_add_regular_polygon(cad, 5, center, 100.0);        
         
         /* Draw arcs at the center of canvas */
         c2d_add_arc(cad, center, radius, 45.0 + 30.0, 225.0 - 30.0);
@@ -33,16 +33,15 @@ void test0 () {
             Import as .gtucad
             Export as .eps
             check the result    */
-
-        /* Export the data as gtucad mode */
+        c2d_export(cad, "test0.eps", "eps");
+/*
         c2d_export(cad, "test0.gtucad", "gtucad");
         c2d_delete(cad);
         
-        /* Import in .gtucad mode then Export as eps mode */
         cad = c2d_import("test0.gtucad", "gtucad");
         if (cad != NULL)
             c2d_export(cad, "test0.eps", "eps");
-        //! Set as test0 is enough rather than test0.eps
+*/
         c2d_delete(cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
@@ -260,6 +259,7 @@ void test3 () {
         printf("CAD cannot started properly\n");
 }
 
+//! IMPLEMENT BETTER TEST FUNCTION like import export
 void test4 () {
     Point2D p1, p2, p3;
     CAD2D * root = c2d_start_wh(1000.0, 1000.0);
@@ -292,22 +292,8 @@ void test4 () {
     printf("<<< Test4 DONE >>>\n\n");
 }
 
-/* Draws a more sweet home */
-void test5 () {
-    //! NOT IMPLEMENTED YET
-    CAD2D * cad;
-
-    cad = c2d_start_wh(1500.0, 1500.0);
-    if (cad != NULL) {
-        
-        c2d_export(cad, "test5.eps", "eps");
-        c2d_delete(cad);    
-        printf("<<< Test5 DONE >>>\n\n");
-    } 
-}
-
 /* Draw an engine */
-void test6 () {
+void test5 () {
     CAD2D * cad;
     double  canvas_size = 1600.0,
             plane_size = canvas_size / 2.0,
@@ -365,16 +351,37 @@ void test6 () {
         p2.y *= -1;
         c2d_add_line(cad, p3, p2);
 
-        c2d_export(cad, "test6.eps", "eps");
+        c2d_export(cad, "test5.eps", "eps");
         c2d_delete(cad);
+        printf("<<< Test5 DONE >>>\n\n");
+    } 
+}
+
+/* Draws a more sweet home */
+void test6 () {
+    CAD2D * cad;
+    Point2D p1, p2, p3;
+
+    cad = c2d_start_wh(1500.0, 1500.0);
+    if (cad != NULL) {
+        c2d_set_point(&p1, 100, 100);
+        c2d_set_point(&p2, 200, 200);
+        c2d_set_point(&p3, 300, 300);
+        //! NOT IMPLEMENTED YET
+
+        c2d_export(cad, "test6.eps", "eps");
+        c2d_delete(cad);    
         printf("<<< Test6 DONE >>>\n\n");
     } 
 }
 
+/*
+    Handle errors casued invalid write ... 
+    https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
+*/
 int main (void) {
+    
     test0();
-    //! https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
-    //! Handle errors casued invalid write ... 
     /**
     test0();
     test1();
@@ -382,6 +389,5 @@ int main (void) {
     test3();
     test4();
     test5();
-    test6();
     **/
 }

@@ -4,8 +4,6 @@
 #include <math.h>
 #include "cad2d.h"
 
-// ! label için point olur birde textfield olur belkide hashcode olur
-
 /*
 1 0 0 		 setrgbcolor	red
 0 1 0 		 setrgbcolor	green

@@ -1,26 +1,27 @@
 #ifndef cad2d
 #define cad2d
 
-#define INIT_HASH   10 /* Size of hash table */
-#define PRIME       17 /* Prime number for hash function */
-#define DELETED     (void *) -3
+#define INIT_HASH   10              /* Size of hash table                   */
+#define PRIME       17              /* Prime number for hash function       */
+#define DELETED     (void *) -3     /* Hash-table value for deleted places  */
 #define TRY         -2
 #define FAIL        -1
-#define DEFAULT     -1  /* Default design chocie     */
+#define DEFAULT     -1              /* Default design chocie                */
 
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
 
 typedef enum {
-    point_t, line_t, spline_t, polyline_t, regular_polygon_t, irregular_polygon_t,
-    triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t, image_t
+    point_t, line_t, polyline_t, regular_polygon_t, irregular_polygon_t,
+    triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t
 } EntityType;
 
 typedef struct {
     double red, green, blue;
 } RGBColor;
 
+//! NOT USED 
 typedef enum {
     red, green, green_dark, blue, blue_light, magenta,
     yellow, white, black, orange, purple, brown 
@@ -46,7 +47,7 @@ typedef enum {
     fs_xsmall = 10, fs_small = 20, fs_medium = 40, fs_large = 80
 } FontScale;
 
-//* use -1 for default style choices
+//! use -1 for default style choices
 typedef struct {
     LineStyle line;
     RGBColor color;
@@ -112,7 +113,7 @@ typedef struct EntityInfo {
 
 /*********************************************************************************
  * Basic CAD Entities:
- * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
+ * point, line, polyline, polygon, rectangle, circle, arc, ellipse, text
 *********************************************************************************/
 
 /*  Line, IrregularPolygon and Polyline are represented as PointList.
@@ -161,10 +162,6 @@ typedef struct Ellipse {
     double radius_x, radius_y;
 } Ellipse;
 
-typedef struct Image {
-    //! NOT IMPLMENTED YET
-} Image;
-
 /*********************************************************************************
  * Function Definitions
 *********************************************************************************/
@@ -192,6 +189,7 @@ Point2D c2d_get_center2D (Entity * e);
 PointList * c2d_create_point_list_p (Point2D p);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
+Label * c2d_add_point_p (CAD2D * cad, Point2D p);
 Label * c2d_add_line(CAD2D * cad, Point2D start, Point2D end);
 Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_angle, double end_angle);
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius);

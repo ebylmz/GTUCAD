@@ -339,9 +339,6 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
             r[0] = 'P';    break;
         case line_t:
             r[0] = 'L';    break;
-        case spline_t:
-            r[0] = 'S';
-            r[1] = 'l';    break;
         case polyline_t:
             r[0] = 'P';
             r[1] = 'l';    break;
@@ -366,8 +363,8 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
             r[0] = 'E';    break;
         case text_t:
             r[0] = 'T';    break;
-        case image_t:
-            r[0] = 'I';    break;
+        default:
+            printf("Undefined entity type during create_label\n");
     }
     
     /* get hierarchy information */
@@ -559,12 +556,6 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
                 break;
             case text_t:
                 u_free_text(e->data);       
-                break;
-            case spline_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case image_t:
-                //! NOT IMPLEMENTED YET
                 break;
         }
         
@@ -883,12 +874,6 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
     return l;
 }
 
-
-Label * c2d_add_splines(CAD2D * cad, Point2D * p, int size) {
-    //! we need 3 point
-    // use (P1 P2 P3 curveto) 
-}
-
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     Circle * d;
     Label * l = NULL;
@@ -1171,12 +1156,6 @@ Point2D c2d_get_center2D (Entity * e) {
             case ellipse_t:
                 c = ((Ellipse *) e->data)->center;
                 break;
-            case spline_t:
-                //! NOT IMPLEMENTED YET
-                break;
-            case image_t:
-                //! NOT IMPLEMENTED YET
-                break;
             case text_t:
                 //! NOT IMPLEMENTED YET
                 break;
@@ -1253,7 +1232,6 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                         u_snap_point_point(s->data, t->data);
                         break;
                     case line_t:
-                    case spline_t:
                     case polyline_t:
                         u_snap_point_line(s->data, t->data);
                         //! NOT IMPLEMENTED YET
@@ -1281,9 +1259,6 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                 }
                 break;
             case line_t:
-                //! Define a strategy!
-                break;
-            case spline_t:
                 //! Define a strategy!
                 break;
             case polyline_t:
@@ -1421,8 +1396,8 @@ RGBColor u_convert_rgb (Color c) {
 
 /* Import's a CAD object from given file, for now only gtucad format available */
 CAD2D * c2d_import (char * file_name, char * options) {
+    CAD2D * cad = NULL;
     FILE * fid;
-    CAD2D * cad;
 
     /* Import in GTUCAD format */
     if (strcmp(options, "gtucad") == 0) {
@@ -1466,6 +1441,7 @@ CAD2D * u_import_gtucad (FILE * fid) {
             if (cad->hierarchy != NULL) {
                 cad->hierarchy->cad = cad;
                 //! cad->hierarchy->parent;
+                printf("export: %s\n", cad->hierarchy->name);
             }
         }
     }
@@ -1556,12 +1532,6 @@ Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
                                 if (((Text *) e->data)->style != NULL)
                                     fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
                             }
-                            break;
-                        case spline_t:
-                            //! NOT IMPLEMENTED YET
-                            break;
-                        case image_t:
-                            //! NOT IMPLEMENTED YET
                             break;
                     }
                 }
@@ -1712,6 +1682,8 @@ void u_export_gtucad (FILE * fid, CAD2D * cad) {
     /* Export CAD object */
     fwrite(cad, sizeof(CAD2D), 1, fid);
 
+    printf("export: %s\n", cad->hierarchy->name);
+
     /* Export canvas */        
     if (cad->canvas != NULL)
         fwrite(cad->canvas, sizeof(Canvas), 1, fid);
@@ -1777,12 +1749,6 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                     fwrite(((Text *) e->data)->text, sizeof(char), strlen(((Text *) e->data)->text) + 1, fid);
                     if (((Text *) e->data)->style != NULL)
                         fwrite(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
-                    break;
-                case spline_t:
-                    //! NOT IMPLEMENTED YET
-                    break;
-                case image_t:
-                    //! NOT IMPLEMENTED YET
                     break;
             }
 
@@ -1871,13 +1837,6 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                         break;
                     case text_t:
                         u_export_eps_text(fid, e->data);
-                        break;
-                    case spline_t:
-                        u_export_eps_spline (fid, e->data);
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case image_t:
-                        //! NOT IMPLEMENTED YET
                         break;
                     default:
                         continue;
@@ -2012,21 +1971,6 @@ void u_export_eps_line (FILE * fid, PointList * e) {
     }
 }
 
-void u_export_eps_spline (FILE * fid, PointList * e) {
-    int i;
-    fprintf(fid, "\n%% Spline\n");
-    fprintf(fid, "newpath\n");
-    fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
-    //! NOT IMPLEMENTED YET
-    //! At least 3 or 4 point needed 
-
-    for (i = 0; i < 3; ++i) {
-        fprintf(fid, "%.2f %.2f ", e->point.x, e->point.y);
-        e = e->next;
-    }    
-    fprintf(fid, "curveto\n");
-}
-
 void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e) {
     double angle, d = 360 / e->n;
 
@@ -2038,7 +1982,7 @@ void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e) {
     fprintf(fid, "%.2f cos %.2f mul %.2f add %.2f sin %.2f mul %.2f add moveto\n", angle, e->out_radius, e->center.x, angle, e->out_radius, e->center.y);
     
     for (angle = d; angle < 360; angle += d)
-    fprintf(fid, "%.2f cos %.2f mul %.2f add %.2f sin %.2f mul %.2f add lineto\n", angle, e->out_radius, e->center.x, angle, e->out_radius, e->center.y);
+        fprintf(fid, "%.2f cos %.2f mul %.2f add %.2f sin %.2f mul %.2f add lineto\n", angle, e->out_radius, e->center.x, angle, e->out_radius, e->center.y);
     fprintf(fid, "closepath\n");
 }
 
@@ -2078,12 +2022,6 @@ void u_delete_elist (Entity ** elist, int size) {
                         break;
                     case text_t:
                         u_free_text(elist[i]->data);       
-                        break;
-                    case spline_t:
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case image_t:
-                        //! NOT IMPLEMENTED YET
                         break;
                 }
                 /* Free style and label of en,tity, then delete itself */
@@ -2189,47 +2127,21 @@ int u_get_tree_depth (Hierarchy * h) {
     return r;
 }
 
-//! DELETE 
-char u_get_hierarchy_level (Hierarchy * h) {
-    int d = u_get_tree_depth(h);
-    char l;
-    if (d < 16)
-        l = d <= 9 ? '0' + d : 'A' + d;
-    else {
-
-        printf("Max hierarchy level reached\n");
-    }
-    
-    return l;
-}
-
 char * u_deci_to_hexa (int deci) {
-    int r, i = 0, j;
     char tmp[20], * hexa;
+    int r, n = 0, i;
 
-    if (deci == 0)
-        tmp[i++] = '0';
-    else {
-        do {
-            r = deci % 16;
-            
-            if (r < 10)
-                tmp[i++] =  r + '0';
-            else
-                tmp[i++] = r - 10 + 'A';
-            
-            deci /= 16;
-        } while (deci > 0);
-    }
+    do {
+        r = deci % 16;
+        tmp[n++] = r < 10 ? r + '0' : r - 10 + 'A';
+        deci /= 16;
+    } while (deci > 0);
 
-    hexa = (char *) calloc(i + 1, sizeof(char));
-
+    hexa = (char *) calloc(n + 1, sizeof(char));
     if (hexa != NULL) {
-        j = 0;
-
-        while (i >= 0)
-            hexa[j++] = tmp[--i];
-        hexa[j] = '\0';
+        for (i = 0, n -= 1; n >= 0; ++i, --n)
+            hexa[i] = tmp[n];
+        hexa[i] = '\0';
     }
 
     return hexa;
