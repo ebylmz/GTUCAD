@@ -6,6 +6,7 @@
 
 int u_is_prime (int n);
 int u_find_close_prime (int n);
+char * u_read_bin_str (FILE * fid);
 
 int u_create_hash_code (char * key, int size);
 int u_is_empty (void * p);
@@ -43,7 +44,7 @@ void u_snap_point_line (Point2D * s, PointList * t);
 void u_snap_arc_point (Circle * s, Point2D * t);
 RGBColor u_convert_rgb (Color c);
 
-void u_export_eps (FILE * fid, Hierarchy * h);
+void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_text_style (FILE * fid, TextStyle * s);
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
@@ -63,8 +64,10 @@ void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h);
 
 CAD2D * u_import_gtucad (FILE * fid);
 Entity ** u_import_gtucad_elist (FILE * fid, int elist_size);
-LabeList * u_import_gtucad_llist (FILE * fid);
+LabeList * u_import_gtucad_llist (FILE * fid, Entity ** elist, int elist_size);
 Hierarchy * u_import_gtucad_hierarchy (FILE * fid);
+
+Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l);
 
 /*********************************************************************************
  * Hierarchy
@@ -1439,13 +1442,11 @@ CAD2D * u_import_gtucad (FILE * fid) {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
-        /* Read the CAD object and read the specific data by checking ... */
         fread(cad, sizeof(CAD2D), 1, fid);
         
         /*  If cad element points different than NULL, it means
             we need to allocate memory for that data and read from the file */
 
-        /* Read the canvas */
         if (cad->canvas != NULL) {
             cad->canvas = (Canvas *) malloc(sizeof(Canvas));
             if (cad->canvas != NULL)
@@ -1454,9 +1455,9 @@ CAD2D * u_import_gtucad (FILE * fid) {
         
         if (cad->elist != NULL)
             cad->elist = u_import_gtucad_elist(fid, cad->elist_size);
-
-        if (cad->llist != NULL)
-            cad->llist = u_import_gtucad_llist(fid);
+        
+        if (cad->llist != NULL && cad->elist)
+            cad->llist = u_import_gtucad_llist(fid, cad->elist, cad->elist_size);
         
         
         if (cad->hierarchy != NULL) {
@@ -1471,9 +1472,9 @@ CAD2D * u_import_gtucad (FILE * fid) {
     return cad;
 }
 
-//! NOT IMPLEMENTED YET
 Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
-    Entity ** elist;
+    Entity ** elist, * e;
+    size_t e_data_size;
     int i;
     
     elist = (Entity **) calloc(elist_size, sizeof(Entity *));
@@ -1481,14 +1482,65 @@ Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
         /* Read the entities array, then read each filled space by seperatly */
         fread(elist, sizeof(Entity *), elist_size, fid);
 
+        /*  If given entity data based on linked-list
+            structure, than read them one by one        */
         for (i = 0; i < elist_size; ++i) {
-            if (elist[i] != NULL) {
-                elist[i] = (Entity *) malloc(sizeof(Entity));
-                if (elist[i] != NULL){
-                    fread(elist[i], sizeof(Entity), 1, fid);
-                    //! NOT IMPLEMENTED YET
-                    /*  If given entity consist of linked list
-                        than read them one by one                */
+            if (elist[i] != NULL && elist[i] != DELETED) {
+                e = elist[i] = (Entity *) malloc(sizeof(Entity));
+                if (elist[i] != NULL) {
+                fread(e, sizeof(Entity), 1, fid);
+
+                /* Read label of entity */
+                e->label = (Label *) malloc(sizeof(Label));
+                if (e->label != NULL) {
+                    fread(e->label, sizeof(Label), 1, fid);
+                    e->label->name = u_read_bin_str(fid);
+                }
+                /*
+                    for entities consist of PointList should be exported
+                    seperatly node by node like u_print_eps functions.
+                    others can be exported with directly (fwrite)
+                */
+                //! NOT IMPLEMENTED YET
+                //! NOT IMPLEMENTED YET
+                //! NOT IMPLEMENTED YET
+
+                /* Read entity data */
+                if (e->label != NULL) {
+                    switch (e->label->type) {
+                        case line_t:
+                        case polyline_t:
+                        case irregular_polygon_t:
+                            e_data_size = sizeof(PointList);       break;
+                        case point_t:
+                            e_data_size = sizeof(Point2D);         break;
+                        case regular_polygon_t:
+                            e_data_size = sizeof(RegularPolygon);  break;
+                        case triangle_t:
+                            e_data_size = sizeof(Triangle);        break;
+                        case rectangle_t:
+                            e_data_size = sizeof(Rectangle);       break;
+                        case circle_t:
+                        case arc_t:
+                            e_data_size = sizeof(Circle);          break;
+                        case ellipse_t:
+                            e_data_size = sizeof(Ellipse);         break;
+                        case text_t:
+                            e_data_size = sizeof(Text);            break;
+                        case spline_t:
+                            //! NOT IMPLEMENTED YET
+                            break;
+                        case image_t:
+                            //! NOT IMPLEMENTED YET
+                            break;
+                        default:
+                            e_data_size = 0;
+                    }
+                }
+
+                /* Read entity style */
+                if (e->style != NULL);
+                    fread(e->style, sizeof(EntityStyle), 1, fid);
                 }
             } 
         }
@@ -1496,21 +1548,25 @@ Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
     return elist;
 }
 
-//! NOT IMPLEMENTED YET
-LabeList * u_import_gtucad_llist (FILE * fid) {
+LabeList * u_import_gtucad_llist (FILE * fid, Entity ** elist, int elist_size) {
     LabeList * head = NULL;
     LabeList ** l = &head;
-    int i;
-    
-    /* Read the one list element then read it's label */
+    Label tmp_l;
+
     do {
         *l = (LabeList *) malloc(sizeof(LabeList));
         if (*l != NULL) {
             fread(*l, sizeof(LabeList), 1, fid);
-            fread((*l)->label, sizeof(Label), 1, fid);
-            //! read label->name withf for loop
+            
+            /*  Since label is already allocated with import_elist,
+                just find address of that label by name of label and
+                assing it without new memory allocation             */
+            fread(&tmp_l, sizeof(Label), 1, fid);
+            tmp_l.name = u_read_bin_str(fid); 
+            (*l)->label = u_find_label_elist(elist, elist_size, &tmp_l);
 
-            l = (*l)->next;
+            free(tmp_l.name);
+            l = &(*l)->next;
         }
     } while (*l != NULL);
     
@@ -1519,7 +1575,6 @@ LabeList * u_import_gtucad_llist (FILE * fid) {
 
 Hierarchy * u_import_gtucad_hierarchy (FILE * fid) {
     Hierarchy * h;
-    char tmp[30];
     int i;
 
     h = (Hierarchy *) malloc(sizeof(Hierarchy));
@@ -1527,33 +1582,62 @@ Hierarchy * u_import_gtucad_hierarchy (FILE * fid) {
         fread(h, sizeof(Hierarchy), 1, fid);
         
         /* Read the hierarchy name */
-        if (h->name != NULL) {
-            i = 0;
-            do fread(tmp + i, sizeof(char), 1, fid);
-            while (tmp[i++] != '\0');
-
-            if (i > 0) {
-                h->name = (char *) calloc(i + 1, sizeof(char));
-                if (h->name != NULL)
-                    strcpy(h->name, tmp);
-            }
-        }
+        if (h->name != NULL) 
+            h->name = u_read_bin_str(fid);
 
         /* Import the child hierarchies */
         if (h->child != NULL) {
             h->child = (Hierarchy **) calloc(h->size, sizeof(Hierarchy *));
             if (h->child != NULL) {
                 fread(h->child, sizeof(Hierarchy *), h->size, fid);
-                //! Recursive call but not sure
+                //! Dont forget to link parent hierarchy
                 for (i = 0; i < h->size; ++i)
-                    if (h->child[i] != NULL)
+                    if (h->child[i] != NULL && h->child[i] != DELETED)
                         h->child[i]->cad = u_import_gtucad(fid);    
-                        //! linking ?? h->parent we do not know
             }
         }
     }
 
     return h;
+}
+
+/* Utility function for import_llist serve purpose of do not allocating new memory */
+Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l) {
+    Label * l = NULL;
+    int i, n, r;
+
+    if (elist != NULL && target_l != NULL) {
+        for (i = 0, r = TRY, n = l->hash_code; i < elist_size && r == TRY; ++i) {
+            if (n >= elist_size)
+                n %= elist_size;
+            
+            /* Not in this elist */
+            if (elist[n] == NULL)
+                r = FAIL;
+            else if (elist[n] != DELETED && strcmp(elist[i]->label->name, target_l->name) == 0) {
+                r = n; 
+                l = elist[i]->label;
+            }
+            else
+                ++r;
+        }
+    } 
+
+    return l;
+}
+
+char * u_read_bin_str (FILE * fid) {
+    char buff[1000], * r;
+    int i = 0;
+
+    do fread(buff + i, sizeof(char), 1, fid);
+    while (buff[i++] != '\0');
+
+    r = (char *) calloc(i + 1, sizeof(char));
+    if (r != NULL)
+        strcpy(r, buff);
+
+    return r;
 }
 
 /* takes ROOT CAD cad, and exports all the content inside it */
@@ -1575,7 +1659,7 @@ void c2d_export (CAD2D * cad, char * file_name, char * options) {
                     fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
                 /* Export given CAD by recursivly */
-                u_export_eps(fid, cad->hierarchy);
+                u_export_eps(fid, cad);
 
                 fprintf(fid, "\nshowpage\n");
 
@@ -1624,7 +1708,7 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
     fwrite(elist, sizeof(Entity *), elist_size, fid);
     /* Export the data of filled blocks with entity data */
     for (i = 0; i < elist_size; ++i) {
-        if (elist[i] != NULL) {
+        if (elist[i] != NULL && elist[i] != DELETED) {
             e = elist[i];
             fwrite(e, sizeof(Entity), 1, fid);
             
@@ -1632,10 +1716,8 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
             fwrite(e->label, sizeof(Label), 1, fid);
             fwrite(e->label->name, sizeof(char), strlen(e->label->name) + 1, fid);
 
-            //! actualy we allocate memeory two times for label
-            //! importing elist and llist
-
             /* To export entity data, define the e_data_size */
+            //! for line, polyline... we need to export each node
             switch (e->label->type) {
                 case line_t:
                 case polyline_t:
@@ -1666,9 +1748,6 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                     e_data_size = 0;
             }
 
-            fwrite(e->data, e_data_size, 1, fid);
-            //! for line, polyline... we need to export each node
-            
             /* Export entity style */
             if (e->style != NULL)
                 fwrite(e->style, sizeof(EntityStyle), 1, fid);
@@ -1685,39 +1764,36 @@ void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
     }
 }
 
+/*  Actualy u_export_gtucad is recursive function 
+    because this function called by u_export_gtucad  */
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h) {
     int i;
 
     //! How we connect h->cad and h->parent during importing process
-    //* In importing process we can do some tricky things 
-
     fwrite(h, sizeof(Hierarchy), 1, fid);
-    
     fwrite(h->name, sizeof(char), strlen(h->name) + 1, fid);
     
     /* Export the childs */
     if (h->child != NULL) {
         fwrite(h->child, sizeof(Hierarchy *), h->size, fid);
         
-        /*  Actualy u_export_gtucad is recursive function 
-            because this function called by u_export_gtucad  */
-        //! Here recursive comes the scene
+        /* Here recursive comes the scene */
         for (i = 0; i < h->size; ++i) 
-            if (h->child[i] != NULL) 
+            if (h->child[i] != NULL && h->child[i] != DELETED)
                 u_export_gtucad(fid, h->child[i]->cad);
     } 
 
 }
 
-void u_export_eps (FILE * fid, Hierarchy * h) {
-    int i;
-    CAD2D * cad; 
-    Entity * e;
+void u_export_eps (FILE * fid, CAD2D * cad) {
     EntityInfo * e_info;
+    Hierarchy * h;
     LabeList * l; 
+    Entity * e;
+    int i;
 
-    if (h != NULL && h != DELETED) {
-        cad = h->cad;
+    if (cad != NULL) {
+        h = cad->hierarchy;
         l = cad->llist;
         
         printf("\nHierarchy: %s\n", cad->hierarchy->name);
@@ -1780,11 +1856,11 @@ void u_export_eps (FILE * fid, Hierarchy * h) {
                 printf("%s not find in %s at exporting process\n", l->label->name, cad->hierarchy->name);
             l = l->next;
         }
-        /* export child of the root hierarchy */
+        /* Export child of the root hierarchy */
         printf("Child hiearchy number: %d\n", h->size);
         for (i = 0; i < h->size; ++i)
             if (h->child[i] != NULL && h->child[i] != DELETED)
-                u_export_eps(fid, h->child[i]);
+                u_export_eps(fid, h->child[i]->cad);
     }
 }
 

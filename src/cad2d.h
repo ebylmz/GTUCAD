@@ -122,6 +122,7 @@ typedef struct PointList {
 
 /* To measure the distance between entities */
 typedef struct Measurement {
+    //! NOT IMPLEMENTED YET
     Point2D start, end;     /* Two points for line */
     double distance;
     EntityStyle * style;    /* Style for line */
