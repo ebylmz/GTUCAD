@@ -28,8 +28,21 @@ void test0 () {
         c2d_set_point(&end, -20.0, 20.0);
         c2d_add_rectangle(cad, start, end);
 
-        /* Export the data as eps mode */
-        c2d_export(cad, "test0.eps", "eps");
+        /*  Export as .gtucad
+            Delete CAD
+            Import as .gtucad
+            Export as .eps
+            check the result    */
+
+        /* Export the data as gtucad mode */
+        c2d_export(cad, "test0.gtucad", "gtucad");
+        c2d_delete(cad);
+        
+        /* Import in .gtucad mode then Export as eps mode */
+        cad = c2d_import("test0.gtucad", "gtucad");
+        if (cad != NULL)
+            c2d_export(cad, "test0.eps", "eps");
+        //! Set as test0 is enough rather than test0.eps
         c2d_delete(cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
@@ -359,9 +372,10 @@ void test6 () {
 }
 
 int main (void) {
-    test2();
+    test0();
     //! https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
     //! Handle errors casued invalid write ... 
+    /**
     test0();
     test1();
     test2();
@@ -369,6 +383,5 @@ int main (void) {
     test4();
     test5();
     test6();
-    /**
     **/
 }

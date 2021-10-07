@@ -53,7 +53,7 @@ void u_export_eps_ellipse (FILE * fid, Ellipse * e);
 void u_export_eps_triangle (FILE * fid, Triangle * e);
 void u_export_eps_rectangle (FILE * fid, Rectangle * e);
 void u_export_eps_line (FILE * fid, PointList * e);
-void u_export_eps_spline (FILE * fid, PointList * e);
+void u_export_eps_spline (FILE * fid, PointList * e); //!!!!
 void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e);
 void u_export_eps_text (FILE * fid, Text * e);
 
@@ -1428,6 +1428,7 @@ CAD2D * c2d_import (char * file_name, char * options) {
     if (strcmp(options, "gtucad") == 0) {
         fid = fopen(file_name, "rb");
         if (fid != NULL) {
+            printf("IMPORT GTUCAD:\n");
             cad = u_import_gtucad(fid);
             fclose(fid);
         }
@@ -1468,13 +1469,12 @@ CAD2D * u_import_gtucad (FILE * fid) {
             }
         }
     }
-    
     return cad;
 }
 
 Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
     Entity ** elist, * e;
-    size_t e_data_size;
+    PointList ** l;
     int i;
     
     elist = (Entity **) calloc(elist_size, sizeof(Entity *));
@@ -1501,43 +1501,70 @@ Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
                     seperatly node by node like u_print_eps functions.
                     others can be exported with directly (fwrite)
                 */
-                //! NOT IMPLEMENTED YET
-                //! NOT IMPLEMENTED YET
-                //! NOT IMPLEMENTED YET
-
                 /* Read entity data */
                 if (e->label != NULL) {
                     switch (e->label->type) {
                         case line_t:
                         case polyline_t:
                         case irregular_polygon_t:
-                            e_data_size = sizeof(PointList);       break;
+                            l = (PointList **) &e->data;
+                            do {
+                                *l = (PointList *) malloc(sizeof(PointList));
+                                if (*l != NULL) {
+                                    fread(*l, sizeof(PointList), 1, fid);
+                                     *l = (*l)->next;
+                                }
+                            } while (*l != NULL);
+                            break;
                         case point_t:
-                            e_data_size = sizeof(Point2D);         break;
+                            e->data = (Point2D *) malloc(sizeof(Point2D));
+                            if (e->data != NULL)
+                                fread(e->data, sizeof(Point2D), 1, fid); 
+                            break;
                         case regular_polygon_t:
-                            e_data_size = sizeof(RegularPolygon);  break;
+                            e->data = (RegularPolygon *) malloc(sizeof(RegularPolygon));
+                            if (e->data != NULL)
+                                fread(e->data, sizeof(RegularPolygon), 1, fid); 
+                            break;
                         case triangle_t:
-                            e_data_size = sizeof(Triangle);        break;
+                            e->data = (Triangle *) malloc(sizeof(Triangle));
+                            if (e->data != NULL)
+                                fread(e->data, sizeof(Triangle), 1, fid); 
+                            break;
                         case rectangle_t:
-                            e_data_size = sizeof(Rectangle);       break;
+                            e->data = (Rectangle *) malloc(sizeof(Rectangle ));
+                            if (e->data != NULL)    
+                                fread(e->data, sizeof(Rectangle), 1, fid); 
+                            break;
                         case circle_t:
                         case arc_t:
-                            e_data_size = sizeof(Circle);          break;
+                            e->data = (Circle *) malloc(sizeof(Circle ));
+                            if (e->data != NULL)
+                                fread(e->data, sizeof(Circle), 1, fid); 
+                            break;
                         case ellipse_t:
-                            e_data_size = sizeof(Ellipse);         break;
+                            e->data = (Ellipse *) malloc(sizeof(Ellipse ));
+                            if (e->data != NULL)
+                                fread(e->data, sizeof(Ellipse), 1, fid); 
+                            break;
                         case text_t:
-                            e_data_size = sizeof(Text);            break;
+                            /* Import Text object, it's text(str) and it's style */
+                            e->data = (Text *) malloc(sizeof(Text));
+                            if (e->data != NULL) {
+                                fread(e->data, sizeof(Text), 1, fid); 
+                                ((Text *) e->data)->text = u_read_bin_str(fid);
+                                if (((Text *) e->data)->style != NULL)
+                                    fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                            }
+                            break;
                         case spline_t:
                             //! NOT IMPLEMENTED YET
                             break;
                         case image_t:
                             //! NOT IMPLEMENTED YET
                             break;
-                        default:
-                            e_data_size = 0;
                     }
                 }
-
                 /* Read entity style */
                 if (e->style != NULL);
                     fread(e->style, sizeof(EntityStyle), 1, fid);
@@ -1699,11 +1726,10 @@ void u_export_gtucad (FILE * fid, CAD2D * cad) {
         u_export_gtucad_hierarchy(fid, cad->hierarchy);
 }
 
-//! NOT IMPLEMENTED YET
 void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
     int i;
     Entity * e;
-    size_t e_data_size;
+    PointList * l;
 
     fwrite(elist, sizeof(Entity *), elist_size, fid);
     /* Export the data of filled blocks with entity data */
@@ -1716,36 +1742,48 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
             fwrite(e->label, sizeof(Label), 1, fid);
             fwrite(e->label->name, sizeof(char), strlen(e->label->name) + 1, fid);
 
-            /* To export entity data, define the e_data_size */
-            //! for line, polyline... we need to export each node
             switch (e->label->type) {
                 case line_t:
                 case polyline_t:
                 case irregular_polygon_t:
-                    e_data_size = sizeof(PointList);       break;
+                    l = (PointList *) e->data;
+                    while (l != NULL) {
+                        fwrite(l, sizeof(PointList), 1, fid);
+                        l = l->next;
+                    }  
+                    break;
                 case point_t:
-                    e_data_size = sizeof(Point2D);         break;
+                    fwrite(e->data, sizeof(Point2D), 1, fid); 
+                    break;
                 case regular_polygon_t:
-                    e_data_size = sizeof(RegularPolygon);  break;
+                    fwrite(e->data, sizeof(RegularPolygon), 1, fid); 
+                    break;
                 case triangle_t:
-                    e_data_size = sizeof(Triangle);        break;
+                    fwrite(e->data, sizeof(Triangle), 1, fid); 
+                    break;
                 case rectangle_t:
-                    e_data_size = sizeof(Rectangle);       break;
+                    fwrite(e->data, sizeof(Rectangle), 1, fid); 
+                    break;
                 case circle_t:
                 case arc_t:
-                    e_data_size = sizeof(Circle);          break;
+                    fwrite(e->data, sizeof(Circle), 1, fid); 
+                    break;
                 case ellipse_t:
-                    e_data_size = sizeof(Ellipse);         break;
+                    fwrite(e->data, sizeof(Ellipse), 1, fid); 
+                    break;
                 case text_t:
-                    e_data_size = sizeof(Text);            break;
+                    /* Export Text object, it's text(str) and it's style */
+                    fwrite(e->data, sizeof(Text), 1, fid); 
+                    fwrite(((Text *) e->data)->text, sizeof(char), strlen(((Text *) e->data)->text) + 1, fid);
+                    if (((Text *) e->data)->style != NULL)
+                        fwrite(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                    break;
                 case spline_t:
                     //! NOT IMPLEMENTED YET
                     break;
                 case image_t:
                     //! NOT IMPLEMENTED YET
                     break;
-                default:
-                    e_data_size = 0;
             }
 
             /* Export entity style */

@@ -18,4 +18,4 @@ cad2d.o: cad2d.c
 
 
 clean:
-	rm -f *.o test *.eps
+	rm -f *.o test *.eps *.gtucad

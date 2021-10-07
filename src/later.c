@@ -6,24 +6,6 @@
 
 // ! label için point olur birde textfield olur belkide hashcode olur
 
-/* ****************************************************************
-! NOT IMPLEMENTED YET
-**************************************************************** */ 
-
-void u_print_gtucad_text_style (FILE * fid, TextStyle * s) {}
-void u_print_gtucad_entity_style (FILE * fid, Label * l, EntityStyle * s) {}
-void u_print_gtucad_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {}
-void u_print_gtucad_circle (FILE * fid, Circle * e) {}
-void u_print_gtucad_ellipse (FILE * fid, Ellipse * e) {}
-void u_print_gtucad_triangle (FILE * fid, Triangle * e) {}
-void u_print_gtucad_rectangle (FILE * fid, Rectangle * e) {}
-void u_print_gtucad_line (FILE * fid, PointList * e) {}
-void u_print_gtucad_spline (FILE * fid, PointList * e) {}
-void u_print_gtucad_regular_polygon (FILE * fid, RegularPolygon * e) {}
-void u_print_gtucad_text (FILE * fid, Text * e) {}
-
-
-
 /*
 1 0 0 		 setrgbcolor	red
 0 1 0 		 setrgbcolor	green

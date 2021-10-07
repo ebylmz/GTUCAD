@@ -115,6 +115,8 @@ typedef struct EntityInfo {
  * point, line, spline, polyline, polygon, rectangle, circle, arc, ellipse, text, image
 *********************************************************************************/
 
+/*  Line, IrregularPolygon and Polyline are represented as PointList.
+    Implementation are same but interpretation are changes from type to type */
 typedef struct PointList {
     Point2D point;
     struct PointList * next;
