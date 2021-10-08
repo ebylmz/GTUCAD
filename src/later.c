@@ -11,22 +11,6 @@ Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
 Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
 */
 
-
-/*
-1 0 0 		 setrgbcolor	red
-0 1 0 		 setrgbcolor	green
-0 0 1 		 setrgbcolor	dark blue
-0 1 1 		 setrgbcolor	light blue
-1 0 1 		 setrgbcolor	magenta
-1 1 0 		 setrgbcolor	yellow
-1 1 1 		 setrgbcolor	white
-0 0 0 		 setrgbcolor	black
-1.0 0.7 0.0  setrgbcolor	orange
-0.7 0.3 1.0  setrgbcolor	purple
-0.7 0.3 0.0  setrgbcolor	brown
-0.0 0.5 0.0  setrgbcolor	dark green
-*/
-
 /*
 typedef enum {
     white, silver, gray, black, red, maroon, yellow, 

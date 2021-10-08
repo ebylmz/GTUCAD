@@ -42,7 +42,6 @@ Measurement u_measure_point_polyline (Point2D * point, PointList * pline);
 void u_snap_point_point (Point2D * s, Point2D * t);
 void u_snap_point_line (Point2D * s, PointList * t);
 void u_snap_arc_point (Circle * s, Point2D * t);
-RGBColor u_convert_rgb (Color c);
 
 void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_text_style (FILE * fid, TextStyle * s);
@@ -107,24 +106,33 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
 }
 
 void c2d_delete_hierarchy (Hierarchy * h) {
-    Hierarchy * parent;
-    int i, n;
+    Hierarchy * parent, * child;
+
+    int i, n, r;
 
     /* Remove it from it's parent */
     if (h->parent != NULL) {
         parent = h->parent;
-        for (i = 0, n = h->hash_code; i < parent->size; ++i) {
+        for (i = 0, n = h->hash_code, r = TRY; i < parent->size && r == TRY; ++i) {
             if (n >= parent->size)
                 n %= parent->size;
             
             //! THERE IS A PROBLEM I CANNOT SOLVE YET
             //! DOES NOT DELETE JUST RUNS SIZE TIMES
-            if (parent->child[n] == NULL)
-                printf("hcode: %d, hsize: %d\n", n, parent->size);
-
             /* Nth child definitly different from NULL */
-            if (parent->child[n] != NULL && parent->child[n] != DELETED && strcmp(parent->child[n]->name, h->name) == 0)
+            if (parent->child[n] == NULL)
+                r = FAIL;
+            if (parent->child[n] != DELETED && strcmp(parent->child[n]->name, h->name) == 0) {
+                child = parent->child[n];
+                if (child->child != NULL)
+                    for (i = 0; i < parent->child[n]->size; ++i)
+                        if (parent->child[n] != NULL && parent->child[n] != DELETED)
+                            c2d_delete_hierarchy(child->child[i]);
+                free(child->name);
+                free(child);
+                //! free cad content
                 parent->child[n] = DELETED;
+            }
             /* Deleted or not empty, check next index */
             else {
                 printf("++\n");
@@ -1276,7 +1284,6 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
 void u_snap_point_point (Point2D * s, Point2D * t) {
     s->x = t->x;
     s->y = t->y;
-    //! s->next; 
 }   
 
 /* Snaps the source point to the closest end of the line */
@@ -1334,44 +1341,41 @@ TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColo
     return style;
 }
 
-void c2d_set_rgb (RGBColor * c, double red, double green, double blue) {
+void c2d_set_color_pallette (RGBColor * c, ColorPalette color) {
+    switch (color) {
+        case red:
+            c->red = 1.0, c->green = 0.0, c->blue = 0.0; break; 
+        case green:
+            c->red = 0.0, c->green = 1.0, c->blue = 0.0; break; 
+        case green_dark:
+            c->red = 0.0, c->green = 0.5, c->blue = 0.0; break; 
+        case blue:
+            c->red = 0.0, c->green = 0.0, c->blue = 1.0; break; 
+        case blue_light:
+            c->red = 0.0, c->green = 1.0, c->blue = 1.0; break; 
+        case magenta:
+            c->red = 1.0, c->green = 0.0, c->blue = 1.0; break; 
+        case yellow:
+            c->red = 1.0, c->green = 1.0, c->blue = 0.0; break; 
+        case white:
+            c->red = 1.0, c->green = 1.0, c->blue = 1.0; break; 
+        case black:
+            c->red = 0.0, c->green = 0.0, c->blue = 0.0; break; 
+        case orange:
+            c->red = 1.0, c->green = 0.7, c->blue = 0.0; break; 
+        case purple:
+            c->red = 0.7, c->green = 0.3, c->blue = 1.0; break; 
+        case brown:
+            c->red = 0.7, c->green = 0.3, c->blue = 0.0; break; 
+        default:
+            printf("Given color cannot find in color pallette\n");      
+    }
+}
+
+void c2d_set_color_rgb (RGBColor * c, double red, double green, double blue) {
     c->red = red;
     c->green = green;
     c->blue = blue;
-}
-
-RGBColor u_convert_rgb (Color c) {
-    RGBColor rgb;
-
-    switch (c) {
-        case red:
-            rgb.red = 1, rgb.green = 0, rgb.blue = 0; break;
-        case green:
-            rgb.red = 0, rgb.green = 1, rgb.blue = 0; break;
-        case green_dark:
-            rgb.red = 0, rgb.green = 0.5, rgb.blue = 0; break;
-        case blue:
-            rgb.red = 0, rgb.green = 0, rgb.blue = 1; break;
-        case blue_light:
-            rgb.red = 0, rgb.green = 1, rgb.blue = 1; break;
-        case magenta:
-            rgb.red = 1, rgb.green = 0, rgb.blue = 1; break;
-        case yellow:
-            rgb.red = 1, rgb.green = 1, rgb.blue = 0; break;
-        case orange:
-            rgb.red = 1, rgb.green = 0.7, rgb.blue = 0; break;
-        case purple:
-            rgb.red = 0.7, rgb.green = 0.3, rgb.blue = 1; break;
-        case brown:
-            rgb.red = 0.7, rgb.green = 0.3, rgb.blue = 0; break;
-        case white:
-            rgb.red = 1, rgb.green = 1, rgb.blue = 1; break;
-        case black:
-        default:
-            rgb.red = 0, rgb.green = 0, rgb.blue = 0;
-    }
-
-    return rgb;
 }
 
 /*********************************************************************************

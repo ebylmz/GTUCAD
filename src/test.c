@@ -12,13 +12,18 @@ void test0 () {
     
     if (cad != NULL) {
         /* Set color as red for points */
-        c2d_set_rgb(&c, 1.0, 0.0, 0.0);
         
         /* Add points by using two different function */
-        l = c2d_add_point_xy(cad, -125.0, 125.0);
+        c2d_set_color_pallette(&c, red);
         
+        l = c2d_add_point_xy(cad, -125.0, 125.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, DEFAULT);
+        
+        c2d_set_color_pallette(&c, blue);
         c2d_set_point(&start, 125.0, -125.0);
+        
         l = c2d_add_point_p(cad, start);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, DEFAULT);
 
         /* Add a hexagon */
         c2d_set_point(&center, 0.0, 0.0);
@@ -59,6 +64,7 @@ void test00 () {
     c2d_delete(cad);
     printf("<<< Test00 DONE >>>\n\n");
 }
+
 /* Draws a life is good page */
 void test1 () {
     CAD2D * cad;
@@ -77,7 +83,7 @@ void test1 () {
         l_pline = c2d_add_polyline(cad, p, 9);
 
         if (l_pline != NULL) {
-            c2d_set_rgb(&c, 0.0, 0.0, 0.0);
+            c2d_set_color_rgb(&c, 0.0, 0.0, 0.0);
             c2d_set_entity_style(cad, l_pline, dashed, c, fill, lw_medium);
         }
 
@@ -86,7 +92,7 @@ void test1 () {
         l_circle = c2d_add_circle(cad, start, x / (n - 1));
 
         if (l_circle != NULL) {
-            c2d_set_rgb(&c, 1.0, 0.0, 1.0);
+            c2d_set_color_rgb(&c, 1.0, 0.0, 1.0);
             c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
         }
 
@@ -95,7 +101,7 @@ void test1 () {
         l_text = c2d_add_text(cad, start, text);
         
         if (l_text != NULL) {
-            c2d_set_rgb(&c, 0.3, 0.0, 1.0);
+            c2d_set_color_rgb(&c, 0.3, 0.0, 1.0);
             c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
         }
 
@@ -133,7 +139,7 @@ void test2 () {
         l_ellipse1 = c2d_add_ellipse(cad, center, radius * 2, radius);
 
         if (l_ellipse1 != NULL) {
-            c2d_set_rgb(&c, 0.0, 0.5, 0.0);
+            c2d_set_color_rgb(&c, 0.0, 0.5, 0.0);
             c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, lw_medium);
         }
         
@@ -141,7 +147,7 @@ void test2 () {
         l_ellipse2 = c2d_add_ellipse(cad, center, radius, radius * 2);
 
         if (l_ellipse2 != NULL) {
-            c2d_set_rgb(&c, 0.0, 0.5, 1.0);
+            c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
             c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, lw_medium);
         }        
 
@@ -150,7 +156,7 @@ void test2 () {
         l_text = c2d_add_text(cad, center, text);
         
         if (l_text != NULL) {
-            c2d_set_rgb(&c, 1.0, 0.0, 0.5);
+            c2d_set_color_rgb(&c, 1.0, 0.0, 0.5);
             c2d_set_text_style(cad, l_text, Courier, c, fs_small);
         }
 
@@ -182,9 +188,9 @@ void test3 () {
         cad_body = c2d_start_wh_hier(1500.0, 1500.0, cad_root->hierarchy);
         
         /* Set colors */
-        c2d_set_rgb(&c_gray, 0.5, 0.5, 0.5);
-        c2d_set_rgb(&c_black, 0.2, 0.2, 0.2);
-        c2d_set_rgb(&c_white, 0.8, 0.8, 0.8);
+        c2d_set_color_rgb(&c_gray, 0.5, 0.5, 0.5);
+        c2d_set_color_rgb(&c_black, 0.2, 0.2, 0.2);
+        c2d_set_color_rgb(&c_white, 0.8, 0.8, 0.8);
 
         if (cad_body != NULL) {
             /* Set body part of the building */
@@ -284,7 +290,6 @@ void test4 () {
         printf("CAD cannot started properly\n");
 }
 
-
 //! IMPLEMENT BETTER TEST FUNCTION like import export
 void test5 () {
     Point2D p1, p2, p3;
@@ -307,10 +312,10 @@ void test5 () {
     }
 
 /*
+    c2d_delete_hierarchy(cad1->hierarchy);
     c2d_delete_hierarchy(cad2->hierarchy);
     c2d_delete_hierarchy(cad3->hierarchy);
     c2d_delete_hierarchy(cad4->hierarchy);
-    c2d_delete_hierarchy(cad1->hierarchy);
 */
     
     c2d_export(root, "test5.gtucad", gtucad);
@@ -403,9 +408,11 @@ void test55 () {
 */
 int main (void) {
     /*
-    test3();
-    */
     test0();
+    */
+    test5();
+    test55();
+    /**
     test1();
     test2();
     test3();
@@ -414,6 +421,5 @@ int main (void) {
     test6();
     test55();
     test00();
-    /**
     **/
 }
