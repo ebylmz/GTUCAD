@@ -53,7 +53,6 @@ void u_export_eps_ellipse (FILE * fid, Ellipse * e);
 void u_export_eps_triangle (FILE * fid, Triangle * e);
 void u_export_eps_rectangle (FILE * fid, Rectangle * e);
 void u_export_eps_line (FILE * fid, PointList * e);
-void u_export_eps_spline (FILE * fid, PointList * e); //!!!!
 void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e);
 void u_export_eps_text (FILE * fid, Text * e);
 
@@ -63,9 +62,9 @@ void u_export_gtucad_llist (FILE * fid, LabeList * llist);
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h);
 
 CAD2D * u_import_gtucad (FILE * fid);
-Entity ** u_import_gtucad_elist (FILE * fid, int elist_size);
-LabeList * u_import_gtucad_llist (FILE * fid, Entity ** elist, int elist_size);
-Hierarchy * u_import_gtucad_hierarchy (FILE * fid);
+Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size);
+LabeList * u_import_gtucad_llist (FILE * fid, LabeList * llist, Entity ** elist, int elist_size);
+Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad);
 
 Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l);
 
@@ -88,8 +87,6 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
 
     return h;
 }
-
-//! Hierarchy * c2d_create_hierarchy?(CAD2D * cad, …) {}
 
 /* creates a hierarchy from given cad and add it as a child of given parent hierarchy */
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
@@ -364,7 +361,7 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
         case text_t:
             r[0] = 'T';    break;
         default:
-            printf("Undefined entity type during create_label\n");
+            printf("Undefined entity type during label name creation\n");
     }
     
     /* get hierarchy information */
@@ -472,7 +469,6 @@ Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
         e->label = l;
         e->style = s;
 
-        //! NOT SURE ??
         if (u_insert_entity_list(cad, e) == FAIL) {
             c2d_remove_entity(cad, &l);
             e = NULL;
@@ -721,16 +717,9 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     return cad;
 }
 
-
 /*********************************************************************************
  * Adding Basic CAD Entities
 *********************************************************************************/
-/*
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
-Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
-*/
 
 //! NOT TESTED YET:
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
@@ -1048,8 +1037,6 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
 
     return l;
 }
-
-//! Label * c2d_add_image(CAD2D * cad, ...) {}
 
 int u_is_in_canvas_xy (Canvas * c, double x, double y) {
     return c == NULL ? 1 :
@@ -1395,21 +1382,24 @@ RGBColor u_convert_rgb (Color c) {
 *********************************************************************************/
 
 /* Import's a CAD object from given file, for now only gtucad format available */
-CAD2D * c2d_import (char * file_name, char * options) {
+CAD2D * c2d_import (char * file_name, ExImOption option) {
     CAD2D * cad = NULL;
     FILE * fid;
 
-    /* Import in GTUCAD format */
-    if (strcmp(options, "gtucad") == 0) {
-        fid = fopen(file_name, "rb");
-        if (fid != NULL) {
-            printf("IMPORT GTUCAD:\n");
-            cad = u_import_gtucad(fid);
-            fclose(fid);
-        }
+    switch (option) {
+        /* Import in gtucad format */
+        case gtucad:        
+            fid = fopen(file_name, "rb");
+            if (fid != NULL) {
+                printf("IMPORT GTUCAD:\n");
+                cad = u_import_gtucad(fid);
+                fclose(fid);
+            }
+            break;
+        default:
+            printf("Given import format is invalid\n");        
+            printf("Please select file format \"gtucad\"\n");        
     }
-    else 
-        printf("%s is not a valid file format\nPlease select 'gtucad'\n", options);
 
     return cad;
 }
@@ -1429,168 +1419,174 @@ CAD2D * u_import_gtucad (FILE * fid) {
                 fread(cad->canvas, sizeof(Canvas), 1, fid);
         }
         
-        if (cad->elist != NULL)
-            cad->elist = u_import_gtucad_elist(fid, cad->elist_size);
-        
-        if (cad->llist != NULL && cad->elist)
-            cad->llist = u_import_gtucad_llist(fid, cad->elist, cad->elist_size);
-        
-        
-        if (cad->hierarchy != NULL) {
-            cad->hierarchy = u_import_gtucad_hierarchy(fid);
-            if (cad->hierarchy != NULL) {
-                cad->hierarchy->cad = cad;
-                //! cad->hierarchy->parent;
-                printf("export: %s\n", cad->hierarchy->name);
-            }
-        }
+        cad->elist = u_import_gtucad_elist(fid, cad->elist, cad->elist_size);
+        cad->llist = u_import_gtucad_llist(fid, cad->llist, cad->elist, cad->elist_size);
+        cad->hierarchy = u_import_gtucad_hierarchy(fid, cad);
     }
     return cad;
 }
 
-Entity ** u_import_gtucad_elist (FILE * fid, int elist_size) {
-    Entity ** elist, * e;
+
+Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
+    Entity * e;
     PointList ** l;
     int i;
     
-    elist = (Entity **) calloc(elist_size, sizeof(Entity *));
     if (elist != NULL) {
-        /* Read the entities array, then read each filled space by seperatly */
-        fread(elist, sizeof(Entity *), elist_size, fid);
+        elist = (Entity **) calloc(elist_size, sizeof(Entity *));
+        if (elist != NULL) {
+            /* Read the entities array, then read each filled space by seperatly */
+            fread(elist, sizeof(Entity *), elist_size, fid);
 
-        /*  If given entity data based on linked-list
-            structure, than read them one by one        */
-        for (i = 0; i < elist_size; ++i) {
-            if (elist[i] != NULL && elist[i] != DELETED) {
-                e = elist[i] = (Entity *) malloc(sizeof(Entity));
-                if (elist[i] != NULL) {
-                fread(e, sizeof(Entity), 1, fid);
+            /*  If given entity data based on linked-list
+                structure, than read them one by one        */
+            for (i = 0; i < elist_size; ++i) {
+                if (elist[i] != NULL && elist[i] != DELETED) {
+                    e = elist[i] = (Entity *) malloc(sizeof(Entity));
+                    if (elist[i] != NULL) {
+                        fread(e, sizeof(Entity), 1, fid);
 
-                /* Read label of entity */
-                e->label = (Label *) malloc(sizeof(Label));
-                if (e->label != NULL) {
-                    fread(e->label, sizeof(Label), 1, fid);
-                    e->label->name = u_read_bin_str(fid);
-                }
-                /*
-                    for entities consist of PointList should be exported
-                    seperatly node by node like u_print_eps functions.
-                    others can be exported with directly (fwrite)
-                */
-                /* Read entity data */
-                if (e->label != NULL) {
-                    switch (e->label->type) {
-                        case line_t:
-                        case polyline_t:
-                        case irregular_polygon_t:
-                            l = (PointList **) &e->data;
-                            do {
-                                *l = (PointList *) malloc(sizeof(PointList));
-                                if (*l != NULL) {
-                                    fread(*l, sizeof(PointList), 1, fid);
-                                     *l = (*l)->next;
-                                }
-                            } while (*l != NULL);
-                            break;
-                        case point_t:
-                            e->data = (Point2D *) malloc(sizeof(Point2D));
-                            if (e->data != NULL)
-                                fread(e->data, sizeof(Point2D), 1, fid); 
-                            break;
-                        case regular_polygon_t:
-                            e->data = (RegularPolygon *) malloc(sizeof(RegularPolygon));
-                            if (e->data != NULL)
-                                fread(e->data, sizeof(RegularPolygon), 1, fid); 
-                            break;
-                        case triangle_t:
-                            e->data = (Triangle *) malloc(sizeof(Triangle));
-                            if (e->data != NULL)
-                                fread(e->data, sizeof(Triangle), 1, fid); 
-                            break;
-                        case rectangle_t:
-                            e->data = (Rectangle *) malloc(sizeof(Rectangle ));
-                            if (e->data != NULL)    
-                                fread(e->data, sizeof(Rectangle), 1, fid); 
-                            break;
-                        case circle_t:
-                        case arc_t:
-                            e->data = (Circle *) malloc(sizeof(Circle ));
-                            if (e->data != NULL)
-                                fread(e->data, sizeof(Circle), 1, fid); 
-                            break;
-                        case ellipse_t:
-                            e->data = (Ellipse *) malloc(sizeof(Ellipse ));
-                            if (e->data != NULL)
-                                fread(e->data, sizeof(Ellipse), 1, fid); 
-                            break;
-                        case text_t:
-                            /* Import Text object, it's text(str) and it's style */
-                            e->data = (Text *) malloc(sizeof(Text));
-                            if (e->data != NULL) {
-                                fread(e->data, sizeof(Text), 1, fid); 
-                                ((Text *) e->data)->text = u_read_bin_str(fid);
-                                if (((Text *) e->data)->style != NULL)
-                                    fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                        /* Read label of entity */
+                        e->label = (Label *) malloc(sizeof(Label));
+                        if (e->label != NULL) {
+                            fread(e->label, sizeof(Label), 1, fid);
+                            e->label->name = u_read_bin_str(fid);
+                        }
+                        /*
+                            for entities consist of PointList(linked-list) 
+                            should be exported seperatly node by node like  */
+                        if (e->label != NULL) {
+                            /* Read entity data */
+                            switch (e->label->type) {
+                                case line_t:
+                                case polyline_t:
+                                case irregular_polygon_t:
+                                    for (l = (PointList **) &e->data; *l != NULL; l = &(*l)->next) {
+                                        *l = (PointList *) malloc(sizeof(PointList));
+                                        if (*l != NULL)
+                                            fread(*l, sizeof(PointList), 1, fid);
+                                        else
+                                            break;  /* Prevents segFault comes during increment */
+                                    }
+                                    break;
+                                case point_t:
+                                    e->data = (Point2D *) malloc(sizeof(Point2D));
+                                    if (e->data != NULL)
+                                        fread(e->data, sizeof(Point2D), 1, fid); 
+                                    break;
+                                case regular_polygon_t:
+                                    e->data = (RegularPolygon *) malloc(sizeof(RegularPolygon));
+                                    if (e->data != NULL)
+                                        fread(e->data, sizeof(RegularPolygon), 1, fid); 
+                                    break;
+                                case triangle_t:
+                                    e->data = (Triangle *) malloc(sizeof(Triangle));
+                                    if (e->data != NULL)
+                                        fread(e->data, sizeof(Triangle), 1, fid); 
+                                    break;
+                                case rectangle_t:
+                                    e->data = (Rectangle *) malloc(sizeof(Rectangle ));
+                                    if (e->data != NULL)    
+                                        fread(e->data, sizeof(Rectangle), 1, fid); 
+                                    break;
+                                case circle_t:
+                                case arc_t:
+                                    e->data = (Circle *) malloc(sizeof(Circle ));
+                                    if (e->data != NULL)
+                                        fread(e->data, sizeof(Circle), 1, fid); 
+                                    break;
+                                case ellipse_t:
+                                    e->data = (Ellipse *) malloc(sizeof(Ellipse ));
+                                    if (e->data != NULL)
+                                        fread(e->data, sizeof(Ellipse), 1, fid); 
+                                    break;
+                                case text_t:
+                                    /* Import Text object, it's text(str) and it's style */
+                                    e->data = (Text *) malloc(sizeof(Text));
+                                    if (e->data != NULL) {
+                                        fread(e->data, sizeof(Text), 1, fid); 
+                                        ((Text *) e->data)->text = u_read_bin_str(fid);
+                                        if (((Text *) e->data)->style != NULL)
+                                            fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                                    }
+                                    break;
                             }
-                            break;
+                        }
+                        /* Read entity style */
+                        if (e->style != NULL) {
+                            e->style = (EntityStyle *) malloc(sizeof(EntityStyle));
+                            if (e->style != NULL)
+                                fread(e->style, sizeof(EntityStyle), 1, fid);
+                        }
                     }
-                }
-                /* Read entity style */
-                if (e->style != NULL);
-                    fread(e->style, sizeof(EntityStyle), 1, fid);
-                }
-            } 
-        }
-    } 
+                } 
+            }
+            printf("Import elist is DONE\n");
+        } 
+    }
     return elist;
 }
 
-LabeList * u_import_gtucad_llist (FILE * fid, Entity ** elist, int elist_size) {
-    LabeList * head = NULL;
-    LabeList ** l = &head;
+LabeList * u_import_gtucad_llist (FILE * fid, LabeList * llist, Entity ** elist, int elist_size) {
+    LabeList ** l = &llist;
     Label tmp_l;
 
-    do {
+    while (*l != NULL) {
         *l = (LabeList *) malloc(sizeof(LabeList));
         if (*l != NULL) {
             fread(*l, sizeof(LabeList), 1, fid);
             
             /*  Since label is already allocated with import_elist,
                 just find address of that label by name of label and
-                assing it without new memory allocation             */
+                assing it without allocating new memory for same values     */
             fread(&tmp_l, sizeof(Label), 1, fid);
             tmp_l.name = u_read_bin_str(fid); 
             (*l)->label = u_find_label_elist(elist, elist_size, &tmp_l);
-
+            
             free(tmp_l.name);
             l = &(*l)->next;
         }
-    } while (*l != NULL);
+    } 
+
+    printf ("Import llist is DONE\n");
     
-    return head;
+    return llist;
 }
 
-Hierarchy * u_import_gtucad_hierarchy (FILE * fid) {
-    Hierarchy * h;
+Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad) {
+    Hierarchy * h = NULL;
+    CAD2D * child_cad;
     int i;
+    
 
-    h = (Hierarchy *) malloc(sizeof(Hierarchy));
-    if (h != NULL) {
-        fread(h, sizeof(Hierarchy), 1, fid);
-        
-        /* Read the hierarchy name */
-        if (h->name != NULL) 
-            h->name = u_read_bin_str(fid);
+    if (cad->hierarchy != NULL) {
+        h = (Hierarchy *) malloc(sizeof(Hierarchy));
+        if (h != NULL) {
+            fread(h, sizeof(Hierarchy), 1, fid);
+            h->cad = cad;
 
-        /* Import the child hierarchies */
-        if (h->child != NULL) {
-            h->child = (Hierarchy **) calloc(h->size, sizeof(Hierarchy *));
+            /* Read the hierarchy name */
+            if (h->name != NULL) {
+                printf("export: %s\n", h->name);
+                h->name = u_read_bin_str(fid);
+            } 
+
+            /* Import the child hierarchies */
             if (h->child != NULL) {
-                fread(h->child, sizeof(Hierarchy *), h->size, fid);
-                //! Dont forget to link parent hierarchy
-                for (i = 0; i < h->size; ++i)
-                    if (h->child[i] != NULL && h->child[i] != DELETED)
-                        h->child[i]->cad = u_import_gtucad(fid);    
+                h->child = (Hierarchy **) calloc(h->size, sizeof(Hierarchy *));
+                if (h->child != NULL) {
+                    fread(h->child, sizeof(Hierarchy *), h->size, fid);
+                    for (i = 0; i < h->size; ++i) {
+                        if (h->child[i] != NULL && h->child[i] != DELETED) {
+                            child_cad = u_import_gtucad(fid);    
+                            /* Link child with parent hierarchy */
+                            if (child_cad != NULL) {
+                                h->child[i] = child_cad->hierarchy;
+                                h->child[i]->parent = h;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1599,28 +1595,28 @@ Hierarchy * u_import_gtucad_hierarchy (FILE * fid) {
 }
 
 /* Utility function for import_llist serve purpose of do not allocating new memory */
-Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l) {
-    Label * l = NULL;
+Label * u_find_label_elist (Entity ** elist, int elist_size, Label * l) {
+    Label * src_l = NULL;
     int i, n, r;
 
-    if (elist != NULL && target_l != NULL) {
-        for (i = 0, r = TRY, n = l->hash_code; i < elist_size && r == TRY; ++i) {
+    if (elist != NULL && l != NULL) {
+        for (i = 0, n = l->hash_code, r = TRY; i < elist_size && r == TRY; ++i) {
             if (n >= elist_size)
                 n %= elist_size;
             
             /* Not in this elist */
             if (elist[n] == NULL)
                 r = FAIL;
-            else if (elist[n] != DELETED && strcmp(elist[i]->label->name, target_l->name) == 0) {
+            else if (elist[n] != DELETED && strcmp(elist[n]->label->name, l->name) == 0) {
                 r = n; 
-                l = elist[i]->label;
+                src_l = elist[n]->label;
             }
             else
-                ++r;
+                ++n;
         }
     } 
 
-    return l;
+    return src_l;
 }
 
 char * u_read_bin_str (FILE * fid) {
@@ -1634,46 +1630,46 @@ char * u_read_bin_str (FILE * fid) {
     if (r != NULL)
         strcpy(r, buff);
 
+    printf("Readed from file: %s\n", r);
     return r;
 }
 
 /* takes ROOT CAD cad, and exports all the content inside it */
-void c2d_export (CAD2D * cad, char * file_name, char * options) {
+void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
     FILE * fid;
 
     if (cad != NULL) {
-        /* Export in eps format */
-        if (strcmp(options, "eps") == 0) {
-            fid = fopen(file_name, "wt");
-            if (fid != NULL) {
-                printf("EXPORT EPS:\n");
+        switch (option) {
+            /* Export in eps format */
+            case eps:        
+                fid = fopen(file_name, "wt");
+                if (fid != NULL) {
+                    printf("EXPORT EPS:\n");
 
-                /* Write the file specification and settings of CAD */
-                fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
+                    /* Write the eps file specification and settings of CAD */
+                    fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
 
-                /* Check if canvas is decleared or not */
-                if (cad->canvas != NULL)
-                    fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
+                    if (cad->canvas != NULL)
+                        fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
 
-                /* Export given CAD by recursivly */
-                u_export_eps(fid, cad);
-
-                fprintf(fid, "\nshowpage\n");
-
-                fclose(fid);
-            }  
+                    u_export_eps(fid, cad);
+                    fprintf(fid, "\nshowpage\n");
+                    fclose(fid);
+                }  
+                break;
+            /* Export in gtucad format */
+            case gtucad:     
+                fid = fopen(file_name, "wb");
+                if (fid != NULL) {
+                    printf("EXPORT GTUCAD:\n");
+                    u_export_gtucad(fid, cad);
+                    fclose(fid);
+                }            
+                break;
+            default:
+                printf("Given export format is invalid\n");        
+                printf("Please select one of the formats \"gtucad\" or \"eps\"\n");        
         }
-        /* Export in gtucad format */
-        else if (strcmp(options, "gtucad") == 0) {
-            fid = fopen(file_name, "wb");
-            if (fid != NULL) {
-                printf("EXPORT GTUCAD:\n");
-                u_export_gtucad(fid, cad);
-                fclose(fid);
-            }            
-        }
-        else 
-            printf("%s is not a valid file format\nPlease select 'gtucad' or 'eps'\n", options);
     }
 }
 
@@ -1688,14 +1684,9 @@ void u_export_gtucad (FILE * fid, CAD2D * cad) {
     if (cad->canvas != NULL)
         fwrite(cad->canvas, sizeof(Canvas), 1, fid);
 
-    if (cad->elist != NULL)
-        u_export_gtucad_elist(fid, cad->elist, cad->elist_size);
-
-    if (cad->llist != NULL)
-        u_export_gtucad_llist(fid, cad->llist);
-
-    if (cad->hierarchy != NULL)
-        u_export_gtucad_hierarchy(fid, cad->hierarchy);
+    u_export_gtucad_elist(fid, cad->elist, cad->elist_size);
+    u_export_gtucad_llist(fid, cad->llist);
+    u_export_gtucad_hierarchy(fid, cad->hierarchy);
 }
 
 void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
@@ -1703,60 +1694,60 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
     Entity * e;
     PointList * l;
 
-    fwrite(elist, sizeof(Entity *), elist_size, fid);
-    /* Export the data of filled blocks with entity data */
-    for (i = 0; i < elist_size; ++i) {
-        if (elist[i] != NULL && elist[i] != DELETED) {
-            e = elist[i];
-            fwrite(e, sizeof(Entity), 1, fid);
-            
-            /* Export entity label and it's data */
-            fwrite(e->label, sizeof(Label), 1, fid);
-            fwrite(e->label->name, sizeof(char), strlen(e->label->name) + 1, fid);
+    if (elist != NULL) {
+        fwrite(elist, sizeof(Entity *), elist_size, fid);
+        /* Export the data of filled blocks with entity data */
+        for (i = 0; i < elist_size; ++i) {
+            if (elist[i] != NULL && elist[i] != DELETED) {
+                e = elist[i];
+                fwrite(e, sizeof(Entity), 1, fid);
+                
+                /* Export entity label and it's data */
+                fwrite(e->label, sizeof(Label), 1, fid);
+                fwrite(e->label->name, sizeof(char), strlen(e->label->name) + 1, fid);
 
-            switch (e->label->type) {
-                case line_t:
-                case polyline_t:
-                case irregular_polygon_t:
-                    l = (PointList *) e->data;
-                    while (l != NULL) {
-                        fwrite(l, sizeof(PointList), 1, fid);
-                        l = l->next;
-                    }  
-                    break;
-                case point_t:
-                    fwrite(e->data, sizeof(Point2D), 1, fid); 
-                    break;
-                case regular_polygon_t:
-                    fwrite(e->data, sizeof(RegularPolygon), 1, fid); 
-                    break;
-                case triangle_t:
-                    fwrite(e->data, sizeof(Triangle), 1, fid); 
-                    break;
-                case rectangle_t:
-                    fwrite(e->data, sizeof(Rectangle), 1, fid); 
-                    break;
-                case circle_t:
-                case arc_t:
-                    fwrite(e->data, sizeof(Circle), 1, fid); 
-                    break;
-                case ellipse_t:
-                    fwrite(e->data, sizeof(Ellipse), 1, fid); 
-                    break;
-                case text_t:
-                    /* Export Text object, it's text(str) and it's style */
-                    fwrite(e->data, sizeof(Text), 1, fid); 
-                    fwrite(((Text *) e->data)->text, sizeof(char), strlen(((Text *) e->data)->text) + 1, fid);
-                    if (((Text *) e->data)->style != NULL)
-                        fwrite(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
-                    break;
+                switch (e->label->type) {
+                    case line_t:
+                    case polyline_t:
+                    case irregular_polygon_t:
+                        for (l = (PointList *) e->data; l != NULL; l = l->next)
+                            fwrite(l, sizeof(PointList), 1, fid);
+                        break;
+                    case point_t:
+                        fwrite(e->data, sizeof(Point2D), 1, fid); 
+                        break;
+                    case regular_polygon_t:
+                        fwrite(e->data, sizeof(RegularPolygon), 1, fid); 
+                        break;
+                    case triangle_t:
+                        fwrite(e->data, sizeof(Triangle), 1, fid); 
+                        break;
+                    case rectangle_t:
+                        fwrite(e->data, sizeof(Rectangle), 1, fid); 
+                        break;
+                    case circle_t:
+                    case arc_t:
+                        fwrite(e->data, sizeof(Circle), 1, fid); 
+                        break;
+                    case ellipse_t:
+                        fwrite(e->data, sizeof(Ellipse), 1, fid); 
+                        break;
+                    case text_t:
+                        /* Export Text object, it's text(str) and it's style */
+                        fwrite(e->data, sizeof(Text), 1, fid); 
+                        fwrite(((Text *) e->data)->text, sizeof(char), strlen(((Text *) e->data)->text) + 1, fid);
+                        if (((Text *) e->data)->style != NULL)
+                            fwrite(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                        break;
+                }
+
+                /* Export entity style */
+                if (e->style != NULL)
+                    fwrite(e->style, sizeof(EntityStyle), 1, fid);
             }
-
-            /* Export entity style */
-            if (e->style != NULL)
-                fwrite(e->style, sizeof(EntityStyle), 1, fid);
         }
     }
+    printf("Export elist is DONE\n");
 }
 
 void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
@@ -1766,6 +1757,7 @@ void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
         fwrite(llist->label->name, sizeof(char), strlen(llist->label->name) + 1, fid);
         llist = llist->next;
     }
+    printf ("Export llist is DONE\n");
 }
 
 /*  Actualy u_export_gtucad is recursive function 
@@ -1773,20 +1765,20 @@ void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h) {
     int i;
 
-    //! How we connect h->cad and h->parent during importing process
-    fwrite(h, sizeof(Hierarchy), 1, fid);
-    fwrite(h->name, sizeof(char), strlen(h->name) + 1, fid);
-    
-    /* Export the childs */
-    if (h->child != NULL) {
-        fwrite(h->child, sizeof(Hierarchy *), h->size, fid);
+    if (h != NULL) {
+        fwrite(h, sizeof(Hierarchy), 1, fid);
+        fwrite(h->name, sizeof(char), strlen(h->name) + 1, fid);
         
-        /* Here recursive comes the scene */
-        for (i = 0; i < h->size; ++i) 
-            if (h->child[i] != NULL && h->child[i] != DELETED)
-                u_export_gtucad(fid, h->child[i]->cad);
-    } 
-
+        /* Export the childs */
+        if (h->child != NULL) {
+            fwrite(h->child, sizeof(Hierarchy *), h->size, fid);
+            
+            /* Here recursive comes the scene */
+            for (i = 0; i < h->size; ++i) 
+                if (h->child[i] != NULL && h->child[i] != DELETED)
+                    u_export_gtucad(fid, h->child[i]->cad);
+        } 
+    }
 }
 
 void u_export_eps (FILE * fid, CAD2D * cad) {
@@ -2048,20 +2040,27 @@ void c2d_delete (CAD2D * cad) {
     int i;
     
     if (cad != NULL) {
-        printf("Delete %s\n", cad->hierarchy->name);
         /* First delete it's child hierarchies */
         if (cad->hierarchy != NULL) {
             for (i = 0; i < cad->hierarchy->size; ++i)
                 if (cad->hierarchy->child[i] != NULL && cad->hierarchy->child[i] != DELETED)
                     c2d_delete(cad->hierarchy->child[i]->cad);
             
+            printf("Delete %s\n", cad->hierarchy->name);
             free(cad->hierarchy->name);
             free(cad->hierarchy->child);
             free(cad->hierarchy);
         }
+        
         /* Lastly free given cad and it's entities */
+        printf("Delete elist: ");
         u_delete_elist(cad->elist, cad->elist_size);
+        printf("DONE\n");
+
+        printf("Delete llist: ");
         u_delete_llist(cad->llist);
+        printf("DONE\n");
+
         free(cad->canvas);
         free(cad);
     }
@@ -2075,7 +2074,7 @@ void c2d_delete (CAD2D * cad) {
 int u_create_hash_code (char * key, int size) {
     int i;
     int code = 0;
-    int p, q = 97;  //! q
+    int p, q = 97;
 
     /*  set the p as largest prime smaller than size.
         in case of uninitialized hash table use it's INIT size */

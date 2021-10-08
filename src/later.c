@@ -5,6 +5,14 @@
 #include "cad2d.h"
 
 /*
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ...) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h) {}
+Label * c2d_add_<BASIC>?(CAD2D * cad, ..., const Hierarchy * h, const Label * l) {}
+*/
+
+
+/*
 1 0 0 		 setrgbcolor	red
 0 1 0 		 setrgbcolor	green
 0 0 1 		 setrgbcolor	dark blue

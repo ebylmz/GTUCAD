@@ -11,6 +11,10 @@
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
+/* Available export/import options and */
+typedef enum {
+    gtucad, eps  
+} ExImOption; 
 
 typedef enum {
     point_t, line_t, polyline_t, regular_polygon_t, irregular_polygon_t,
@@ -202,8 +206,8 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius);
 Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 
-void c2d_export (CAD2D * cad, char * file_name, char * options);
-CAD2D * c2d_import (char * file_name, char * options);
+void c2d_export (CAD2D * cad, char * file_name, ExImOption option);
+CAD2D * c2d_import (char * file_name, ExImOption option);
 void c2d_delete (CAD2D * cad);
 
 #endif

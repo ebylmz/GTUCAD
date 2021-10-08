@@ -33,15 +33,14 @@ void test0 () {
             Import as .gtucad
             Export as .eps
             check the result    */
-        c2d_export(cad, "test0.eps", "eps");
-/*
-        c2d_export(cad, "test0.gtucad", "gtucad");
+        
+        c2d_export(cad, "test0.gtucad", gtucad);
         c2d_delete(cad);
         
-        cad = c2d_import("test0.gtucad", "gtucad");
+        cad = c2d_import("test0.gtucad", gtucad);
         if (cad != NULL)
-            c2d_export(cad, "test0.eps", "eps");
-*/
+            c2d_export(cad, "test0.eps", eps);
+
         c2d_delete(cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
@@ -96,7 +95,7 @@ void test1 () {
             c2d_remove_entity(cad, &l_pline);
         */
 
-        c2d_export(cad, "test1.eps", "eps");
+        c2d_export(cad, "test1.eps", eps);
         c2d_delete(cad);
         printf("<<< Test1 DONE >>>\n\n");
     }
@@ -144,7 +143,7 @@ void test2 () {
             c2d_set_text_style(cad, l_text, Courier, c, fs_small);
         }
 
-        c2d_export(cad, "test2.eps", "eps");
+        c2d_export(cad, "test2.eps", eps);
         c2d_delete(cad);
         printf("<<< Test2 DONE >>>\n\n");
     }
@@ -250,8 +249,8 @@ void test3 () {
                 c2d_set_entity_style(cad_roof, l_roof, DEFAULT, c_black, fill, DEFAULT);
         }
 
-        /* To export all the hierarchy give ROOT CAD to export function */
-        c2d_export(cad_root, "test3.eps", "eps");
+        /* Export in gtucad mode to continue later */
+        c2d_export(cad_root, "test3.gtucad", gtucad);
         c2d_delete(cad_root);
         printf("<<< Test3 DONE >>>\n\n");
     }
@@ -259,8 +258,24 @@ void test3 () {
         printf("CAD cannot started properly\n");
 }
 
-//! IMPLEMENT BETTER TEST FUNCTION like import export
+void test33() {
+}
+
+/* Draws a more sweet home */
 void test4 () {
+    CAD2D * cad = c2d_import("test3.gtucad", gtucad);
+    if (cad != NULL) {
+        c2d_export(cad, "test4.eps", eps);
+        c2d_delete(cad);
+        printf("<<< Test4 DONE >>>\n\n");
+    }
+    else 
+        printf("CAD cannot started properly\n");
+}
+
+
+//! IMPLEMENT BETTER TEST FUNCTION like import export
+void test5 () {
     Point2D p1, p2, p3;
     CAD2D * root = c2d_start_wh(1000.0, 1000.0);
     CAD2D * cad1 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
@@ -287,13 +302,13 @@ void test4 () {
     c2d_delete_hierarchy(cad1->hierarchy);
 */
     
-    c2d_export(root, "test4.eps", "eps");
+    c2d_export(root, "test5.gtucad", gtucad);
     c2d_delete(root);
     printf("<<< Test4 DONE >>>\n\n");
 }
 
 /* Draw an engine */
-void test5 () {
+void test6 () {
     CAD2D * cad;
     double  canvas_size = 1600.0,
             plane_size = canvas_size / 2.0,
@@ -351,28 +366,24 @@ void test5 () {
         p2.y *= -1;
         c2d_add_line(cad, p3, p2);
 
-        c2d_export(cad, "test5.eps", "eps");
+        c2d_export(cad, "test6.eps", eps);
+        c2d_export(cad, "test6.gtucad", gtucad);
+
         c2d_delete(cad);
-        printf("<<< Test5 DONE >>>\n\n");
+        printf("<<< Test6 DONE >>>\n\n");
     } 
 }
 
-/* Draws a more sweet home */
-void test6 () {
-    CAD2D * cad;
-    Point2D p1, p2, p3;
+/* Writes GTUCAD */
+void test7 () {
+    //! NOT IMPLEMENTED YET
+}
 
-    cad = c2d_start_wh(1500.0, 1500.0);
-    if (cad != NULL) {
-        c2d_set_point(&p1, 100, 100);
-        c2d_set_point(&p2, 200, 200);
-        c2d_set_point(&p3, 300, 300);
-        //! NOT IMPLEMENTED YET
-
-        c2d_export(cad, "test6.eps", "eps");
-        c2d_delete(cad);    
-        printf("<<< Test6 DONE >>>\n\n");
-    } 
+void test55 () {
+    CAD2D * cad = c2d_import("test5.gtucad", gtucad);
+    c2d_export(cad, "test55.eps", eps);
+    c2d_delete(cad);
+    printf("<<< Test55 DONE >>>\n\n");
 }
 
 /*
@@ -380,14 +391,17 @@ void test6 () {
     https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
 */
 int main (void) {
-    
-    test0();
-    /**
+    /*
+    test3();
+    */
     test0();
     test1();
     test2();
     test3();
     test4();
     test5();
+    test6();
+    test55();
+    /**
     **/
 }
