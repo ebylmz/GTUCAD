@@ -6,24 +6,34 @@ void test0 () {
     CAD2D * cad;    
     Point2D start, end, center;
     double radius = 50.0, canvas_size = 500.0;
-
+    RGBColor c;
+    Label * l;
     cad = c2d_start_wh(canvas_size, canvas_size);
     
     if (cad != NULL) {
-        /* Draw a hexagon */
+        /* Set color as red for points */
+        c2d_set_rgb(&c, 1.0, 0.0, 0.0);
+        
+        /* Add points by using two different function */
+        l = c2d_add_point_xy(cad, -125.0, 125.0);
+        
+        c2d_set_point(&start, 125.0, -125.0);
+        l = c2d_add_point_p(cad, start);
+
+        /* Add a hexagon */
         c2d_set_point(&center, 0.0, 0.0);
         c2d_add_regular_polygon(cad, 5, center, 100.0);        
         
-        /* Draw arcs at the center of canvas */
+        /* Add arcs at the center of canvas */
         c2d_add_arc(cad, center, radius, 45.0 + 30.0, 225.0 - 30.0);
         c2d_add_arc(cad, center, radius, 225.0 + 30.0, 15.0);
         
-        /* Draw x = y line */
+        /* Add x = y line */
         c2d_set_point(&start, -canvas_size / 2, -canvas_size / 2);
         c2d_set_point(&end, canvas_size / 2, canvas_size / 2);
         c2d_add_line(cad, start, end);
 
-        /* Draw a rectangle */
+        /* Add a rectangle */
         c2d_set_point(&start, 20.0, -20.0);
         c2d_set_point(&end, -20.0, 20.0);
         c2d_add_rectangle(cad, start, end);
@@ -35,12 +45,7 @@ void test0 () {
             check the result    */
         
         c2d_export(cad, "test0.gtucad", gtucad);
-        c2d_delete(cad);
-        
-        cad = c2d_import("test0.gtucad", gtucad);
-        if (cad != NULL)
-            c2d_export(cad, "test0.eps", eps);
-
+        c2d_export(cad, "test0.eps", eps);
         c2d_delete(cad);
         printf("<<< Test0 DONE >>>\n\n");
     }
@@ -48,6 +53,12 @@ void test0 () {
         printf("CAD cannot started properly\n");
 }
 
+void test00 () {
+    CAD2D * cad = c2d_import("test0.gtucad", gtucad);
+    c2d_export(cad, "test00.eps", eps);
+    c2d_delete(cad);
+    printf("<<< Test00 DONE >>>\n\n");
+}
 /* Draws a life is good page */
 void test1 () {
     CAD2D * cad;
@@ -402,6 +413,7 @@ int main (void) {
     test5();
     test6();
     test55();
+    test00();
     /**
     **/
 }

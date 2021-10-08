@@ -47,7 +47,9 @@ RGBColor u_convert_rgb (Color c);
 void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_text_style (FILE * fid, TextStyle * s);
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
+void u_export_eps_entity_style_reset (FILE * fid);
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
+void u_export_eps_point(FILE * fid, Point2D * e);
 void u_export_eps_circle (FILE * fid, Circle * e);
 void u_export_eps_ellipse (FILE * fid, Ellipse * e);
 void u_export_eps_triangle (FILE * fid, Triangle * e);
@@ -55,7 +57,6 @@ void u_export_eps_rectangle (FILE * fid, Rectangle * e);
 void u_export_eps_line (FILE * fid, PointList * e);
 void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e);
 void u_export_eps_text (FILE * fid, Text * e);
-
 void u_export_gtucad (FILE * fid, CAD2D * cad);
 void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size);
 void u_export_gtucad_llist (FILE * fid, LabeList * llist);
@@ -721,7 +722,6 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
  * Adding Basic CAD Entities
 *********************************************************************************/
 
-//! NOT TESTED YET:
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
     Point2D * d;
     Label * l = NULL;
@@ -742,7 +742,6 @@ Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
     return l;
 }
 
-//! NOT TESTED YET:
 Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     Point2D * d;
     Label * l = NULL;
@@ -809,11 +808,9 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
 
 /* takes an point array */
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
-    PointList * head, ** trav;
+    PointList * head = NULL, ** trav = &head;
     Label * l = NULL;
     int i;
-
-    trav = &head;
 
     for (i = 0; i < size; ++i) {
         if (u_is_in_canvas_p(cad->canvas, p + i)) {
@@ -1742,8 +1739,9 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                 }
 
                 /* Export entity style */
-                if (e->style != NULL)
+                if (e->style != NULL) {
                     fwrite(e->style, sizeof(EntityStyle), 1, fid);
+                }
             }
         }
     }
@@ -1804,7 +1802,7 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                 printf("\t%s\t%d\n", e->label->name, e->label->hash_code);
                 switch (e->label->type) {
                     case point_t:
-                        //! NOT IMPLEMENTED YET
+                        u_export_eps_point(fid, e->data);
                         break;
                     case line_t:
                     case polyline_t:
@@ -1834,10 +1832,14 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                         continue;
                 }
 
-                if (e->style != NULL) 
+                /*  One specific design choice is reflected all the page. 
+                    To reflect just one entity, reset the style as default  */
+                if (e->style != NULL) {
                     u_export_eps_entity_style(fid, e->label, e->style);
+                    u_export_eps_entity_style_reset(fid);
+                }
                 else if (e->label->type != text_t)
-                    fprintf(fid, "stroke\n");
+                        fprintf(fid, "stroke\n");
 
                 free(e_info);
             }
@@ -1891,13 +1893,26 @@ void u_export_eps_text_style (FILE * fid, TextStyle * s) {
 }
 
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s) {
+    fprintf(fid, "\n%% Set Entity style\n");
     fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
     if (s->line_width != DEFAULT) 
         fprintf(fid, "%.2f setlinewidth\n", s->line_width);
+    
     if (s->line != DEFAULT) 
         fprintf(fid, s->line == dashed ? "[3 3] 0 setdash\n" : "");
+    
     if (s->draw != DEFAULT)
         fprintf(fid, s->draw == stroke && l->type != irregular_polygon_t ? "stroke\n" : "fill\n");
+    else
+        fprintf(fid, "stroke\n");
+}
+
+/* Sets default Entity style */
+void u_export_eps_entity_style_reset (FILE * fid) {
+    fprintf(fid, "\n%% Come back default Entity style\n");
+    fprintf(fid, "0.00 0.00 0.00 setrgbcolor\n");
+    fprintf(fid, "1.10 setlinewidth\n");
+    fprintf(fid, "[1 0] 0 setdash\n");
 }
 
 void c2d_show_xy_plane () {
@@ -1911,6 +1926,12 @@ void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
     fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
+}
+
+void u_export_eps_point(FILE * fid, Point2D * e) {
+    fprintf(fid, "\n%% Point\n");
+    fprintf(fid, "newpath\n");
+    fprintf(fid, "%.2f %.2f 1.00 0.00 360.00 arc\n", e->x, e->y);
 }
 
 void u_export_eps_circle (FILE * fid, Circle * e) {
