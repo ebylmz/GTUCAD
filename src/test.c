@@ -5,7 +5,7 @@
 void test0 () {
     CAD2D * cad;    
     Point2D start, end, center;
-    double radius = 50.0, canvas_size = 500.0;
+    double radius = 50.0, canvas_size = 800.0;
     RGBColor c;
     Label * l;
     cad = c2d_start_wh(canvas_size, canvas_size);
@@ -183,7 +183,7 @@ void test3 () {
             win_rect_w      = 150.0,  win_rect_h  = 350.0, 
             door_w          = 100.0,  door_h      = 250.0; 
 
-    cad_root = c2d_start_wh(1500.0, 1500.0);
+    cad_root = c2d_start();
     if (cad_root != NULL) {
         cad_body = c2d_start_wh_hier(1500.0, 1500.0, cad_root->hierarchy);
         
@@ -278,7 +278,6 @@ void test3 () {
 void test33() {
 }
 
-/* Draws a more sweet home */
 void test4 () {
     CAD2D * cad = c2d_import("test3.gtucad", gtucad);
     if (cad != NULL) {
@@ -326,13 +325,14 @@ void test5 () {
 /* Draw an engine */
 void test6 () {
     CAD2D * cad;
-    double  canvas_size = 1600.0,
-            plane_size = canvas_size / 2.0,
+    double  plane_size = 1600.0 / 2.0,
             k = plane_size / 20.0;
     Point2D pc, p1, p2, p3;
 
-    cad = c2d_start_wh(canvas_size, canvas_size);
+    cad = c2d_start();
     if (cad != NULL) {
+        c2d_add_xy_plane(cad);
+
         /* Left side */
         /* Set center point for circles */
         c2d_set_point(&pc, -plane_size * 1.0/3.0, 0.0);    
@@ -409,10 +409,17 @@ void test55 () {
 int main (void) {
     /*
     test0();
-    */
     test5();
     test55();
+    test6();
+    */
     /**
+    **/
+   test6();
+
+    /*
+    test0();
+    test00();
     test1();
     test2();
     test3();
@@ -420,6 +427,5 @@ int main (void) {
     test5();
     test6();
     test55();
-    test00();
-    **/
+    */
 }

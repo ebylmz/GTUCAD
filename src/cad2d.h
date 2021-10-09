@@ -19,7 +19,7 @@ typedef enum {
 
 typedef enum {
     point_t, line_t, polyline_t, regular_polygon_t, irregular_polygon_t,
-    triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t
+    triangle_t, rectangle_t, circle_t, arc_t, ellipse_t, text_t, xy_plane
 } EntityType;
 
 typedef enum {
@@ -101,7 +101,8 @@ typedef struct LabeList {
 } LabeList;
 
 typedef struct CAD2D {
-    Canvas * canvas;
+    Canvas canvas;
+    int auto_canvas;            /* enables to increase canvas size when exceeding entity occurs */
     LabeList * llist;
     int elist_size;         
     Entity ** elist;            /* Entity list keeps entities by hashing */
@@ -131,9 +132,8 @@ typedef struct PointList {
 typedef struct {
     //! NOT IMPLEMENTED YET
     Point2D start, end;     /* Two points for line */
-    PointList * plist;      //! Not sure
+    // PointList * plist;      
     double distance;
-    EntityStyle * style;    /* Style for line */
 } Measurement;
 
 typedef struct {
@@ -207,6 +207,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius);
 Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
+Label * c2d_add_xy_plane (CAD2D * cad);
 
 void c2d_export (CAD2D * cad, char * file_name, ExImOption option);
 CAD2D * c2d_import (char * file_name, ExImOption option);

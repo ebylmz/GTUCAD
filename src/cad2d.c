@@ -27,8 +27,6 @@ int u_insert_entity_list (CAD2D * cad, Entity * e);
 void u_free_point_list (PointList * p);
 void u_free_text (Text * t);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
-int u_is_in_canvas_xy (Canvas * c, double x, double y);
-int u_is_in_canvas_p (Canvas * c, Point2D * p);
 
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
@@ -37,7 +35,12 @@ Point2D u_get_center_rectangle (Rectangle * e);
 Point2D u_get_center_triangle(Triangle * e);
 Point2D u_get_center_line (PointList * e);
 
-Measurement u_measure_point_polyline (Point2D * point, PointList * pline);
+Canvas * u_max_canvas (Canvas * c1, Canvas * c2);
+Canvas * u_min_canvas (Canvas * c1, Canvas * c2);
+int u_check_canvas_p (CAD2D * cad, Point2D * p);
+int u_check_canvas_xy (CAD2D * cad, double x, double y);
+
+double u_measure_point_polyline (Point2D * point, PointList * pline);
 
 void u_snap_point_point (Point2D * s, Point2D * t);
 void u_snap_point_line (Point2D * s, PointList * t);
@@ -91,7 +94,8 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
 /* creates a hierarchy from given cad and add it as a child of given parent hierarchy */
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
-    
+    CAD2D * cad_root;
+
     if (h != NULL) {
         h->parent = parent;
         h->cad = cad;
@@ -100,6 +104,15 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
         cad->hierarchy = h; 
         h->name = u_create_hierarchy_name(h);
         u_link_hierarchy(h, parent);
+        /*  If auto-canvas is on, update the root size as max-canvas
+            o.w. change the canvas of child-cad as min-canvas        */
+        cad_root = c2d_get_root_cad(cad);
+        if (cad_root != NULL) {
+            if (1 == cad_root->auto_canvas)
+                cad_root->canvas = *u_max_canvas(&cad_root->canvas, &cad->canvas);
+            else
+                cad->canvas = *u_min_canvas(&cad_root->canvas, &cad->canvas);
+        }
     }
 
     return h;
@@ -142,7 +155,6 @@ void c2d_delete_hierarchy (Hierarchy * h) {
     }
     /* Remove all the content inside of the hierarchy */
     printf("DELETED Hierarchy %s, %d\n", h->name, i);
-    getchar();
     c2d_delete(h->cad);
 }
 
@@ -343,6 +355,10 @@ char * u_create_label_name (CAD2D * cad, Label * l) {
     switch (l->type) {
         case point_t:
             r[0] = 'P';    break;
+        case xy_plane:
+            r[0] = 'X';
+            r[1] = 'Y';    
+            r[2] = 'P';    break;
         case line_t:
             r[0] = 'L';    break;
         case polyline_t:
@@ -665,57 +681,66 @@ CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
+        /* Initialize canvas as 1000x1000 also enable automaticly expand canvas mode */
+        cad->auto_canvas = 1;   
+        cad->canvas.start.x = cad->canvas.start.y = -500.0;
+        cad->canvas.end.x = cad->canvas.end.y = 500.0;
+
         cad->elist = NULL;
         cad->elist_size = 0;
-        cad->canvas = NULL;
         cad->llist = NULL;
+        
         cad->hierarchy = c2d_create_hierarchy(cad);
     }
     return cad;
 }
 
 CAD2D * c2d_start_wh (double width, double height) {
-    CAD2D * cad = c2d_start();
+    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
-        cad->canvas = (Canvas *) malloc(sizeof(Canvas));
+        /* Set canvas as fixed size */
+        cad->auto_canvas = 0;   
+        cad->canvas.start.x = -width / 2;
+        cad->canvas.start.y = -height / 2;
+        cad->canvas.end.x = width / 2; 
+        cad->canvas.end.y = height / 2; 
+
+        cad->elist = NULL;
+        cad->elist_size = 0;
+        cad->llist = NULL;
         
-        if (cad->canvas != NULL) {
-            cad->canvas->start.x = -width / 2;
-            cad->canvas->start.y = -height / 2;
-            cad->canvas->end.x = width / 2; 
-            cad->canvas->end.y = height / 2; 
-        }
-        else {
-            free(cad);
-            cad = NULL;
-        }
+        cad->hierarchy = c2d_create_hierarchy(cad);
     }
-    
     return cad;
 }
 
 /* Initialize a new CAD at child of given hierarchy */
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
+    CAD2D * root;
 
     if (cad != NULL) {
+        cad->auto_canvas = 0;   
+        cad->canvas.start.x = -width / 2;
+        cad->canvas.start.y = -height / 2;
+        cad->canvas.end.x = width / 2; 
+        cad->canvas.end.y = height / 2; 
+
         cad->elist = NULL;
         cad->elist_size = 0;
         cad->llist = NULL;
-        cad->canvas = (Canvas *) malloc(sizeof(Canvas));
-        
-        if (cad->canvas != NULL) {
-            cad->canvas->start.x = -width / 2;
-            cad->canvas->start.y = -height / 2;
-            cad->canvas->end.x = width / 2; 
-            cad->canvas->end.y = height / 2; 
-            cad->hierarchy = c2d_create_hierarchy_parent(cad, h);
 
-            if (cad->hierarchy == NULL) {
-                free(cad->canvas);
-                free(cad);
-                cad = NULL;
+        cad->hierarchy = c2d_create_hierarchy_parent(cad, h);
+        if (cad->hierarchy != NULL) {
+            /*  If auto-canvas is on, update the root size as max-canvas
+                o.w. change the canvas of child-cad as min-canvas        */
+            root = c2d_get_root_cad(cad);
+            if (NULL != root) {
+                if (1 == root->auto_canvas)
+                    root->canvas = *u_max_canvas(&root->canvas, &cad->canvas);
+                else
+                    cad->canvas = *u_min_canvas(&root->canvas, &cad->canvas);
             }
         }
         else {
@@ -733,8 +758,8 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
     Point2D * d;
     Label * l = NULL;
-
-    if (u_is_in_canvas_xy(cad->canvas, x, y)) {
+    if (u_check_canvas_xy(cad, x, y)) {
+    
         d = c2d_create_point(x, y);
         if (d != NULL) {
             l = c2d_create_label_default(cad, point_t);
@@ -754,7 +779,7 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     Point2D * d;
     Label * l = NULL;
 
-    if (u_is_in_canvas_p(cad->canvas, &p)) {
+    if (u_check_canvas_p(cad, &p)) {
         d = (Point2D *) malloc(sizeof(Point2D));
         if (d != NULL) {
             *d = p; 
@@ -799,7 +824,7 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
     PointList * head;
     Label * l = NULL;
 
-    if (u_is_in_canvas_p(cad->canvas, &start) && u_is_in_canvas_p(cad->canvas, &end)) {
+    if (u_check_canvas_p(cad, &start) && u_check_canvas_p(cad, &end)) {
         head = c2d_create_point_list_p(start);
         head->next = c2d_create_point_list_p(end);
         
@@ -821,7 +846,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     int i;
 
     for (i = 0; i < size; ++i) {
-        if (u_is_in_canvas_p(cad->canvas, p + i)) {
+        if (u_check_canvas_p(cad, p + i)) {
             *trav = c2d_create_point_list_p(p[i]);
             if (*trav != NULL)
                 trav = &(*trav)->next;
@@ -848,8 +873,8 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
     RegularPolygon * d; 
     Label * l = NULL;
 
-    if (u_is_in_canvas_xy(cad->canvas, center.x + out_radius, center.y + out_radius) &&
-        u_is_in_canvas_xy(cad->canvas, center.x + out_radius, center.y + out_radius)) {
+    if (u_check_canvas_xy(cad, center.x + out_radius, center.y + out_radius) &&
+        u_check_canvas_xy(cad, center.x + out_radius, center.y + out_radius)) {
         d = (RegularPolygon *) malloc(sizeof(RegularPolygon));
         if (d != NULL) {
             d->center = center;
@@ -872,8 +897,8 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     Circle * d;
     Label * l = NULL;
 
-    if (u_is_in_canvas_xy(cad->canvas, center.x + radius, center.y + radius) &&
-        u_is_in_canvas_xy(cad->canvas, center.x - radius, center.y - radius)) {
+    if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
+        u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
         d = (Circle *) malloc(sizeof(Circle));
         if (d != NULL) {
             d->center = center;
@@ -898,8 +923,8 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
     Label * l = NULL;
 
     //! CHECK THE CANVAS 
-    if (u_is_in_canvas_xy(cad->canvas, center.x + radius, center.y + radius) &&
-        u_is_in_canvas_xy(cad->canvas, center.x - radius, center.y - radius)) {
+    if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
+        u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
 
         d = (Circle *) malloc(sizeof(Circle));
         if (d != NULL) {
@@ -923,8 +948,8 @@ Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double rad
     Ellipse * d;
     Label * l;
 
-    if (u_is_in_canvas_xy(cad->canvas, center.x + radius_x, center.y + radius_y) &&
-        u_is_in_canvas_xy(cad->canvas, center.x - radius_x, center.y - radius_y)) {
+    if (u_check_canvas_xy(cad, center.x + radius_x, center.y + radius_y) &&
+        u_check_canvas_xy(cad, center.x - radius_x, center.y - radius_y)) {
         d = (Ellipse *) malloc(sizeof(Ellipse));
         if (d != NULL) {
             d->center = center;
@@ -947,9 +972,9 @@ Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D
     Triangle * d;
     Label * l = NULL;
 
-    if (u_is_in_canvas_p(cad->canvas, &corner1) && 
-        u_is_in_canvas_p(cad->canvas, &corner2) &&
-        u_is_in_canvas_p(cad->canvas, &corner3)) {
+    if (u_check_canvas_p(cad, &corner1) && 
+        u_check_canvas_p(cad, &corner2) &&
+        u_check_canvas_p(cad, &corner3)) {
         d = (Triangle *) malloc(sizeof(Triangle));
         if (d != NULL) {
             d->corner1 = corner1;
@@ -971,7 +996,7 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
     Rectangle * d;
     Label * l = NULL;
         
-    if (u_is_in_canvas_p(cad->canvas, &corner1) && u_is_in_canvas_p(cad->canvas, &corner1)) {
+    if (u_check_canvas_p(cad, &corner1) && u_check_canvas_p(cad, &corner1)) {
         d = (Rectangle *) malloc(sizeof(Rectangle));
         if (d != NULL) {
             d->corner1 = corner1;
@@ -988,8 +1013,40 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
     return l;
 }
 
+Label * c2d_add_xy_plane (CAD2D * cad) {
+    Label * l = c2d_create_label_default(cad, xy_plane);
+    if (l != NULL)
+        u_create_entity(cad, l, NULL, NULL);
+
+    return l;
+}
+
+/* Focuses center of the given entity */
+Label * c2d_add_focus_point (CAD2D * cad, Label * ls) {
+    EntityInfo * e_info = c2d_find_entity(c2d_get_root_cad(cad), ls);
+    Point2D * p;
+    Label * l = NULL;
+
+    if (e_info != NULL) {
+        p = (Point2D *) malloc(sizeof(Point2D));
+        if (p != NULL) {
+            p->x = ((Point2D *) e_info->entity->data)->x;
+            p->y = ((Point2D *) e_info->entity->data)->y;
+            //! NOT IMPLEMENTED YET
+            // l = c2d_create_label_default(cad, focus_point_t);
+                            
+            if (l != NULL)
+                u_create_entity(cad, l, p, NULL);
+            else
+                free(p);
+        }
+    } 
+
+    return l;
+}
+
 Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
-    Measurement * d;
+    double * d;
     Label * l = NULL;
     double distance;
 
@@ -998,7 +1055,7 @@ Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
         //! We need 2 point
     /* Define the Points */
     /* Be sure we are not exceeding canvas */
-    d = (Measurement *) malloc(sizeof(Measurement));
+    d = (double *) malloc(sizeof(double));
         /*
     if (d != NULL) {
         d->start; 
@@ -1021,7 +1078,7 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
     fs_large    0.02
 */
     //! CHECK THE CANVAS
-    if (u_is_in_canvas_xy(cad->canvas, p.x, p.y)) {
+    if (u_check_canvas_xy(cad, p.x, p.y)) {
         d = (Text *) malloc(sizeof(Text));
         if (d != NULL) {
             d->point.x = p.x;
@@ -1043,14 +1100,104 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
     return l;
 }
 
-int u_is_in_canvas_xy (Canvas * c, double x, double y) {
-    return c == NULL ? 1 :
-        (x >= c->start.x && y >= c->start.y && x <= c->end.x && y <= c->end.y);
+Canvas * u_max_canvas (Canvas * c1, Canvas * c2) {
+    double w1, h1, w2, h2;
+
+    /* Calculate width and height of canvases */
+    w1 = c1->end.x - c1->start.x;
+    h1 = c1->end.y - c1->start.y; 
+    
+    w2 = c2->end.x - c2->start.x;
+    h2 = c2->end.y - c2->start.y; 
+    
+    return w1 * h1 > w2 * h2 ? c1 : c2;
 }
 
-int u_is_in_canvas_p (Canvas * c, Point2D * p) {
-    return c == NULL ? 1 :
-        (p->x >= c->start.x && p->y >= c->start.y && p->x <= c->end.x && p->y <= c->end.y);
+Canvas * u_min_canvas (Canvas * c1, Canvas * c2) {
+    double w1, h1, w2, h2;
+
+    /* Calculate width and height of canvases */
+    w1 = c1->end.x - c1->start.x;
+    h1 = c1->end.y - c1->start.y; 
+    
+    w2 = c2->end.x - c2->start.x;
+    h2 = c2->end.y - c2->start.y; 
+    
+    return w1 * h1 < w2 * h2 ? c1 : c2;
+}
+
+int u_check_canvas_p (CAD2D * cad, Point2D * p) {
+    CAD2D * root;
+    int r;
+    
+    do {
+        r = p->x >= cad->canvas.start.x  && 
+            p->y >= cad->canvas.start.y  && 
+            p->x <= cad->canvas.end.x    && 
+            p->y <= cad->canvas.end.y;
+
+        /* if auto_canvas is on, check if canvas size is enough o.w. return the result */
+        if (1 == cad->auto_canvas) {
+            if (0 == r) {
+                printf("Canvas size doubled\n");
+                getchar();
+                /* Double up the canvas size */
+                cad->canvas.start.x *= 2;
+                cad->canvas.start.y *= 2;
+                cad->canvas.end.x *= 2;
+                cad->canvas.end.y *= 2;
+
+                root = c2d_get_root_cad(cad);                
+                if (root != NULL) {
+                    root->canvas.start.x = cad->canvas.start.x;
+                    root->canvas.start.y = cad->canvas.start.y;
+                    root->canvas.end.x = cad->canvas.end.x;
+                    root->canvas.end.y = cad->canvas.end.y;
+                }
+                /* to check the new size is enough, TRY flag is up */
+                r = TRY;    
+            }
+        }
+    } while (TRY == r);
+
+    return r;
+}
+
+int u_check_canvas_xy (CAD2D * cad, double x, double y) {
+    CAD2D * root;
+    int r;
+
+    do {
+        r = x >= cad->canvas.start.x &&
+            y >= cad->canvas.start.y &&
+            x <= cad->canvas.end.x   &&
+            y <= cad->canvas.end.y;
+
+        /* if auto_canvas is on, check if canvas size is enough o.w. return the result */
+        if (1 == cad->auto_canvas) {
+            if (0 == r) {
+                /* Double up the canvas size */
+                printf("Canvas size doubled\n");
+                getchar();
+                cad->canvas.start.x *= 2;
+                cad->canvas.start.y *= 2;
+                cad->canvas.end.x *= 2;
+                cad->canvas.end.y *= 2;
+
+                root = c2d_get_root_cad(cad);                
+                if (root != NULL) {
+                    root->canvas.start.x = cad->canvas.start.x;
+                    root->canvas.start.y = cad->canvas.start.y;
+                    root->canvas.end.x = cad->canvas.end.x;
+                    root->canvas.end.y = cad->canvas.end.y;
+                }
+                /* to check the new size is enough, TRY flag is up */
+                r = TRY;    
+            }
+        }
+    } while (TRY == r);
+
+    return r;
 }
 
 /*********************************************************************************
@@ -1058,8 +1205,8 @@ int u_is_in_canvas_p (Canvas * c, Point2D * p) {
 *********************************************************************************/
 
 /* Measures the distance between two entity given by their labels */
-Measurement c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
-    Measurement m; //! Is returnining measurment suitable
+double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
+    double m; //! Is returnining measurement suitable
 
     /* Define the types of given two entity to implement specific algorithm */
         /* Get the measurement and return it */
@@ -1068,26 +1215,8 @@ Measurement c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
 }
 
 /* Returns the closest distance between point and polyline */
-Measurement u_measure_point_polyline (Point2D * point, PointList * pline) {
-    Measurement m;
-    double d;
+double u_measure_point_polyline (Point2D * point, PointList * pline) {
 
-    m.start = *point;
-    m.distance = u_get_euclidean_dist(point, &pline->point);
-
-    pline = pline->next;
-    //! THIS ALGO IS WRONG
-    /* Take min distance by travelling each point on pline and calculating their ED  */
-    while (pline != NULL) {
-        d = u_get_euclidean_dist(point, &pline->point);
-        if (d < m.distance) {
-            m.distance = d;
-            m.end = pline->point;
-        }
-        pline = pline->next;
-    }
-
-    return m;
 }
 
 double u_measure_point_arc (Point2D * p, Circle * c) {
@@ -1095,29 +1224,8 @@ double u_measure_point_arc (Point2D * p, Circle * c) {
 }
 
 /* Measures the distance between center of given two entity */
-Measurement c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
-    EntityInfo * s_info = c2d_find_entity(cad, ls), * t_info = c2d_find_entity(cad, lt);
-    Point2D c1, c2;
-    Measurement m;
+double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
 
-    /* Check if given label's are exist */
-    if (s_info != NULL && t_info != NULL) {
-        /* take center points of these two entity and calculate the distance */
-        c1 = c2d_get_center2D(s_info->entity->data);
-        c2 = c2d_get_center2D(t_info->entity->data);
-
-        m.start = c1;
-        m.end = c2;
-        m.distance = u_get_euclidean_dist(&c1, &c2);
-    }    
-    else 
-        m.distance = -1;
-    //! Check if distance is valid
-    
-    free(s_info);
-    free(t_info);
-
-    return m;
 }
 
 /* creates an point in center of given entity //! LABEL ? */
@@ -1127,7 +1235,6 @@ Point2D c2d_get_center2D (Entity * e) {
     if (e != NULL) {
         switch (e->label->type) {
             case point_t:
-                c = *((Point2D *) e->data);
                 break;
             case line_t:
             case polyline_t:
@@ -1222,7 +1329,7 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                 switch (lt->type) {
                     case point_t:
                         u_snap_point_point(s->data, t->data);
-                        break;
+                        break;                       
                     case line_t:
                     case polyline_t:
                         u_snap_point_line(s->data, t->data);
@@ -1302,8 +1409,8 @@ void u_snap_arc_point (Circle * s, Point2D * t) {
 
 /* set's the style of entity by given it's label */
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w) {
+    EntityInfo * e_info = c2d_find_entity(c2d_get_root_cad(cad), label); 
     EntityStyle * style = NULL;
-    EntityInfo * e_info = c2d_find_entity(cad, label); 
     
     if (e_info != NULL) {
         style = (EntityStyle *) malloc(sizeof(EntityStyle));
@@ -1414,19 +1521,12 @@ CAD2D * u_import_gtucad (FILE * fid) {
         /*  If cad element points different than NULL, it means
             we need to allocate memory for that data and read from the file */
 
-        if (cad->canvas != NULL) {
-            cad->canvas = (Canvas *) malloc(sizeof(Canvas));
-            if (cad->canvas != NULL)
-                fread(cad->canvas, sizeof(Canvas), 1, fid);
-        }
-        
         cad->elist = u_import_gtucad_elist(fid, cad->elist, cad->elist_size);
         cad->llist = u_import_gtucad_llist(fid, cad->llist, cad->elist, cad->elist_size);
         cad->hierarchy = u_import_gtucad_hierarchy(fid, cad);
     }
     return cad;
 }
-
 
 Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
     Entity * e;
@@ -1568,8 +1668,8 @@ Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad) {
 
             /* Read the hierarchy name */
             if (h->name != NULL) {
-                printf("export: %s\n", h->name);
                 h->name = u_read_bin_str(fid);
+                printf("export: %s\n", h->name);
             } 
 
             /* Import the child hierarchies */
@@ -1649,9 +1749,7 @@ void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
 
                     /* Write the eps file specification and settings of CAD */
                     fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
-
-                    if (cad->canvas != NULL)
-                        fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas->start.x, cad->canvas->start.y, cad->canvas->end.x, cad->canvas->end.y);
+                    fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas.start.x, cad->canvas.start.y, cad->canvas.end.x, cad->canvas.end.y);
 
                     u_export_eps(fid, cad);
                     fprintf(fid, "\nshowpage\n");
@@ -1677,14 +1775,10 @@ void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
 /* Exports all the CAD content by recursivly with it's utility functions it's hierarchy data by recursivly */
 void u_export_gtucad (FILE * fid, CAD2D * cad) {
     /* Export CAD object */
-    fwrite(cad, sizeof(CAD2D), 1, fid);
-
     printf("export: %s\n", cad->hierarchy->name);
 
-    /* Export canvas */        
-    if (cad->canvas != NULL)
-        fwrite(cad->canvas, sizeof(Canvas), 1, fid);
 
+    fwrite(cad, sizeof(CAD2D), 1, fid);
     u_export_gtucad_elist(fid, cad->elist, cad->elist_size);
     u_export_gtucad_llist(fid, cad->llist);
     u_export_gtucad_hierarchy(fid, cad->hierarchy);
@@ -1715,8 +1809,6 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                             fwrite(l, sizeof(PointList), 1, fid);
                         break;
                     case point_t:
-                        fwrite(e->data, sizeof(Point2D), 1, fid); 
-                        break;
                     case regular_polygon_t:
                         fwrite(e->data, sizeof(RegularPolygon), 1, fid); 
                         break;
@@ -1808,6 +1900,9 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                     case point_t:
                         u_export_eps_point(fid, e->data);
                         break;
+                    case xy_plane:
+                        u_export_eps_xy_plane(fid, &cad->canvas, e->style);
+                        break;
                     case line_t:
                     case polyline_t:
                     case irregular_polygon_t:
@@ -1842,8 +1937,11 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                     u_export_eps_entity_style(fid, e->label, e->style);
                     u_export_eps_entity_style_reset(fid);
                 }
-                else if (e->label->type != text_t)
-                        fprintf(fid, "stroke\n");
+                else if (e->label->type != text_t) {
+                    fprintf(fid, "stroke\n");
+                    if (e->label->type == xy_plane)
+                        u_export_eps_entity_style_reset(fid);
+                }
 
                 free(e_info);
             }
@@ -1914,28 +2012,72 @@ void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s) {
 /* Sets default Entity style */
 void u_export_eps_entity_style_reset (FILE * fid) {
     fprintf(fid, "\n%% Come back default Entity style\n");
-    fprintf(fid, "0.00 0.00 0.00 setrgbcolor\n");
-    fprintf(fid, "1.10 setlinewidth\n");
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 0.0, 0.0, 0.0);
+    fprintf(fid, "%.2f setlinewidth\n", 1.1);
     fprintf(fid, "[1 0] 0 setdash\n");
-}
-
-void c2d_show_xy_plane () {
-    //! NOT IMPLEMENTED YET
 }
 
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "\n%% X-Y Plane\n");
     fprintf(fid, "newpath\n");
-    fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
-    fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
-    fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
-    fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
+
+    if (canvas != NULL) {
+        fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
+        fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
+        fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
+        fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
+    }
+    else {
+        fprintf(fid, "%.2f %.2f moveto\n", -1000.0, 0.0);
+        fprintf(fid, "%.2f %.2f lineto\n", 1000.0, 0.0);
+        fprintf(fid, "%.2f %.2f moveto\n", 0.0, -1000.0);
+        fprintf(fid, "%.2f %.2f lineto\n", 0.0, 1000.0);
+    }
+
+    if (s == NULL) {
+        fprintf(fid, "\n%% Set Entity style\n");
+        fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 1.0, 0.0, 0.0);
+        fprintf(fid, "%.2f setlinewidth\n", 0.5);
+        fprintf(fid, "[3 3] 0 setdash\n");
+    }
 }
 
-void u_export_eps_point(FILE * fid, Point2D * e) {
+//! NOT IMPLEMENTED YET
+void u_export_eps_fiducial (FILE * fid, Canvas * canvas, Point2D * center) {
+    double r1, r2, d;  
+
+    /* Calculate the size of fidicual according to canvas size */
+    if (canvas != NULL) {
+        r1 = u_min(canvas->end.x, canvas->end.y) / 100.0; 
+        r2 = 2 * r1; 
+    }
+    else {
+        
+    }
+
+    fprintf(fid, "\n%% Fiducial\n");
+    fprintf(fid, "newpath\n");
+    fprintf(fid, "1.00 0.00 0.00 setrgbcolor\n");
+    fprintf(fid, "0.70 setlinewidth\n");
+
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n stroke\n", center->x, center->y, r1, 0.0, 360.0);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n stroke\n", center->x, center->y, r2, 0.0, 360.0);
+    
+    fprintf(fid, "%.2f %.2f moveto\n", center->x - d, center->y);
+    fprintf(fid, "%.2f %.2f rlineto\n", 2 * d, 0.0);
+    fprintf(fid, "%.2f %.2f moveto\n", center->x, center->y - d);
+    fprintf(fid, "%.2f %.2f rlineto\n", 0.0, 2 * d);
+    fprintf(fid, "stroke");
+}
+
+void u_export_eps_point (FILE * fid, Point2D * e) {
     fprintf(fid, "\n%% Point\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f 1.00 0.00 360.00 arc\n", e->x, e->y);
+}
+
+void u_export_eps_focus_point (FILE * fid, Point2D * e) {
+    //! NOT IMPLEMENTED YET
 }
 
 void u_export_eps_circle (FILE * fid, Circle * e) {
@@ -2086,7 +2228,6 @@ void c2d_delete (CAD2D * cad) {
         u_delete_llist(cad->llist);
         printf("DONE\n");
 
-        free(cad->canvas);
         free(cad);
     }
 }
