@@ -191,7 +191,6 @@ TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColo
 void c2d_set_color_rgb (RGBColor * c, double red, double green, double blue);
 void c2d_set_color_pallette (RGBColor * c, ColorPalette color);
 void c2d_remove_entity (CAD2D * cad, Label ** l);
-Point2D c2d_get_center2D (Entity * e);
 PointList * c2d_create_point_list_p (Point2D p);
 
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
@@ -208,6 +207,9 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius);
 Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 Label * c2d_add_xy_plane (CAD2D * cad);
+
+double c2d_measure (CAD2D * cad, Label * ls, Label * lt);
+Point2D c2d_get_center (Entity * e);
 
 void c2d_export (CAD2D * cad, char * file_name, ExImOption option);
 CAD2D * c2d_import (char * file_name, ExImOption option);

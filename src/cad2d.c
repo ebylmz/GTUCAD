@@ -30,16 +30,16 @@ Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
 
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-Point2D u_get_center_rectangle (Rectangle * e);
+Point2D u_get_center_line (PointList * e); 
+Point2D u_get_center_triangle (Triangle * e);
 Point2D u_get_center_rectangle (Rectangle * e); 
-Point2D u_get_center_triangle(Triangle * e);
-Point2D u_get_center_line (PointList * e);
 
 Canvas * u_max_canvas (Canvas * c1, Canvas * c2);
 Canvas * u_min_canvas (Canvas * c1, Canvas * c2);
 int u_check_canvas_p (CAD2D * cad, Point2D * p);
 int u_check_canvas_xy (CAD2D * cad, double x, double y);
 
+double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2);
 double u_measure_point_polyline (Point2D * point, PointList * pline);
 
 void u_snap_point_point (Point2D * s, Point2D * t);
@@ -51,6 +51,7 @@ void u_export_eps_text_style (FILE * fid, TextStyle * s);
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_export_eps_entity_style_reset (FILE * fid);
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
+void u_export_eps_fiducial (FILE * fid, Canvas * canvas, Point2D * center);
 void u_export_eps_point(FILE * fid, Point2D * e);
 void u_export_eps_circle (FILE * fid, Circle * e);
 void u_export_eps_ellipse (FILE * fid, Ellipse * e);
@@ -893,6 +894,35 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
     return l;
 }
 
+Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
+    PointList * head = NULL, ** trav = &head;
+    Label * l = NULL;
+    int i;
+
+    for (i = 0; i < size; ++i) {
+        if (u_check_canvas_p(cad, p + i)) {
+            *trav = c2d_create_point_list_p(p[i]);
+            if (*trav != NULL)
+                trav = &(*trav)->next;
+            else {
+                u_free_point_list(head);
+                head = NULL;
+            }
+        }
+    }
+    
+    if (head != NULL) {
+        l = c2d_create_label_default(cad, irregular_polygon_t);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point_list(head);
+    }
+    
+    return l;
+}
+
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     Circle * d;
     Label * l = NULL;
@@ -1140,7 +1170,6 @@ int u_check_canvas_p (CAD2D * cad, Point2D * p) {
         if (1 == cad->auto_canvas) {
             if (0 == r) {
                 printf("Canvas size doubled\n");
-                getchar();
                 /* Double up the canvas size */
                 cad->canvas.start.x *= 2;
                 cad->canvas.start.y *= 2;
@@ -1178,7 +1207,6 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y) {
             if (0 == r) {
                 /* Double up the canvas size */
                 printf("Canvas size doubled\n");
-                getchar();
                 cad->canvas.start.x *= 2;
                 cad->canvas.start.y *= 2;
                 cad->canvas.end.x *= 2;
@@ -1206,30 +1234,114 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y) {
 
 /* Measures the distance between two entity given by their labels */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
-    double m; //! Is returnining measurement suitable
+    CAD2D * root = c2d_get_root_cad(cad);
+    EntityInfo * e_info1, * e_info2; 
+    double m = -1;
 
-    /* Define the types of given two entity to implement specific algorithm */
-        /* Get the measurement and return it */
-    /* o.w. return m.distance = -1 */
+    if (root != NULL) {
+        e_info1 = c2d_find_entity(root, ls);    
+        if (e_info1 != NULL) {
+            e_info2 = c2d_find_entity(root, ls);
+            if (e_info2 != NULL) {
+                /* Define the types of given two entity to implement specific algorithm */
+                switch (ls->type) {
+                    case point_t:
+                        switch (lt->type) {
+                            case point_t:
+                                m = u_get_euclidean_dist(e_info1->entity->data, e_info2->entity->data);
+                                break;
+                            case line_t:
+                            case polyline_t:
+                            case irregular_polygon_t:
+                                //! NOT IMPLEMENTED YET
+                                m = u_measure_point_polyline(e_info1->entity->data, e_info2->entity->data);
+                                break;
+                            case regular_polygon_t:
+                            case triangle_t:
+                            case rectangle_t:
+                            case circle_t:
+                            case ellipse_t:
+                            case arc_t:
+                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
+                                break;
+                            default:
+                                printf("NOT IMPLEMENTED YET\n");
+                        }
+                        break;
+                    case line_t:
+                    case polyline_t:
+                    case irregular_polygon_t:
+                        switch (lt->type) {
+                            case point_t:
+                                //! NOT IMPLEMENTED YET
+                                break;
+                            case line_t:
+                            case polyline_t:
+                            case irregular_polygon_t:
+                                //! NOT IMPLEMENTED YET
+                                break;
+                            case regular_polygon_t:
+                            case triangle_t:
+                            case rectangle_t:
+                            case circle_t:
+                            case arc_t:
+                            case ellipse_t:
+                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
+                                break;
+                            default:
+                                printf("NOT IMPLEMENTED YET\n");
+                        }
+                        break;
+                    case regular_polygon_t:
+                    case triangle_t:
+                    case rectangle_t:
+                    case circle_t:
+                    case arc_t:
+                    case ellipse_t:
+                        switch (lt->type) {
+                            case point_t:
+                                //! NOT IMPLEMENTED YET
+                                break;
+                            case line_t:
+                            case polyline_t:
+                            case irregular_polygon_t:
+                                //! NOT IMPLEMENTED YET
+                                break;
+                            case regular_polygon_t:
+                            case triangle_t:
+                            case rectangle_t:
+                            case circle_t:
+                            case arc_t:
+                            case ellipse_t:
+                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
+                                break;
+                            default:
+                                printf("NOT IMPLEMENTED YET\n");
+                        }
+                        break;
+                    default:
+                        printf("NOT IMPLEMENTED YET\n");
+                }
+                free(e_info1); 
+                free(e_info2); 
+            }
+            else
+                free(e_info1);
+        } 
+    }
+    
     return m;
 }
 
-/* Returns the closest distance between point and polyline */
-double u_measure_point_polyline (Point2D * point, PointList * pline) {
-
-}
-
-double u_measure_point_arc (Point2D * p, Circle * c) {
-    //! NOT IMPLEMENTED YET
-}
-
 /* Measures the distance between center of given two entity */
-double c2d_measure_center2D (CAD2D * cad, Label * ls, Label * lt) {
-
+double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2) {
+    Point2D p1 = c2d_get_center(e1);
+    Point2D p2 = c2d_get_center(e2);
+    return u_get_euclidean_dist(&p1, &p2);
 }
 
-/* creates an point in center of given entity //! LABEL ? */
-Point2D c2d_get_center2D (Entity * e) {
+/* Returs center point of given entity */
+Point2D c2d_get_center (Entity * e) {
     Point2D c;
 
     if (e != NULL) {
@@ -1256,11 +1368,11 @@ Point2D c2d_get_center2D (Entity * e) {
                 c = ((Ellipse *) e->data)->center;
                 break;
             case text_t:
-                //! NOT IMPLEMENTED YET
+                c = ((Text *) e->data)->point;
                 break;
             default:
                 c.x = c.y = -1;
-                printf("Given entity is not a 2D shape\n");
+                printf("Given entity type is invalid\n");
         }
     }
 
@@ -1287,6 +1399,11 @@ Point2D u_get_center_line (PointList * e) {
     }
     return c;
 }
+
+double u_measure_point_polyline (Point2D * point, PointList * pline) {
+    //! NOT IMPLEMENTED YET
+}
+
 
 Point2D u_get_center_triangle (Triangle * e) {
     Point2D c;
@@ -1809,6 +1926,8 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                             fwrite(l, sizeof(PointList), 1, fid);
                         break;
                     case point_t:
+                        fwrite(e->data, sizeof(Point2D), 1, fid);
+                        break; 
                     case regular_polygon_t:
                         fwrite(e->data, sizeof(RegularPolygon), 1, fid); 
                         break;
@@ -1907,6 +2026,8 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                     case polyline_t:
                     case irregular_polygon_t:
                         u_export_eps_line(fid, e->data);
+                        if (e->label->type == irregular_polygon_t)
+                            fprintf(fid, "closepath\n");
                         break;
                     case regular_polygon_t:
                         u_export_eps_regular_polygon(fid, e->data);
@@ -2018,25 +2139,22 @@ void u_export_eps_entity_style_reset (FILE * fid) {
 }
 
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
+    Point2D p;
+
+    /* Add fiducial to the center of xy plane */
+    c2d_set_point(&p, 0.0, 0.0);
+    u_export_eps_fiducial(fid, canvas, &p);
+
     fprintf(fid, "\n%% X-Y Plane\n");
     fprintf(fid, "newpath\n");
-
-    if (canvas != NULL) {
-        fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
-        fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
-        fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
-        fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
-    }
-    else {
-        fprintf(fid, "%.2f %.2f moveto\n", -1000.0, 0.0);
-        fprintf(fid, "%.2f %.2f lineto\n", 1000.0, 0.0);
-        fprintf(fid, "%.2f %.2f moveto\n", 0.0, -1000.0);
-        fprintf(fid, "%.2f %.2f lineto\n", 0.0, 1000.0);
-    }
+    fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
+    fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
+    fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
+    fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
 
     if (s == NULL) {
         fprintf(fid, "\n%% Set Entity style\n");
-        fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 1.0, 0.0, 0.0);
+        fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 0.0, 0.0, 1.0);
         fprintf(fid, "%.2f setlinewidth\n", 0.5);
         fprintf(fid, "[3 3] 0 setdash\n");
     }
@@ -2047,37 +2165,33 @@ void u_export_eps_fiducial (FILE * fid, Canvas * canvas, Point2D * center) {
     double r1, r2, d;  
 
     /* Calculate the size of fidicual according to canvas size */
-    if (canvas != NULL) {
-        r1 = u_min(canvas->end.x, canvas->end.y) / 100.0; 
-        r2 = 2 * r1; 
-    }
-    else {
-        
-    }
+    r1 = u_min(canvas->end.x, canvas->end.y) / 100.0; 
+    r2 = 2 * r1; 
+    d = 2 * r2;
 
     fprintf(fid, "\n%% Fiducial\n");
     fprintf(fid, "newpath\n");
-    fprintf(fid, "1.00 0.00 0.00 setrgbcolor\n");
-    fprintf(fid, "0.70 setlinewidth\n");
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 1.0, 0.0, 0.0);
+    fprintf(fid, "%.2f setlinewidth\n", 0.7);
 
-    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n stroke\n", center->x, center->y, r1, 0.0, 360.0);
-    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\n stroke\n", center->x, center->y, r2, 0.0, 360.0);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r1, 0.0, 360.0);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r2, 0.0, 360.0);
     
     fprintf(fid, "%.2f %.2f moveto\n", center->x - d, center->y);
     fprintf(fid, "%.2f %.2f rlineto\n", 2 * d, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", center->x, center->y - d);
     fprintf(fid, "%.2f %.2f rlineto\n", 0.0, 2 * d);
-    fprintf(fid, "stroke");
+    fprintf(fid, "stroke\n");
+}
+
+void u_export_eps_focus_point (FILE * fid, Point2D * e) {
+    //! NOT IMPLEMENTED YET
 }
 
 void u_export_eps_point (FILE * fid, Point2D * e) {
     fprintf(fid, "\n%% Point\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f 1.00 0.00 360.00 arc\n", e->x, e->y);
-}
-
-void u_export_eps_focus_point (FILE * fid, Point2D * e) {
-    //! NOT IMPLEMENTED YET
 }
 
 void u_export_eps_circle (FILE * fid, Circle * e) {

@@ -331,8 +331,6 @@ void test6 () {
 
     cad = c2d_start();
     if (cad != NULL) {
-        c2d_add_xy_plane(cad);
-
         /* Left side */
         /* Set center point for circles */
         c2d_set_point(&pc, -plane_size * 1.0/3.0, 0.0);    
@@ -390,8 +388,60 @@ void test6 () {
     } 
 }
 
-/* Writes GTUCAD */
+/* Draws 2D shapes on xy plane */
 void test7 () {
+    CAD2D * cad;
+    Point2D p[6];
+    Point2D center;
+    Point2D c1, c2, c3;
+    int psize = 6;
+
+    cad = c2d_start();
+    if (NULL != cad) {
+        c2d_add_xy_plane(cad);
+        
+        p[0].x = 100.0;
+        p[0].y = 200.0;
+
+        p[1].x = 150.0;
+        p[1].y = 300.0;
+
+        p[2].x = 220.0;
+        p[2].y = 120.0;
+
+        p[3].x = 400.0;
+        p[3].y = 240.0;
+
+        p[4].x = 220.0;
+        p[4].y = 60.0;
+
+        p[5].x = 100.0;
+        p[5].y = 200.0;
+
+        c2d_add_irregular_polygon(cad, p, psize);
+        
+        c2d_set_point(&c1, -140.0, 140.0);
+        c2d_set_point(&c2, -340.0, 440.0);
+        c2d_add_rectangle(cad, c1, c2);
+
+        c2d_set_point(&c1, -240.0, -240.0);
+        c2d_set_point(&c2, -100.0, -340.0);
+        c2d_set_point(&c3, -340.0, -440.0);
+        c2d_add_triangle(cad, c1, c2, c3);
+
+        c2d_set_point(&center, 240.0, -240.0);
+        c2d_add_regular_polygon(cad, 9, center, 100.0);
+
+        c2d_export(cad, "test7.eps", eps);
+        c2d_export(cad, "test7.gtucad", gtucad);
+
+        c2d_delete(cad);
+        printf("<<< Test7 DONE >>>\n\n");
+    }
+}
+
+/* Writes GTUCAD */
+void test8 () {
     //! NOT IMPLEMENTED YET
 }
 
@@ -415,9 +465,7 @@ int main (void) {
     */
     /**
     **/
-   test6();
 
-    /*
     test0();
     test00();
     test1();
@@ -426,6 +474,8 @@ int main (void) {
     test4();
     test5();
     test6();
+    test7();
     test55();
+    /*
     */
 }
