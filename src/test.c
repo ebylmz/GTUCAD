@@ -12,11 +12,9 @@ void test0 () {
     cad = c2d_start_wh(canvas_size, canvas_size);
     
     if (cad != NULL) {
-        /* Set color as red for points */
-        
-        /* Add points by using two different function */
         c2d_set_color_pallette(&c, red);
         
+        /* Add points by using two different function */
         l = c2d_add_point_xy(cad, -125.0, 125.0);
         c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, DEFAULT);
         
@@ -44,12 +42,6 @@ void test0 () {
         c2d_set_point(&end, -20.0, 20.0);
         c2d_add_rectangle(cad, start, end);
 
-        /*  Export as .gtucad
-            Delete CAD
-            Import as .gtucad
-            Export as .eps
-            check the result    */
-        
         c2d_export(cad, "test0.gtucad", gtucad);
         c2d_export(cad, "test0.eps", eps);
         c2d_delete(cad);
@@ -71,37 +63,42 @@ void test1 () {
     CAD2D * cad;
     Point2D start;
     RGBColor c;
-    Label * l_circle, * l_pline, * l_text;
+    double k = 40.0;
+    Label * l_sun, * l_mount, * l_text;
     int x = 400, n = 6;
-    char * text = "Life is good";
-    Point2D p[9] = {{-x, 0.0}, {-x/n, x/n}, {0.0, x}, {x/n, x/n}, {x, 0.0},
-                    {x/n, -x/n}, {0.0, -x}, {-x/n, -x/n}, {-x, 0.0}};
+    Point2D p[6];
     
     cad = c2d_start_wh(1000.0, 1000.0);
     
     if (cad != NULL) {        
-        /* Add a polyline */
-        l_pline = c2d_add_polyline(cad, p, 9);
-        c2d_set_color_rgb(&c, 0.0, 0.0, 0.0);
-        c2d_set_entity_style(cad, l_pline, dashed, c, fill, lw_medium);
+        /* Draw a mountain with polyline */
+        p[0].x = -12 * k, p[0].y = 0.0;
+        p[1].x =  -3 * k, p[1].y = 7 * k;
+        p[2].x =       k, p[2].y = 5 * k;
+        p[3].x =   7 * k, p[3].y = 9 * k;
+        p[4].x =  12 * k, p[4].y = 0.0;
+        p[5].x =  -5 * k, p[5].y = 0.0;
+        l_mount = c2d_add_polyline(cad, p, 6);
+        c2d_set_color_pallette(&c, green_dark);
+        c2d_set_entity_style(cad, l_mount, DEFAULT, c, fill, DEFAULT);
 
-        /* Add a dashed circle */
-        c2d_set_point(&start, 0.0, 0.0);  
-        l_circle = c2d_add_circle(cad, start, x / (n - 1));
-        c2d_set_color_rgb(&c, 1.0, 0.0, 1.0);
-        c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
+        /* Draw sun as a circle */
+        c2d_set_point(&start, 0.0, 9 * k);  
+        l_sun = c2d_add_circle(cad, start, x / (n - 1));
+        c2d_set_color_pallette(&c, orange);
+        c2d_set_entity_style(cad, l_sun, DEFAULT, c, fill, DEFAULT);
 
         /* Add text */
-        c2d_set_point(&start, -400.0, -400.0);
-        l_text = c2d_add_text(cad, start, text);
-        c2d_set_color_rgb(&c, 0.3, 0.0, 1.0);
+        c2d_set_point(&start, -2 * k, -2 * k);
+        l_text = c2d_add_text(cad, start, "Life is good");
+        c2d_set_color_rgb(&c, 0.2, 0.5, 1.0);
         c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
 
         /* Delete specific entity */
         /*
-            c2d_remove_entity(cad, &l_circle);
+            c2d_remove_entity(cad, &l_sun);
+            c2d_remove_entity(cad, &l_mount);
             c2d_remove_entity(cad, &l_text);
-            c2d_remove_entity(cad, &l_pline);
         */
 
         c2d_export(cad, "test1.eps", eps);
@@ -162,7 +159,7 @@ void test3 () {
             body_x          = 400.0,  body_y      = 300.0,
             roof_w          = 1000.0, roof_h      = 250.0,
             chimney_w       = 70.0,   chimney_h   = 150.0,
-            win_circ_r    = 120.0, 
+            win_circ_r      = 120.0, 
             win_rect_w      = 150.0,  win_rect_h  = 350.0, 
             door_w          = 100.0,  door_h      = 250.0; 
 
@@ -237,9 +234,6 @@ void test3 () {
         printf("CAD cannot started properly\n");
 }
 
-void test33() {
-}
-
 void test4 () {
     CAD2D * cad = c2d_import("test3.gtucad", gtucad);
     if (cad != NULL) {
@@ -251,35 +245,73 @@ void test4 () {
         printf("CAD cannot started properly\n");
 }
 
-//! IMPLEMENT BETTER TEST FUNCTION like import export
+/* Draw rectangles by using new hierarchies */
 void test5 () {
+    CAD2D * root, * cad1, * cad2, * cad3, * cad4;
     Point2D p1, p2, p3;
-    CAD2D * root = c2d_start_wh(1000.0, 1000.0);
-    CAD2D * cad1 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
-    CAD2D * cad2 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
-    CAD2D * cad3 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
-    CAD2D * cad4 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
-    int i, n;
+    RGBColor c;
+    Label * l;
+    double d;
+    int i;
 
-    c2d_set_point(&p1, 100.0, 100.0);
-    c2d_set_point(&p2, 200.0, 100.0);
-    c2d_set_point(&p3, 100.0, 200.0);
-    c2d_add_triangle(root, p1, p2, p3);
+    root = c2d_start();
+    if (NULL != root) {
+        for (i = red, d = 1000; d > 0; ++i, d -= 100) {
+            if (i >= brown + 1)
+                i %= brown;
+            c2d_set_point(&p1, -d, -d);
+            c2d_set_point(&p2, d, d);
+            c2d_set_color_pallette(&c, i);
+            l = c2d_add_rectangle(root, p1, p2);
+            c2d_set_entity_style(root, l, DEFAULT, c, fill, DEFAULT);
+        }
 
-    for (i = 0; i < 1000; i += 100) {
-        c2d_set_point(&p1, -i, -i);
-        c2d_set_point(&p2, i, i);
-        c2d_add_rectangle(cad1, p1, p2);
+        cad1 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
+        cad2 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
+        cad3 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
+        cad4 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
+        if (NULL != cad1 && NULL != cad2 && NULL != cad3 && NULL != cad4) {
+            c2d_set_point(&p1, 200.0, 200.0);
+            c2d_set_point(&p2, 300.0, 200.0);
+            c2d_set_point(&p3, 200.0, 300.0);
+            c2d_add_triangle(cad1, p1, p2, p3);
+
+            c2d_set_point(&p1, -200.0, 200.0);
+            c2d_set_point(&p2, -300.0, 200.0);
+            c2d_set_point(&p3, -200.0, 300.0);
+            c2d_add_triangle(cad2, p1, p2, p3);
+
+            c2d_set_point(&p1, 200.0, -200.0);
+            c2d_set_point(&p2, 300.0, -200.0);
+            c2d_set_point(&p3, 200.0, -300.0);
+            c2d_add_triangle(cad3, p1, p2, p3);
+
+            c2d_set_point(&p1, -200.0, -200.0);
+            c2d_set_point(&p2, -300.0, -200.0);
+            c2d_set_point(&p3, -200.0, -300.0);
+            c2d_add_triangle(cad4, p1, p2, p3);
+
+            /* Deletes child hierarchies and their entities(triangle) */
+        /*
+            c2d_delete_hierarchy(cad1->hierarchy);
+            c2d_delete_hierarchy(cad2->hierarchy);
+            c2d_delete_hierarchy(cad3->hierarchy);
+            c2d_delete_hierarchy(cad4->hierarchy);
+        */
+        }
+        c2d_export(root, "test5.gtucad", gtucad);
+        c2d_export(root, "test5.eps", eps);
+        c2d_delete(root);
+        printf("<<< Test5 DONE >>>\n\n");
     }
+}
 
-    c2d_delete_hierarchy(cad2->hierarchy);
-    c2d_delete_hierarchy(cad3->hierarchy);
-    c2d_delete_hierarchy(cad4->hierarchy);
-    
-    c2d_export(root, "test5.gtucad", gtucad);
-    c2d_export(root, "test5.eps", eps);
-    c2d_delete(root);
-    printf("<<< Test4 DONE >>>\n\n");
+
+void test55 () {
+    CAD2D * cad = c2d_import("test5.gtucad", gtucad);
+    c2d_export(cad, "test55.eps", eps);
+    c2d_delete(cad);
+    printf("<<< Test55 DONE >>>\n\n");
 }
 
 /* Draw an engine */
@@ -288,6 +320,8 @@ void test6 () {
     double  plane_size = 1600.0 / 2.0,
             k = plane_size / 20.0;
     Point2D pc, p1, p2, p3;
+    RGBColor c;
+    Label * l;
 
     cad = c2d_start();
     if (cad != NULL) {
@@ -299,23 +333,32 @@ void test6 () {
 
         /* Add half circle whose radius is 7k */
         c2d_add_arc(cad, pc, 7 * k, 90.0, 270.0);
-        
-        /* Add two circle whose radius are 4k and 3k */
-        c2d_add_circle(cad, pc, 4 * k);
-        c2d_add_circle(cad, pc, 3 * k);
 
+        /* Add two circle whose radius are 4k and 3k */
+        
+        c2d_add_circle(cad, pc, 4 * k);
+
+        c2d_set_color_pallette(&c, black);
+        l = c2d_add_circle(cad, pc, 3 * k);
+        c2d_set_entity_style(cad, l, DEFAULT, c, fill, lw_large);
+        
         pc.y = 5.5 * k; 
-        c2d_add_circle(cad, pc, 0.5 * k);
+        c2d_set_color_pallette(&c, red);
+        l = c2d_add_circle(cad, pc, 0.5 * k);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
 
         pc.y = -5.5 * k; 
-        c2d_add_circle(cad, pc, 0.5 * k);
+        l = c2d_add_circle(cad, pc, 0.5 * k);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
 
         pc.x = -12.5 * k, pc.y = 0.0;
-        c2d_add_circle(cad, pc, 0.5 * k);
+        l = c2d_add_circle(cad, pc, 0.5 * k);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
 
         /* Right side */
         c2d_set_point(&pc, 4 * k, 0.0);
-        c2d_add_arc(cad, pc, 2 * k, 90.0, 270.0);
+        l = c2d_add_arc(cad, pc, 2 * k, 90.0, 270.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
         
         /* To add line later, keep center point inside p1 with changing it's y value */
         p1.x = pc.x;
@@ -323,15 +366,19 @@ void test6 () {
 
         /* Add two arc whose radius are 2k and 4k */
         pc.x += 7 * k;
-        c2d_add_arc(cad, pc, 2 * k, 270.0, 90.0);
+        l = c2d_add_arc(cad, pc, 2 * k, 270.0, 90.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
+        
         c2d_add_arc(cad, pc, 4 * k, 270.0, 90.0);
 
         p2.x = pc.x;
         p2.y = 2.0 * k;
-        c2d_add_line(cad, p1, p2);
+        l = c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
 
         p1.y = p2.y = -2 * k;
-        c2d_add_line(cad, p1, p2);
+        l =  c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, stroke, lw_large);
        
         p2.y = 4.0 * k;
         c2d_add_line(cad, p3, p2);
@@ -359,8 +406,10 @@ void test7 () {
 
     cad = c2d_start();
     if (NULL != cad) {
+        /* Show xy plane */
         c2d_add_xy_plane(cad);
         
+        /* Add an irregular polygon */
         p[0].x = 100.0, p[0].y = 200.0;
         p[1].x = 150.0, p[1].y = 300.0;
         p[2].x = 220.0, p[2].y = 120.0;
@@ -372,13 +421,14 @@ void test7 () {
         l_irr_poly = c2d_add_irregular_polygon(cad, p, psize);
         c2d_set_entity_style(cad, l_irr_poly, DEFAULT, c, fill, DEFAULT);
 
+        /* Add a rectangle polygon */
         c2d_set_color_pallette(&c, blue_light);
         c2d_set_point(&c1, -140.0, 140.0);
         c2d_set_point(&c2, -340.0, 440.0);
         l_rec = c2d_add_rectangle(cad, c1, c2);
         c2d_set_entity_style(cad, l_rec, DEFAULT, c, fill, DEFAULT);
 
-
+        /* Add a triangle */
         c2d_set_color_pallette(&c, green_dark);
         c2d_set_point(&c1, -240.0, -240.0);
         c2d_set_point(&c2, -100.0, -340.0);
@@ -387,15 +437,13 @@ void test7 () {
         c2d_set_entity_style(cad, l_tri, DEFAULT, c, fill, DEFAULT);
 
 
+        /* Add a octagon(regular polygon) */
         c2d_set_color_pallette(&c, red);
         c2d_set_point(&center, 240.0, -240.0);
         l_reg_poly = c2d_add_regular_polygon(cad, 9, center, 100.0);
         c2d_set_entity_style(cad, l_reg_poly, DEFAULT, c, fill, DEFAULT);
 
-
         c2d_export(cad, "test7.eps", eps);
-        c2d_export(cad, "test7.gtucad", gtucad);
-
         c2d_delete(cad);
         printf("<<< Test7 DONE >>>\n\n");
     }
@@ -560,27 +608,10 @@ void test9() {
     printf("<<< Test9 DONE >>>\n\n");
 }
 
-void test55 () {
-    CAD2D * cad = c2d_import("test5.gtucad", gtucad);
-    c2d_export(cad, "test55.eps", eps);
-    c2d_delete(cad);
-    printf("<<< Test55 DONE >>>\n\n");
-}
-
 /*
-    Handle errors casued invalid write ... 
     https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
 */
 int main (void) {
-    /*
-    test0();
-    test5();
-    test55();
-    test6();
-    */
-    test8();
-    test9();
-
     test0();
     test00();
     test1();
@@ -591,6 +622,7 @@ int main (void) {
     test6();
     test7();
     test8();
+    test9();
     test55();
     /*
     */
