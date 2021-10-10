@@ -160,6 +160,7 @@ typedef struct {
     int n;                  /* the number of sides      */
     double out_radius;      /* radius of outer circle   */
     Point2D center;
+    //! PointList corner;
 } RegularPolygon;
 
 typedef struct {
@@ -209,7 +210,8 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
 Label * c2d_add_xy_plane (CAD2D * cad);
 
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt);
-Point2D c2d_get_center (Entity * e);
+Point2D c2d_get_center_point (Entity * e);
+Point2D * c2d_get_center_address (Entity * e);
 
 void c2d_export (CAD2D * cad, char * file_name, ExImOption option);
 CAD2D * c2d_import (char * file_name, ExImOption option);

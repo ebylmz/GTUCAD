@@ -81,29 +81,20 @@ void test1 () {
     if (cad != NULL) {        
         /* Add a polyline */
         l_pline = c2d_add_polyline(cad, p, 9);
-
-        if (l_pline != NULL) {
-            c2d_set_color_rgb(&c, 0.0, 0.0, 0.0);
-            c2d_set_entity_style(cad, l_pline, dashed, c, fill, lw_medium);
-        }
+        c2d_set_color_rgb(&c, 0.0, 0.0, 0.0);
+        c2d_set_entity_style(cad, l_pline, dashed, c, fill, lw_medium);
 
         /* Add a dashed circle */
         c2d_set_point(&start, 0.0, 0.0);  
         l_circle = c2d_add_circle(cad, start, x / (n - 1));
-
-        if (l_circle != NULL) {
-            c2d_set_color_rgb(&c, 1.0, 0.0, 1.0);
-            c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
-        }
+        c2d_set_color_rgb(&c, 1.0, 0.0, 1.0);
+        c2d_set_entity_style(cad, l_circle, solid, c, stroke, lw_medium);
 
         /* Add text */
         c2d_set_point(&start, -400.0, -400.0);
         l_text = c2d_add_text(cad, start, text);
-        
-        if (l_text != NULL) {
-            c2d_set_color_rgb(&c, 0.3, 0.0, 1.0);
-            c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
-        }
+        c2d_set_color_rgb(&c, 0.3, 0.0, 1.0);
+        c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
 
         /* Delete specific entity */
         /*
@@ -137,28 +128,19 @@ void test2 () {
 
         /* draw first ellipse as 2/1 ratio */
         l_ellipse1 = c2d_add_ellipse(cad, center, radius * 2, radius);
-
-        if (l_ellipse1 != NULL) {
-            c2d_set_color_rgb(&c, 0.0, 0.5, 0.0);
-            c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, lw_medium);
-        }
+        c2d_set_color_rgb(&c, 0.0, 0.5, 0.0);
+        c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, lw_medium);
         
         /* draw first ellipse as 1/2 ratio */
         l_ellipse2 = c2d_add_ellipse(cad, center, radius, radius * 2);
-
-        if (l_ellipse2 != NULL) {
-            c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
-            c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, lw_medium);
-        }        
+        c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
+        c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, lw_medium);
 
         /* Add text */
         c2d_set_point(&center, -80.0, -200.0);
         l_text = c2d_add_text(cad, center, text);
-        
-        if (l_text != NULL) {
-            c2d_set_color_rgb(&c, 1.0, 0.0, 0.5);
-            c2d_set_text_style(cad, l_text, Courier, c, fs_small);
-        }
+        c2d_set_color_rgb(&c, 1.0, 0.0, 0.5);
+        c2d_set_text_style(cad, l_text, Courier, c, fs_small);
 
         c2d_export(cad, "test2.eps", eps);
         c2d_delete(cad);
@@ -197,19 +179,12 @@ void test3 () {
             c2d_set_point(&p1, -body_x, -body_y);
             c2d_set_point(&p2, body_x, body_y);
             l_body_rect = c2d_add_rectangle(cad_body, p1, p2);
-            
-            /* Draw body part of home as gray */
-            if (l_body_rect != NULL) 
-                c2d_set_entity_style(cad_body, l_body_rect, DEFAULT, c_gray, fill, DEFAULT);
-
+            c2d_set_entity_style(cad_body, l_body_rect, DEFAULT, c_gray, fill, DEFAULT);
 
             /* Set a circle window */
             c2d_set_point(&p1, body_x / 2.0, body_y / 2.0);
             l_win_circ = c2d_add_circle(cad_body, p1, win_circ_r);
-
-            if (l_win_circ != NULL)
-                c2d_set_entity_style(cad_body, l_win_circ, DEFAULT, c_white, fill, DEFAULT);
-
+            c2d_set_entity_style(cad_body, l_win_circ, DEFAULT, c_white, fill, DEFAULT);
 
             /* Set two rectangle windows */
             margin =  (body_x - (win_rect_w * 2.0)) * 3.0/4.0;
@@ -217,33 +192,23 @@ void test3 () {
             c2d_set_point(&p1, -margin -win_rect_w, win_rect_h * 4.0/5.0);
             c2d_set_point(&p2, -margin, -win_rect_h * 1.0/4.0);
             l_win_rect1 = c2d_add_rectangle(cad_body, p1, p2);
-
-            if (l_win_rect1 != NULL)
-                c2d_set_entity_style(cad_body, l_win_rect1, DEFAULT, c_white, fill, DEFAULT);
+            c2d_set_entity_style(cad_body, l_win_rect1, DEFAULT, c_white, fill, DEFAULT);
 
             p1.x -= space;
             c2d_set_point(&p2, -margin - 2 * win_rect_w, -win_rect_h * 2.0/5.0);
             l_win_rect2 = c2d_add_rectangle(cad_body, p1, p2);
-
-            if (l_win_rect2 != NULL)
-                c2d_set_entity_style(cad_body, l_win_rect2, DEFAULT, c_white, fill, DEFAULT);
-
+            c2d_set_entity_style(cad_body, l_win_rect2, DEFAULT, c_white, fill, DEFAULT);
 
             /* Set door as two rectangle */
             c2d_set_point(&p1, body_x - margin, -body_y);
             c2d_set_point(&p2, body_x - margin - door_w, -body_y + door_h);
             l_door1 = c2d_add_rectangle(cad_body, p1, p2);
-
-            if (l_door1 != NULL)
-                c2d_set_entity_style(cad_body, l_door1, DEFAULT, c_black, fill, DEFAULT);
+            c2d_set_entity_style(cad_body, l_door1, DEFAULT, c_black, fill, DEFAULT);
                 
             c2d_set_point(&p1, body_x - margin - door_w - space, -body_y);
             c2d_set_point(&p2, body_x - margin - 2 * door_w, -body_y + door_h);
             l_door2 = c2d_add_rectangle(cad_body, p1, p2);
-
-            if (l_door2 != NULL)
-                c2d_set_entity_style(cad_body, l_door2, DEFAULT, c_black, fill, DEFAULT);
-
+            c2d_set_entity_style(cad_body, l_door2, DEFAULT, c_black, fill, DEFAULT);
         }
 
         cad_roof = c2d_start_wh_hier(1500.0, 1500.0, cad_root->hierarchy);
@@ -252,18 +217,14 @@ void test3 () {
             c2d_set_point(&p1, body_x / 2.0 - chimney_w / 2.0, body_y + roof_h * 1.0/3.0);
             c2d_set_point(&p2, body_x / 2.0 + chimney_w / 2.0, body_y + roof_h * 1.0/3.0 + chimney_h);
             l_chimney = c2d_add_rectangle(cad_roof, p1, p2);
-
-            if (l_chimney != NULL)
-                c2d_set_entity_style(cad_roof, l_chimney, DEFAULT, c_gray, fill, DEFAULT);
+            c2d_set_entity_style(cad_roof, l_chimney, DEFAULT, c_gray, fill, DEFAULT);
 
             /* Set roof */
             c2d_set_point(&p1, -roof_w / 2.0, body_y);
             c2d_set_point(&p2, 0.0, body_y + roof_h);
             c2d_set_point(&p3, roof_w / 2.0, body_y);
             l_roof = c2d_add_triangle(cad_roof, p1, p2, p3);
-
-            if (l_roof != NULL) 
-                c2d_set_entity_style(cad_roof, l_roof, DEFAULT, c_black, fill, DEFAULT);
+            c2d_set_entity_style(cad_roof, l_roof, DEFAULT, c_black, fill, DEFAULT);
         }
 
         /* Export in gtucad mode to continue later */
@@ -310,14 +271,12 @@ void test5 () {
         c2d_add_rectangle(cad1, p1, p2);
     }
 
-/*
-    c2d_delete_hierarchy(cad1->hierarchy);
     c2d_delete_hierarchy(cad2->hierarchy);
     c2d_delete_hierarchy(cad3->hierarchy);
     c2d_delete_hierarchy(cad4->hierarchy);
-*/
     
     c2d_export(root, "test5.gtucad", gtucad);
+    c2d_export(root, "test5.eps", eps);
     c2d_delete(root);
     printf("<<< Test4 DONE >>>\n\n");
 }
@@ -392,45 +351,46 @@ void test6 () {
 void test7 () {
     CAD2D * cad;
     Point2D p[6];
-    Point2D center;
-    Point2D c1, c2, c3;
     int psize = 6;
+    Point2D center, c1, c2, c3;
+    RGBColor c;
+    Label * l_rec, * l_reg_poly, * l_tri, * l_irr_poly; 
 
     cad = c2d_start();
     if (NULL != cad) {
         c2d_add_xy_plane(cad);
         
-        p[0].x = 100.0;
-        p[0].y = 200.0;
+        p[0].x = 100.0, p[0].y = 200.0;
+        p[1].x = 150.0, p[1].y = 300.0;
+        p[2].x = 220.0, p[2].y = 120.0;
+        p[3].x = 400.0, p[3].y = 240.0;
+        p[4].x = 220.0, p[4].y =  60.0;
+        p[5].x = 100.0, p[5].y = 200.0;
 
-        p[1].x = 150.0;
-        p[1].y = 300.0;
+        c2d_set_color_pallette(&c, magenta);
+        l_irr_poly = c2d_add_irregular_polygon(cad, p, psize);
+        c2d_set_entity_style(cad, l_irr_poly, DEFAULT, c, fill, DEFAULT);
 
-        p[2].x = 220.0;
-        p[2].y = 120.0;
-
-        p[3].x = 400.0;
-        p[3].y = 240.0;
-
-        p[4].x = 220.0;
-        p[4].y = 60.0;
-
-        p[5].x = 100.0;
-        p[5].y = 200.0;
-
-        c2d_add_irregular_polygon(cad, p, psize);
-        
+        c2d_set_color_pallette(&c, blue_light);
         c2d_set_point(&c1, -140.0, 140.0);
         c2d_set_point(&c2, -340.0, 440.0);
-        c2d_add_rectangle(cad, c1, c2);
+        l_rec = c2d_add_rectangle(cad, c1, c2);
+        c2d_set_entity_style(cad, l_rec, DEFAULT, c, fill, DEFAULT);
 
+
+        c2d_set_color_pallette(&c, green_dark);
         c2d_set_point(&c1, -240.0, -240.0);
         c2d_set_point(&c2, -100.0, -340.0);
         c2d_set_point(&c3, -340.0, -440.0);
-        c2d_add_triangle(cad, c1, c2, c3);
+        l_tri = c2d_add_triangle(cad, c1, c2, c3);
+        c2d_set_entity_style(cad, l_tri, DEFAULT, c, fill, DEFAULT);
 
+
+        c2d_set_color_pallette(&c, red);
         c2d_set_point(&center, 240.0, -240.0);
-        c2d_add_regular_polygon(cad, 9, center, 100.0);
+        l_reg_poly = c2d_add_regular_polygon(cad, 9, center, 100.0);
+        c2d_set_entity_style(cad, l_reg_poly, DEFAULT, c, fill, DEFAULT);
+
 
         c2d_export(cad, "test7.eps", eps);
         c2d_export(cad, "test7.gtucad", gtucad);
@@ -442,7 +402,62 @@ void test7 () {
 
 /* Writes GTUCAD */
 void test8 () {
-    //! NOT IMPLEMENTED YET
+    CAD2D * cad;
+    Point2D p1, p2;
+    double k = 30.0;
+    RGBColor c;
+    Label * l;
+    Point2D p_arr[9];
+    int p_arr_size = 4;
+
+    cad = c2d_start();
+    if (cad != NULL) {
+        c2d_add_xy_plane(cad);
+
+        /* Draw letter U with arc and polyline */
+        c2d_set_point(&p1, -4 * k, 4 * k);
+        c2d_add_arc(cad, p1, 2 * k, 180.0, 360.0);    
+        c2d_add_arc(cad, p1,     k, 180.0, 360.0);    
+        
+        p_arr[0].x = -6 * k, p_arr[0].y = 4 * k; 
+        p_arr[1].x = -6 * k, p_arr[1].y = 7 * k; 
+        p_arr[2].x = -5 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x = -5 * k, p_arr[3].y = 4 * k; 
+        c2d_add_polyline(cad, p_arr, 4);
+
+        p_arr[0].x = -3 * k, p_arr[0].y = 4 * k; 
+        p_arr[1].x = -3 * k, p_arr[1].y = 7 * k; 
+        p_arr[2].x = -2 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x = -2 * k, p_arr[3].y = 4 * k; 
+        c2d_add_polyline(cad, p_arr, 4);
+
+        /* Draw letter T with polyline or polygone */
+        p_arr[0].x = -12 * k, p_arr[0].y = 6 * k; 
+        p_arr[1].x = -12 * k, p_arr[1].y = 7 * k; 
+        p_arr[2].x =  -7 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x =  -7 * k, p_arr[3].y = 6 * k; 
+        p_arr[4].x =  -9 * k, p_arr[4].y = 6 * k; 
+        p_arr[5].x =  -9 * k, p_arr[5].y = 2 * k; 
+        p_arr[6].x = -10 * k, p_arr[6].y = 2 * k; 
+        p_arr[7].x = -10 * k, p_arr[7].y = 6 * k; 
+        p_arr[8].x = -12 * k, p_arr[8].y = 6 * k; 
+        c2d_add_polyline(cad, p_arr, 9);
+
+        /* Draw letter G with arc and polyline */
+        c2d_set_point(&p1, -15 * k, 4 * k);
+        c2d_add_arc(cad, p1, 2 * k, 45.0, 0.0);    
+        c2d_add_arc(cad, p1,     k, 45.0, 325.0);    
+
+        p_arr[0].x = -13 * k, p_arr[0].y = 4 * k;
+        p_arr[1].x = -15 * k, p_arr[1].y = 4 * k; 
+        p_arr[2].x =  -15 * k, p_arr[2].y = 3 * k; 
+        p_arr[3].x =  -14 * k, p_arr[3].y = 3 * k; 
+        c2d_add_polyline(cad, p_arr, 4);
+
+        c2d_export(cad, "test8.eps", eps);
+        c2d_delete(cad);
+        printf("<<< Test8 DONE >>>\n\n");
+    }
 }
 
 void test55 () {
@@ -463,9 +478,9 @@ int main (void) {
     test55();
     test6();
     */
-    /**
-    **/
+    test8();
 
+    /*
     test0();
     test00();
     test1();
@@ -476,6 +491,5 @@ int main (void) {
     test6();
     test7();
     test55();
-    /*
     */
 }

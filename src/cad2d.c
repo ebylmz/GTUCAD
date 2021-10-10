@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <math.h>
 #include "cad2d.h"
 
@@ -40,11 +41,10 @@ int u_check_canvas_p (CAD2D * cad, Point2D * p);
 int u_check_canvas_xy (CAD2D * cad, double x, double y);
 
 double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2);
-double u_measure_point_polyline (Point2D * point, PointList * pline);
+double u_measure_point_polyline (Point2D * p, PointList * pl);
+double u_measure_line_line (PointList * pl1, PointList * pl2);
 
-void u_snap_point_point (Point2D * s, Point2D * t);
 void u_snap_point_line (Point2D * s, PointList * t);
-void u_snap_arc_point (Circle * s, Point2D * t);
 
 void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_text_style (FILE * fid, TextStyle * s);
@@ -81,12 +81,13 @@ Hierarchy * c2d_create_hierarchy (CAD2D * cad) {
     Hierarchy * h = (Hierarchy *) malloc(sizeof(Hierarchy));
 
     if (h != NULL) {
-        h->parent = NULL;
         h->cad = cad;
+        h->parent = NULL;
         h->child = NULL;
         h->size = 0;
-        cad->hierarchy = h; 
         h->name = u_create_hierarchy_name(h);
+
+        cad->hierarchy = h; 
     }
 
     return h;
@@ -120,43 +121,7 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
 }
 
 void c2d_delete_hierarchy (Hierarchy * h) {
-    Hierarchy * parent, * child;
-
-    int i, n, r;
-
-    /* Remove it from it's parent */
-    if (h->parent != NULL) {
-        parent = h->parent;
-        for (i = 0, n = h->hash_code, r = TRY; i < parent->size && r == TRY; ++i) {
-            if (n >= parent->size)
-                n %= parent->size;
-            
-            //! THERE IS A PROBLEM I CANNOT SOLVE YET
-            //! DOES NOT DELETE JUST RUNS SIZE TIMES
-            /* Nth child definitly different from NULL */
-            if (parent->child[n] == NULL)
-                r = FAIL;
-            if (parent->child[n] != DELETED && strcmp(parent->child[n]->name, h->name) == 0) {
-                child = parent->child[n];
-                if (child->child != NULL)
-                    for (i = 0; i < parent->child[n]->size; ++i)
-                        if (parent->child[n] != NULL && parent->child[n] != DELETED)
-                            c2d_delete_hierarchy(child->child[i]);
-                free(child->name);
-                free(child);
-                //! free cad content
-                parent->child[n] = DELETED;
-            }
-            /* Deleted or not empty, check next index */
-            else {
-                printf("++\n");
-                ++n;
-            }
-        }
-    }
-    /* Remove all the content inside of the hierarchy */
-    printf("DELETED Hierarchy %s, %d\n", h->name, i);
-    c2d_delete(h->cad);
+    if (h != NULL) c2d_delete(h->cad);
 }
 
 Hierarchy * c2d_get_root_hierarchy (Hierarchy * h) {
@@ -186,7 +151,7 @@ char * u_create_hierarchy_name (Hierarchy * h) {
     if (r != NULL) {
         n = u_get_tree_depth(h);
 
-        /* assume tree depth is maxmimum 16 */
+        /* assume tree depth is maximumum 16 */
         c = n < 9 ? '0' + n : 'A' + n; 
         r[0] = 'h'; r[1] = c;
         h->name = r;
@@ -208,7 +173,6 @@ char * u_create_hierarchy_name (Hierarchy * h) {
     printf("New Hierarchy: %s\n", r);
     return r;    
 }
-
 
 /* In case of matching returns nonnegative index value of the hierarchy, o.w. returns FAIL(-1) */
 int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
@@ -317,7 +281,7 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
  * Label
 *********************************************************************************/
 
-/* Creates an default unique label  */
+/* Creates an default unique label */
 Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
     Label * l = (Label *) malloc(sizeof(Label));
  
@@ -710,7 +674,6 @@ CAD2D * c2d_start_wh (double width, double height) {
         cad->elist = NULL;
         cad->elist_size = 0;
         cad->llist = NULL;
-        
         cad->hierarchy = c2d_create_hierarchy(cad);
     }
     return cad;
@@ -881,7 +844,7 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
             d->center = center;
             d->n = n;
             d->out_radius = out_radius;
-
+            
             l = c2d_create_label_default(cad, regular_polygon_t);
                 
             if (l != NULL)
@@ -1235,26 +1198,29 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y) {
 /* Measures the distance between two entity given by their labels */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
     CAD2D * root = c2d_get_root_cad(cad);
-    EntityInfo * e_info1, * e_info2; 
-    double m = -1;
+    EntityInfo * s_info, * t_info; 
+    Entity * s, * t;
+    double m = -1;  //! INT_MAX
 
     if (root != NULL) {
-        e_info1 = c2d_find_entity(root, ls);    
-        if (e_info1 != NULL) {
-            e_info2 = c2d_find_entity(root, ls);
-            if (e_info2 != NULL) {
+        s_info = c2d_find_entity(root, ls);    
+        if (s_info != NULL) {
+            t_info = c2d_find_entity(root, ls);
+            if (t_info != NULL) {
+                s = s_info->entity, free(s_info);
+                t = t_info->entity, free(t_info); 
+
                 /* Define the types of given two entity to implement specific algorithm */
                 switch (ls->type) {
                     case point_t:
                         switch (lt->type) {
                             case point_t:
-                                m = u_get_euclidean_dist(e_info1->entity->data, e_info2->entity->data);
+                                m = u_get_euclidean_dist(s->data, t->data);
                                 break;
                             case line_t:
                             case polyline_t:
                             case irregular_polygon_t:
-                                //! NOT IMPLEMENTED YET
-                                m = u_measure_point_polyline(e_info1->entity->data, e_info2->entity->data);
+                                m = u_measure_point_polyline(s->data, t->data);
                                 break;
                             case regular_polygon_t:
                             case triangle_t:
@@ -1262,10 +1228,9 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
                             case circle_t:
                             case ellipse_t:
                             case arc_t:
-                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
+                            case text_t:
+                                m = u_measure_center(cad, s->data, t->data);
                                 break;
-                            default:
-                                printf("NOT IMPLEMENTED YET\n");
                         }
                         break;
                     case line_t:
@@ -1273,12 +1238,12 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
                     case irregular_polygon_t:
                         switch (lt->type) {
                             case point_t:
-                                //! NOT IMPLEMENTED YET
+                                m = u_measure_point_polyline(t->data, s->data);
                                 break;
                             case line_t:
                             case polyline_t:
                             case irregular_polygon_t:
-                                //! NOT IMPLEMENTED YET
+                                m = u_measure_line_line(s->data, t->data);
                                 break;
                             case regular_polygon_t:
                             case triangle_t:
@@ -1286,10 +1251,9 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
                             case circle_t:
                             case arc_t:
                             case ellipse_t:
-                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
+                            case text_t:
+                                m = u_measure_center(cad, s->data, t->data);
                                 break;
-                            default:
-                                printf("NOT IMPLEMENTED YET\n");
                         }
                         break;
                     case regular_polygon_t:
@@ -1298,35 +1262,13 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
                     case circle_t:
                     case arc_t:
                     case ellipse_t:
-                        switch (lt->type) {
-                            case point_t:
-                                //! NOT IMPLEMENTED YET
-                                break;
-                            case line_t:
-                            case polyline_t:
-                            case irregular_polygon_t:
-                                //! NOT IMPLEMENTED YET
-                                break;
-                            case regular_polygon_t:
-                            case triangle_t:
-                            case rectangle_t:
-                            case circle_t:
-                            case arc_t:
-                            case ellipse_t:
-                                m = u_measure_center(cad, e_info1->entity, e_info2->entity);
-                                break;
-                            default:
-                                printf("NOT IMPLEMENTED YET\n");
-                        }
+                    case text_t:
+                        m = u_measure_center(cad, s->data, t->data);
                         break;
-                    default:
-                        printf("NOT IMPLEMENTED YET\n");
                 }
-                free(e_info1); 
-                free(e_info2); 
             }
             else
-                free(e_info1);
+                free(s_info);
         } 
     }
     
@@ -1335,18 +1277,46 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
 
 /* Measures the distance between center of given two entity */
 double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2) {
-    Point2D p1 = c2d_get_center(e1);
-    Point2D p2 = c2d_get_center(e2);
+    Point2D p1 = c2d_get_center_point(e1);
+    Point2D p2 = c2d_get_center_point(e2);
     return u_get_euclidean_dist(&p1, &p2);
 }
 
+/* Returns adress of center point of given entity, if exist */
+Point2D * c2d_get_center_address (Entity * e) {
+    Point2D * c = NULL;
+    
+    if (e != NULL) {
+        switch (e->label->type) {
+            case point_t:
+                c = ((Point2D *) e->data);
+                break;
+            case circle_t:
+            case arc_t:
+                c = &((Circle *) e->data)->center;
+                break;
+            case ellipse_t:
+                c = &((Ellipse *) e->data)->center;
+                break;
+            case text_t:
+                c = &((Text *) e->data)->point;
+                break;
+            default:
+                printf("Given entity type does not have center point\n");
+        }
+    }
+
+    return c;
+}
+
 /* Returs center point of given entity */
-Point2D c2d_get_center (Entity * e) {
+Point2D c2d_get_center_point (Entity * e) {
     Point2D c;
 
     if (e != NULL) {
         switch (e->label->type) {
             case point_t:
+                c = *((Point2D *) e->data);
                 break;
             case line_t:
             case polyline_t:
@@ -1372,7 +1342,7 @@ Point2D c2d_get_center (Entity * e) {
                 break;
             default:
                 c.x = c.y = -1;
-                printf("Given entity type is invalid\n");
+                printf("Invalid entity type\n");
         }
     }
 
@@ -1400,10 +1370,29 @@ Point2D u_get_center_line (PointList * e) {
     return c;
 }
 
-double u_measure_point_polyline (Point2D * point, PointList * pline) {
-    //! NOT IMPLEMENTED YET
+/* Returs the min distance between point and polyline */
+double u_measure_point_polyline (Point2D * p, PointList * pl) {
+    double min = INT_MAX, tmp;
+
+    for (min = INT_MAX; NULL != pl; pl = pl->next) {
+        tmp = u_get_euclidean_dist(p, &pl->point);
+        if (tmp < min) min = tmp;
+    }
+
+    return min;
 }
 
+/* Returns the min distance between given two line/polyline */
+double u_measure_line_line (PointList * pl1, PointList * pl2) {
+    double min, tmp;
+
+    for (min = INT_MAX; NULL != pl1; pl1 = pl1->next) {
+        tmp = u_measure_point_polyline(&pl1->point, pl2);
+        if (tmp < min) min = tmp;
+    }
+
+    return min;
+}
 
 Point2D u_get_center_triangle (Triangle * e) {
     Point2D c;
@@ -1423,29 +1412,23 @@ Point2D u_get_center_rectangle (Rectangle * e) {
  * Snapping Labels
 *********************************************************************************/  
 
-/*
-Polyline    Point       Define a strategy!
-Polyline    Polyline    Define a strategy!
-Polyline    Polygon     Define a strategy!
-Polygon     Point       stle polgon as it's center is given target point
-Polygon     Polyline    Define a strategy!
-// Arc         Point       set arc as it's center is given target point
-Arc         Polyline    Define a strategy
-*/
-
+/* Snaps source entity by given it's label to target entity */
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
     EntityInfo * se_info = c2d_find_entity(cad, ls), * te_info = c2d_find_entity(cad, lt);
     Entity * s, * t;
-    Point2D * c1, * c2;
+    Point2D * sp;     /* Point to indicate center of source entity */
 
     if (se_info != NULL && te_info != NULL) {
         s = se_info->entity;
         t = te_info->entity;
+        free(se_info);
+        free(te_info);
+
         switch (ls->type) {
             case point_t:
                 switch (lt->type) {
                     case point_t:
-                        u_snap_point_point(s->data, t->data);
+                        *((Point2D *) s->data) = *((Point2D *) t->data);
                         break;                       
                     case line_t:
                     case polyline_t:
@@ -1454,70 +1437,65 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                         break;
                     case irregular_polygon_t:
                     case regular_polygon_t:
-                        // (s->data) = u_get_center_line(t->data);
-                        break;
                     case rectangle_t:
-                        // (s->data) = u_get_center_rectangle(t->data);
-                        break;
                     case triangle_t:
-                        //! NOT IMPLEMENTED YET
-                        break;                        
                     case circle_t:
                     case arc_t:
-                        *((Point2D *) s->data) = ((Circle *) t->data)->center;
-                        break;
                     case ellipse_t:
-                        *((Point2D *) s->data) = ((Ellipse *) t->data)->center;
+                        *((Point2D *) s->data) = c2d_get_center_point(t);
                         break;
                     case text_t:
-                        //! NOT IMPLEMENTED YET
+                        *((Point2D *) s->data) = ((Text *) t->data)->point;  
                         break;
                 }
                 break;
             case line_t:
-                //! Define a strategy!
-                break;
             case polyline_t:
                 //! Define a strategy!
                 break;
             case irregular_polygon_t:
-                //! Define a strategy!
-                break;
+            case regular_polygon_t:
             case rectangle_t:
+            case triangle_t:
                 //! Define a strategy!
                 break;
+            /*  For types whose have center point, get the address of that
+                point, and change that value as center of the target        */
             case circle_t:
-                //! Define a strategy!
-                break;
             case arc_t:
-                //! Define a strategy!
-                break;
             case ellipse_t:
-                //! Define a strategy!
-                break;
             case text_t:
-                //! Define a strategy!
+                switch (lt->type) {
+                    case point_t:
+                        *((Point2D *) s->data) = *((Point2D *) t->data);
+                        break;                       
+                    case line_t:
+                    case polyline_t:
+                        u_snap_point_line(s->data, t->data);
+                        //! NOT IMPLEMENTED YET
+                        break;
+                    case irregular_polygon_t:
+                    case regular_polygon_t:
+                    case rectangle_t:
+                    case triangle_t:
+                    case circle_t:
+                    case arc_t:
+                    case ellipse_t:
+                        sp = c2d_get_center_address(s);
+                        *sp = c2d_get_center_point(t);
+                        break;
+                    case text_t:
+                        //! Define a strategy!
+                        break;
+                }
                 break;
         }
     } 
-    free(se_info);
-    free(te_info);
 }
-
-/* Snaps the source point to the target point */
-void u_snap_point_point (Point2D * s, Point2D * t) {
-    s->x = t->x;
-    s->y = t->y;
-}   
 
 /* Snaps the source point to the closest end of the line */
 void u_snap_point_line (Point2D * s, PointList * t) {
     //! NOT IMPLEMENTED YET
-}
-
-/* Snaps the arc to the given point as center of arc */
-void u_snap_arc_point (Circle * s, Point2D * t) {
-    s->center = *t;
 }
 
 /*********************************************************************************
@@ -2140,6 +2118,7 @@ void u_export_eps_entity_style_reset (FILE * fid) {
 
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     Point2D p;
+    double d = u_min(canvas->end.x, canvas->end.y) / 22.0;
 
     /* Add fiducial to the center of xy plane */
     c2d_set_point(&p, 0.0, 0.0);
@@ -2148,40 +2127,43 @@ void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s) {
     fprintf(fid, "\n%% X-Y Plane\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", canvas->start.x, 0.0);
+    fprintf(fid, "%.2f %.2f lineto\n", -d, 0.0);
+    fprintf(fid, "%.2f %.2f moveto\n", d, 0.0);
     fprintf(fid, "%.2f %.2f lineto\n", canvas->end.x, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", 0.0, canvas->start.y);
+    fprintf(fid, "%.2f %.2f lineto\n", 0.0, -d);
+    fprintf(fid, "%.2f %.2f moveto\n", 0.0, d);
     fprintf(fid, "%.2f %.2f lineto\n", 0.0, canvas->end.y);
 
     if (s == NULL) {
         fprintf(fid, "\n%% Set Entity style\n");
-        fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 0.0, 0.0, 1.0);
+        fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 0.0, 0.0, 0.0);
         fprintf(fid, "%.2f setlinewidth\n", 0.5);
         fprintf(fid, "[3 3] 0 setdash\n");
     }
 }
 
-//! NOT IMPLEMENTED YET
 void u_export_eps_fiducial (FILE * fid, Canvas * canvas, Point2D * center) {
     double r1, r2, d;  
 
     /* Calculate the size of fidicual according to canvas size */
-    r1 = u_min(canvas->end.x, canvas->end.y) / 100.0; 
+    r1 = u_min(canvas->end.x, canvas->end.y) / 150.0; 
     r2 = 2 * r1; 
-    d = 2 * r2;
+    d = 3 * r2;
 
     fprintf(fid, "\n%% Fiducial\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", 1.0, 0.0, 0.0);
-    fprintf(fid, "%.2f setlinewidth\n", 0.7);
 
-    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r1, 0.0, 360.0);
-    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r2, 0.0, 360.0);
-    
     fprintf(fid, "%.2f %.2f moveto\n", center->x - d, center->y);
     fprintf(fid, "%.2f %.2f rlineto\n", 2 * d, 0.0);
     fprintf(fid, "%.2f %.2f moveto\n", center->x, center->y - d);
     fprintf(fid, "%.2f %.2f rlineto\n", 0.0, 2 * d);
     fprintf(fid, "stroke\n");
+
+    fprintf(fid, "%.2f setlinewidth\n", 0.7);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r1, 0.0, 360.0);
+    fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r2, 0.0, 360.0);
 }
 
 void u_export_eps_focus_point (FILE * fid, Point2D * e) {
@@ -2318,19 +2300,47 @@ void u_delete_llist (LabeList * llist) {
 
 /* Takes the root CAD and deletes all the content inside of it */
 void c2d_delete (CAD2D * cad) {
-    int i;
+    Hierarchy * parent, * current;
+    int i, n, r;
     
     if (cad != NULL) {
         /* First delete it's child hierarchies */
-        if (cad->hierarchy != NULL) {
-            for (i = 0; i < cad->hierarchy->size; ++i)
-                if (cad->hierarchy->child[i] != NULL && cad->hierarchy->child[i] != DELETED)
-                    c2d_delete(cad->hierarchy->child[i]->cad);
-            
+        current = cad->hierarchy;
+        if (current != NULL) {
+
+            /* Delete current hierarhcy from parent hierarchy */
+            parent = current->parent;
+            if (parent != NULL) {
+                for (i = 0, n = cad->hierarchy->hash_code, r = TRY; i < parent->size && r == TRY; ++i) {
+                    if (n >= parent->size)
+                        n %= parent->size;
+                    
+                    if (parent->child[n] == NULL)
+                        r = FAIL;
+                    else if (parent->child[n] != DELETED && strcmp(parent->child[n]->name, current->name) == 0) {
+                        parent->child[n] = DELETED;
+                        r = n;
+                    }
+                    /* Deleted or not empty, check next index */
+                    else {
+                        printf("++\n");
+                        getchar();
+                        ++n;
+                    }
+                }
+            }          
+
+            /* Delete children of current hierarchy */
+            if (current->child != NULL)
+                for (i = 0; i < current->size; ++i)
+                    if (current->child[i] != NULL && current->child[i] != DELETED)
+                        c2d_delete(current->child[i]->cad);
+
+            /* Free the allocated memory for current hierarchy */
             printf("Delete %s\n", cad->hierarchy->name);
-            free(cad->hierarchy->name);
-            free(cad->hierarchy->child);
-            free(cad->hierarchy);
+            free(current->name);
+            free(current->child);
+            free(current);
         }
         
         /* Lastly free given cad and it's entities */
