@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "cad2d.h"
 
 void test0 () {
@@ -403,33 +404,41 @@ void test7 () {
 /* Writes GTUCAD */
 void test8 () {
     CAD2D * cad;
-    Point2D p1, p2;
-    double k = 30.0;
+    Point2D p1, p2, p3;
+    double k = 40.0;
     RGBColor c;
     Label * l;
-    Point2D p_arr[9];
-    int p_arr_size = 4;
+    Point2D p_arr[10];
 
     cad = c2d_start();
     if (cad != NULL) {
-        c2d_add_xy_plane(cad);
+        /* c2d_add_xy_plane(cad); */
+        c2d_set_color_pallette(&c, black);
 
-        /* Draw letter U with arc and polyline */
-        c2d_set_point(&p1, -4 * k, 4 * k);
-        c2d_add_arc(cad, p1, 2 * k, 180.0, 360.0);    
-        c2d_add_arc(cad, p1,     k, 180.0, 360.0);    
-        
-        p_arr[0].x = -6 * k, p_arr[0].y = 4 * k; 
-        p_arr[1].x = -6 * k, p_arr[1].y = 7 * k; 
-        p_arr[2].x = -5 * k, p_arr[2].y = 7 * k; 
-        p_arr[3].x = -5 * k, p_arr[3].y = 4 * k; 
-        c2d_add_polyline(cad, p_arr, 4);
+        /* Draw letter G with arc and polyline */
+        c2d_set_point(&p1, -15.5 * k, 4.5 * k);
+        l = c2d_add_arc(cad, p1, 2.5 * k, 45.0, 0.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
-        p_arr[0].x = -3 * k, p_arr[0].y = 4 * k; 
-        p_arr[1].x = -3 * k, p_arr[1].y = 7 * k; 
-        p_arr[2].x = -2 * k, p_arr[2].y = 7 * k; 
-        p_arr[3].x = -2 * k, p_arr[3].y = 4 * k; 
-        c2d_add_polyline(cad, p_arr, 4);
+        l = c2d_add_arc(cad, p1, 1.5 * k, 45.0, 320.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        p_arr[0].x = -13   * k, p_arr[0].y = 4.5 * k;
+        p_arr[1].x = -15.5 * k, p_arr[1].y = 4.5 * k; 
+        p_arr[2].x = -15.5 * k, p_arr[2].y = 3.5 * k; 
+        p_arr[3].x = -14.4 * k, p_arr[3].y = 3.5 * k; 
+        l = c2d_add_polyline(cad, p_arr, 4);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Initialize p1 and p2 at center then add the trigonometric values */
+        c2d_set_point(&p1, -15.5 * k, 4.5 * k);
+        c2d_set_point(&p2, -15.5 * k, 4.5 * k);
+        p1.x += 2.5 * k * cos(PI / 4);
+        p1.y += 2.5 * k * sin(PI / 4);
+        p2.x += 1.5 * k * cos(PI / 4);
+        p2.y += 1.5 * k * sin(PI / 4);
+        l = c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
         /* Draw letter T with polyline or polygone */
         p_arr[0].x = -12 * k, p_arr[0].y = 6 * k; 
@@ -441,23 +450,114 @@ void test8 () {
         p_arr[6].x = -10 * k, p_arr[6].y = 2 * k; 
         p_arr[7].x = -10 * k, p_arr[7].y = 6 * k; 
         p_arr[8].x = -12 * k, p_arr[8].y = 6 * k; 
-        c2d_add_polyline(cad, p_arr, 9);
+        l = c2d_add_polyline(cad, p_arr, 9);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
-        /* Draw letter G with arc and polyline */
-        c2d_set_point(&p1, -15 * k, 4 * k);
-        c2d_add_arc(cad, p1, 2 * k, 45.0, 0.0);    
-        c2d_add_arc(cad, p1,     k, 45.0, 325.0);    
+        /* Draw letter U with arc and polyline */
+        c2d_set_point(&p1, -4 * k, 4 * k);
 
-        p_arr[0].x = -13 * k, p_arr[0].y = 4 * k;
-        p_arr[1].x = -15 * k, p_arr[1].y = 4 * k; 
-        p_arr[2].x =  -15 * k, p_arr[2].y = 3 * k; 
-        p_arr[3].x =  -14 * k, p_arr[3].y = 3 * k; 
-        c2d_add_polyline(cad, p_arr, 4);
+        l = c2d_add_arc(cad, p1, 2 * k, 180.0, 360.0);    
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+        l = c2d_add_arc(cad, p1,     k, 180.0, 360.0);    
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+        
+        p_arr[0].x = -6 * k, p_arr[0].y = 4 * k; 
+        p_arr[1].x = -6 * k, p_arr[1].y = 7 * k; 
+        p_arr[2].x = -5 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x = -5 * k, p_arr[3].y = 4 * k; 
+        l = c2d_add_polyline(cad, p_arr, 4);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
-        c2d_export(cad, "test8.eps", eps);
+        p_arr[0].x = -3 * k, p_arr[0].y = 4 * k; 
+        p_arr[1].x = -3 * k, p_arr[1].y = 7 * k; 
+        p_arr[2].x = -2 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x = -2 * k, p_arr[3].y = 4 * k; 
+        l = c2d_add_polyline(cad, p_arr, 4);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Draw letter C with arc and polyline */
+        c2d_set_point(&p1, 1.5 * k, 4.5 * k);
+        l = c2d_add_arc(cad, p1, 2.5 * k, 30.0, 330.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        l = c2d_add_arc(cad, p1, 1.5 * k, 30.0, 330.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Initialize p1 and p2 at center then add the trigonometric values */
+        p2 = p1;
+        p1.x += 2.5 * k * cos(PI / 6);
+        p1.y += 2.5 * k * sin(PI / 6);
+        p2.x += 1.5 * k * cos(PI / 6);
+        p2.y += 1.5 * k * sin(PI / 6);
+        l = c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        c2d_set_point(&p1, 1.5 * k, 4.5 * k);
+        c2d_set_point(&p2, 1.5 * k, 4.5 * k);
+        p1.x += 2.5 * k * cos(PI / 6);
+        p1.y -= 2.5 * k * sin(PI / 6);
+        p2.x += 1.5 * k * cos(PI / 6);
+        p2.y -= 1.5 * k * sin(PI / 6);
+        l = c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Draw letter A with triangle and polyline */
+        p_arr[0].x =  5   * k, p_arr[0].y = 2   * k; 
+        p_arr[1].x =  7   * k, p_arr[1].y = 7   * k; 
+        p_arr[2].x =  8   * k, p_arr[2].y = 7   * k; 
+        p_arr[3].x = 10   * k, p_arr[3].y = 2   * k; 
+        p_arr[4].x =  9   * k, p_arr[4].y = 2   * k; 
+        p_arr[5].x =  9   * k, p_arr[5].y = 2   * k; 
+        p_arr[6].x =  8.4 * k, p_arr[6].y = 3.5 * k; 
+        p_arr[7].x =  6.6 * k, p_arr[7].y = 3.5 * k;
+        p_arr[8].x =  6   * k, p_arr[8].y = 2   * k; 
+        p_arr[9].x =  5   * k, p_arr[9].y = 2   * k; 
+        l = c2d_add_polyline(cad, p_arr, 10);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        c2d_set_point(&p1, 7   * k, 4.5 * k);
+        c2d_set_point(&p2, 7.5 * k, 6 * k);
+        c2d_set_point(&p3, 8   * k, 4.5 * k);
+        l = c2d_add_triangle(cad, p1, p2, p3);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Draw letter D with triangle and polyline */
+        c2d_set_point(&p1, 12 * k, 4.5 * k);
+        l = c2d_add_arc(cad, p1, 2.5 * k, 270.0, 90.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        l = c2d_add_arc(cad, p1, 1.5 * k, 270.0, 90.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        p_arr[0].x = 12 * k, p_arr[0].y = 2 * k; 
+        p_arr[1].x = 11 * k, p_arr[1].y = 2 * k; 
+        p_arr[2].x = 11 * k, p_arr[2].y = 7 * k; 
+        p_arr[3].x = 12 * k, p_arr[3].y = 7 * k; 
+        l = c2d_add_polyline(cad, p_arr, 4);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        c2d_set_point(&p1, 12 * k, 6 * k);
+        c2d_set_point(&p2, 12 * k, 3 * k);
+        l = c2d_add_line(cad, p1, p2);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        /* Add brand message */
+        c2d_set_point(&p1, 12 * k,  0.0);
+        c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
+        l = c2d_add_text(cad, p1, "The World Is Yours...");
+        c2d_set_text_style(cad , l, Times, c, fs_medium);
+
+        c2d_export(cad, "test8.gtucad", gtucad);
         c2d_delete(cad);
         printf("<<< Test8 DONE >>>\n\n");
     }
+}
+
+void test9() {
+    CAD2D * cad = c2d_import("test8.gtucad", gtucad);
+    c2d_export(cad, "test9.eps", eps);
+    c2d_delete(cad);
+    printf("<<< Test9 DONE >>>\n\n");
 }
 
 void test55 () {
@@ -479,8 +579,8 @@ int main (void) {
     test6();
     */
     test8();
+    test9();
 
-    /*
     test0();
     test00();
     test1();
@@ -490,6 +590,8 @@ int main (void) {
     test5();
     test6();
     test7();
+    test8();
     test55();
+    /*
     */
 }

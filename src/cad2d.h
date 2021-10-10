@@ -7,7 +7,7 @@
 #define TRY         -2
 #define FAIL        -1
 #define DEFAULT     -1              /* Default design chocie                */
-
+#define PI          3.141592654 
 /*********************************************************************************
  * Fundamental Structures
 *********************************************************************************/
@@ -44,7 +44,7 @@ typedef enum {
 } LineWidth;
 
 typedef enum {
-    fs_xsmall = 10, fs_small = 20, fs_medium = 40, fs_large = 80
+    fs_xsmall = 10, fs_small = 20, fs_medium = 50, fs_large = 80
 } FontScale;
 
 typedef struct {

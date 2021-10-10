@@ -44,7 +44,7 @@ double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2);
 double u_measure_point_polyline (Point2D * p, PointList * pl);
 double u_measure_line_line (PointList * pl1, PointList * pl2);
 
-void u_snap_point_line (Point2D * s, PointList * t);
+void u_snap_point_line (Point2D * p, PointList * pl);
 
 void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_text_style (FILE * fid, TextStyle * s);
@@ -1409,93 +1409,107 @@ Point2D u_get_center_rectangle (Rectangle * e) {
 }
 
 /*********************************************************************************
- * Snapping Labels
+ * Snapping
 *********************************************************************************/  
 
 /* Snaps source entity by given it's label to target entity */
 void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
-    EntityInfo * se_info = c2d_find_entity(cad, ls), * te_info = c2d_find_entity(cad, lt);
+    EntityInfo * se_info, * te_info;
     Entity * s, * t;
     Point2D * sp;     /* Point to indicate center of source entity */
 
-    if (se_info != NULL && te_info != NULL) {
-        s = se_info->entity;
-        t = te_info->entity;
-        free(se_info);
-        free(te_info);
+    se_info = c2d_find_entity(cad, ls);
+    if (se_info != NULL) {
+        te_info = c2d_find_entity(cad, lt); 
+        if (te_info != NULL) {
+            s = se_info->entity;
+            t = te_info->entity;
+            free(se_info);
+            free(te_info);
 
-        switch (ls->type) {
-            case point_t:
-                switch (lt->type) {
-                    case point_t:
-                        *((Point2D *) s->data) = *((Point2D *) t->data);
-                        break;                       
-                    case line_t:
-                    case polyline_t:
-                        u_snap_point_line(s->data, t->data);
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case irregular_polygon_t:
-                    case regular_polygon_t:
-                    case rectangle_t:
-                    case triangle_t:
-                    case circle_t:
-                    case arc_t:
-                    case ellipse_t:
-                        *((Point2D *) s->data) = c2d_get_center_point(t);
-                        break;
-                    case text_t:
-                        *((Point2D *) s->data) = ((Text *) t->data)->point;  
-                        break;
-                }
-                break;
-            case line_t:
-            case polyline_t:
-                //! Define a strategy!
-                break;
-            case irregular_polygon_t:
-            case regular_polygon_t:
-            case rectangle_t:
-            case triangle_t:
-                //! Define a strategy!
-                break;
-            /*  For types whose have center point, get the address of that
-                point, and change that value as center of the target        */
-            case circle_t:
-            case arc_t:
-            case ellipse_t:
-            case text_t:
-                switch (lt->type) {
-                    case point_t:
-                        *((Point2D *) s->data) = *((Point2D *) t->data);
-                        break;                       
-                    case line_t:
-                    case polyline_t:
-                        u_snap_point_line(s->data, t->data);
-                        //! NOT IMPLEMENTED YET
-                        break;
-                    case irregular_polygon_t:
-                    case regular_polygon_t:
-                    case rectangle_t:
-                    case triangle_t:
-                    case circle_t:
-                    case arc_t:
-                    case ellipse_t:
-                        sp = c2d_get_center_address(s);
-                        *sp = c2d_get_center_point(t);
-                        break;
-                    case text_t:
-                        //! Define a strategy!
-                        break;
-                }
-                break;
+            switch (ls->type) {
+                case point_t:
+                    switch (lt->type) {
+                        case point_t:
+                            *((Point2D *) s->data) = *((Point2D *) t->data);
+                            break;                       
+                        case line_t:
+                        case polyline_t:
+                            u_snap_point_line(s->data, t->data);
+                            break;
+                        case irregular_polygon_t:
+                        case regular_polygon_t:
+                        case rectangle_t:
+                        case triangle_t:
+                        case circle_t:
+                        case arc_t:
+                        case ellipse_t:
+                            *((Point2D *) s->data) = c2d_get_center_point(t);
+                            break;
+                        case text_t:
+                            *((Point2D *) s->data) = ((Text *) t->data)->point;  
+                            break;
+                    }
+                    break;
+                case line_t:
+                case polyline_t:
+                    //! Define a strategy!
+                    break;
+                case irregular_polygon_t:
+                case regular_polygon_t:
+                case rectangle_t:
+                case triangle_t:
+                    //! Define a strategy!
+                    break;
+                /*  For types whose have center point, get the address of that
+                    point, and change that value as center of the target        */
+                case circle_t:
+                case arc_t:
+                case ellipse_t:
+                case text_t:
+                    switch (lt->type) {
+                        case point_t:
+                            *((Point2D *) s->data) = *((Point2D *) t->data);
+                            break;                       
+                        case line_t:
+                        case polyline_t:
+                            u_snap_point_line(&((Text *) s->data)->point, t->data);
+                            break;
+                        case irregular_polygon_t:
+                        case regular_polygon_t:
+                        case rectangle_t:
+                        case triangle_t:
+                        case circle_t:
+                        case arc_t:
+                        case ellipse_t:
+                        case text_t:
+                            sp = c2d_get_center_address(s);
+                            *sp = c2d_get_center_point(t);
+                            break;
+                    }
+                    break;
+            }
         }
+        else 
+            free(se_info);
     } 
 }
 
 /* Snaps the source point to the closest end of the line */
-void u_snap_point_line (Point2D * s, PointList * t) {
-    //! NOT IMPLEMENTED YET
+void u_snap_point_line (Point2D * p, PointList * pl) {
+    Point2D snap_p;
+    double tmp, min;
+
+    if (p != NULL && pl !=  NULL) {
+        for (min = INT_MAX; pl != NULL; pl = pl->next) {
+            tmp = u_get_euclidean_dist(p, &pl->point);
+            if (tmp < min) {
+                min = tmp;
+                snap_p = pl->point;
+            }
+        } 
+        *p = snap_p;
+    }
 }
 
 /*********************************************************************************
@@ -1702,8 +1716,11 @@ Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                                     if (e->data != NULL) {
                                         fread(e->data, sizeof(Text), 1, fid); 
                                         ((Text *) e->data)->text = u_read_bin_str(fid);
-                                        if (((Text *) e->data)->style != NULL)
-                                            fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                                        if (((Text *) e->data)->style != NULL) {
+                                            ((Text *) e->data)->style = (TextStyle *) malloc(sizeof(TextStyle));
+                                            if (((Text *) e->data)->style != NULL) 
+                                                fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
+                                        }
                                     }
                                     break;
                             }
