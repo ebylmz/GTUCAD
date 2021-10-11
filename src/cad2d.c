@@ -8,6 +8,7 @@
 int u_is_prime (int n);
 int u_find_close_prime (int n);
 char * u_read_bin_str (FILE * fid);
+void u_throw_error (char * prompt, char * location);
 
 int u_create_hash_code (char * key, int size);
 int u_is_empty (void * p);
@@ -20,18 +21,18 @@ char * u_deci_to_hexa (int deci);
 char * u_create_hierarchy_name (Hierarchy * h); 
 
 void u_insert_label (LabeList ** llist, Label * l);
-void u_remove_label (LabeList ** llist, Label ** l);
+void u_remove_label_llist (LabeList ** llist, Label ** l);
 int u_find_label (CAD2D * cad, Label * l);
 char * u_create_default_lname (CAD2D * cad, Label * l);
 
-int u_insert_entity_list (CAD2D * cad, Entity * e);
-void u_free_point_list (PointList * p);
+int u_insert_entity_elist (CAD2D * cad, Entity * e);
+void u_free_plist (PointList * p);
 void u_free_text (Text * t);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
 
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
-Point2D u_get_center_line (PointList * e); 
+Point2D u_get_center_polyline (PointList * e); 
 Point2D u_get_center_triangle (Triangle * e);
 Point2D u_get_center_rectangle (Rectangle * e); 
 
@@ -45,7 +46,7 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y);
 
 double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2);
 double u_measure_point_polyline (Point2D * p, PointList * pl);
-double u_measure_line_line (PointList * pl1, PointList * pl2);
+double u_measure_polyline_polyline (PointList * pl1, PointList * pl2);
 
 void u_snap_point_line (Point2D * p, PointList * pl);
 
@@ -59,7 +60,7 @@ void u_export_eps_circle (FILE * fid, Circle * e);
 void u_export_eps_ellipse (FILE * fid, Ellipse * e);
 void u_export_eps_triangle (FILE * fid, Triangle * e);
 void u_export_eps_rectangle (FILE * fid, Rectangle * e);
-void u_export_eps_line (FILE * fid, PointList * e);
+void u_export_eps_polyline (FILE * fid, PointList * e);
 void u_export_eps_regular_polygon (FILE * fid, RegularPolygon * e);
 void u_export_eps_text (FILE * fid, Text * e);
 void u_export_gtucad (FILE * fid, CAD2D * cad);
@@ -117,6 +118,8 @@ Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent) {
             else
                 cad->canvas = *u_min_canvas(&cad_root->canvas, &cad->canvas);
         }
+        else
+            u_throw_error("Hierarchy was unable to created correctly", "c2d_create_hierarchy_parent");
     }
 
     return h;
@@ -171,6 +174,8 @@ char * u_create_hierarchy_name (Hierarchy * h) {
         } while (c <= 'Z' && u_find_hierarchy(root, h) != FAIL);
         //! What happens if name is not created
     }
+    else
+        u_throw_error("Hierarchy name was unable to created correctly", "u_create_hierarchy_name");
 
     printf("New Hierarchy: %s\n", r);
     return r;    
@@ -263,8 +268,10 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
                 free(parent->child);
                 parent->child = tmp;
             }
-            else
+            else {
                 r = FAIL;
+                u_throw_error("Hierarchies was unable to link correctly", "u_link_hierarchy");
+            }
         }
         
         if (r != FAIL) {
@@ -434,7 +441,7 @@ void u_insert_label (LabeList ** llist, Label * l) {
 }
 
 /* Removes the source label from given LabeList */
-void u_remove_label (LabeList ** llist, Label ** l) {
+void u_remove_label_llist (LabeList ** llist, Label ** l) {
     LabeList * tmp;
     while (*llist != NULL && *l != NULL) {
         if ((*llist)->label == *l) {
@@ -464,7 +471,7 @@ Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s) {
         e->label = l;
         e->style = s;
 
-        if (u_insert_entity_list(cad, e) == FAIL) {
+        if (u_insert_entity_elist(cad, e) == FAIL) {
             c2d_remove_entity(cad, &l);
             e = NULL;
         }
@@ -534,7 +541,7 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
             case line_t:
             case polyline_t:
             case irregular_polygon_t:
-                u_free_point_list(e->data);
+                u_free_plist(e->data);
                 break;
             case point_t:
             case regular_polygon_t:
@@ -551,7 +558,7 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
         }
         
         /* Free style and label of entity, then free itself */
-        u_remove_label(&cad->llist, l);
+        u_remove_label_llist(&cad->llist, l);
         free(e->style);
         free(e);
         
@@ -560,9 +567,11 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
         printf("Done\n");
         free(e_info);
     }
+    else
+        u_throw_error("Entity was unable to removed correctly", "c2d_remove_entity");
 }
 
-int u_insert_entity_list (CAD2D * cad, Entity * e) {
+int u_insert_entity_elist (CAD2D * cad, Entity * e) {
     Entity ** tmp;
     int i, n, r;
 
@@ -624,7 +633,7 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
     return r;
 }
 
-void u_free_point_list (PointList * p) {
+void u_free_plist (PointList * p) {
     PointList * tmp;
 
     while (p != NULL) {
@@ -659,6 +668,8 @@ CAD2D * c2d_start () {
         
         cad->hierarchy = c2d_create_hierarchy(cad);
     }
+    else
+        u_throw_error("CAD was unable to start correctly", "c2d_start");
     return cad;
 }
 
@@ -678,6 +689,9 @@ CAD2D * c2d_start_wh (double width, double height) {
         cad->llist = NULL;
         cad->hierarchy = c2d_create_hierarchy(cad);
     }
+    else
+        u_throw_error("CAD was unable to start correctly", "c2d_start_wh");
+
     return cad;
 }
 
@@ -712,6 +726,7 @@ CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h) {
         else {
             free(cad);
             cad = NULL;
+            u_throw_error("CAD was unable to start correctly", "c2d_start_wh_hier");
         }
     }
     return cad;
@@ -735,8 +750,10 @@ Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
                 free(d);
         }
     }
-    else
+    else {
+        u_throw_error("Entity was unable to start correctly", "c2d_add_point_xy");
         free(d);
+    }
     
     return l;
 }
@@ -755,8 +772,10 @@ Label * c2d_add_point_xy_l (CAD2D * cad, char * lname, double x, double y) {
                 free(d);
         }
     }
-    else
+    else {
+        u_throw_error("Entity was unable to start correctly", "c2d_add_point_xy_l");
         free(d);
+    }
     
     return l;
 }
@@ -777,6 +796,9 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
                 free(d); 
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_point_p");
     
     return l;
 }
@@ -797,7 +819,10 @@ Label * c2d_add_point_p_l (CAD2D * cad, char * lname, Point2D p) {
                 free(d); 
         }
     }
-    
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_point_p_l");
+
     return l;
 }
 
@@ -813,6 +838,8 @@ PointList * c2d_create_point_list_p (Point2D p) {
         l->point = p;
         l->next = NULL;
     }
+    else
+        u_throw_error("Pointlist was unable to create correctly", "c2d_create_point_list_p");
 
     return l;
 }
@@ -823,6 +850,8 @@ Point2D * c2d_create_point (double x, double y) {
         p->x = x;
         p->y = y;
     }
+    else
+        u_throw_error("Point was unable to creat correctly", "c2d_create_point");
 
     return p;
 }
@@ -840,8 +869,11 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_line");
 
     return l;
 }
@@ -859,8 +891,11 @@ Label * c2d_add_line_l (CAD2D * cad, char * lname, Point2D start, Point2D end) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_line_l");
 
     return l;
 }
@@ -877,7 +912,7 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
             if (*trav != NULL)
                 trav = &(*trav)->next;
             else {
-                u_free_point_list(head);
+                u_free_plist(head);
                 head = NULL;
             }
         }
@@ -889,8 +924,11 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_polyline");
     
     return l;
 }
@@ -906,7 +944,7 @@ Label * c2d_add_polyline_l (CAD2D * cad, char * lname, Point2D * p, int size) {
             if (*trav != NULL)
                 trav = &(*trav)->next;
             else {
-                u_free_point_list(head);
+                u_free_plist(head);
                 head = NULL;
             }
         }
@@ -918,9 +956,12 @@ Label * c2d_add_polyline_l (CAD2D * cad, char * lname, Point2D * p, int size) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
     
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_polyline_l");
+
     return l;
 }
 
@@ -944,6 +985,9 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_regular_polygon");
 
     return l;
 }
@@ -969,6 +1013,9 @@ Label * c2d_add_regular_polygon_l (CAD2D * cad, char * lname, int n, Point2D cen
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_regular_polygon_l");
+
     return l;
 }
 
@@ -983,7 +1030,7 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
             if (*trav != NULL)
                 trav = &(*trav)->next;
             else {
-                u_free_point_list(head);
+                u_free_plist(head);
                 head = NULL;
             }
         }
@@ -995,9 +1042,13 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
     
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_irregular_polygon");
+
+
     return l;
 }
 
@@ -1012,7 +1063,7 @@ Label * c2d_add_irregular_polygon_l (CAD2D * cad, char * lname, Point2D * p, int
             if (*trav != NULL)
                 trav = &(*trav)->next;
             else {
-                u_free_point_list(head);
+                u_free_plist(head);
                 head = NULL;
             }
         }
@@ -1024,9 +1075,12 @@ Label * c2d_add_irregular_polygon_l (CAD2D * cad, char * lname, Point2D * p, int
         if (l != NULL)
             u_create_entity(cad, l, head, NULL);
         else
-            u_free_point_list(head);
+            u_free_plist(head);
     }
-    
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_irregular_polygon_l");
+
     return l;
 }
 
@@ -1053,6 +1107,9 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_circle");
+
     return l;
 }
 
@@ -1078,6 +1135,9 @@ Label * c2d_add_circle_l (CAD2D * cad, char * lname, Point2D center, double radi
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_circle_l");
+
     return l;
 }
 
@@ -1085,7 +1145,6 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
     Circle * d;
     Label * l = NULL;
 
-    //! CHECK THE CANVAS 
     if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
         u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
 
@@ -1104,6 +1163,10 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_arc");
+
     return l;
 }
 
@@ -1111,7 +1174,6 @@ Label * c2d_add_arc_l (CAD2D * cad, char * lname, Point2D center, double radius,
     Circle * d;
     Label * l = NULL;
 
-    //! CHECK THE CANVAS 
     if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
         u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
 
@@ -1130,10 +1192,14 @@ Label * c2d_add_arc_l (CAD2D * cad, char * lname, Point2D center, double radius,
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_arc_l");
+
     return l;
 }
 
-Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y) {
+Label * c2d_add_ellipse (CAD2D * cad, Point2D center, double radius_x, double radius_y) {
     Ellipse * d;
     Label * l;
 
@@ -1153,6 +1219,9 @@ Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double rad
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_ellipse");
 
     return l;
 }
@@ -1177,6 +1246,9 @@ Label * c2d_add_ellipse_l (CAD2D * cad, char * lname, Point2D center, double rad
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_ellipse_l");
 
     return l;
 }
@@ -1203,6 +1275,9 @@ Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_triangle");
+
     return l;
 }
 
@@ -1227,9 +1302,11 @@ Label * c2d_add_triangle_l (CAD2D * cad, char * lname, Point2D corner1, Point2D 
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_triangle_l");
+
     return l;
 }
-
 
 Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
     Rectangle * d;
@@ -1248,6 +1325,9 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
                 free(d);
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_rectangle");
 
     return l;
 }
@@ -1270,6 +1350,9 @@ Label * c2d_add_rectangle_l (CAD2D * cad, char * lname, Point2D corner1 , Point2
         }
     }
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_rectangle_l");
+
     return l;
 }
 
@@ -1278,7 +1361,8 @@ Label * c2d_add_xy_plane (CAD2D * cad) {
     Label * l = c2d_create_label_default(cad, xy_plane);
     if (l != NULL)
         u_create_entity(cad, l, NULL, NULL);
-
+    else
+        u_throw_error("Entity was unable to add correctly", "c2d_add_xy_plane");
     return l;
 }
 
@@ -1303,6 +1387,10 @@ Label * c2d_add_focus_point (CAD2D * cad, Label * ls) {
         }
     } 
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_focus_point");
+
+
     return l;
 }
 
@@ -1325,20 +1413,29 @@ Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
     }
         */
 
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_measurement");
+
     return l;
 } 
 
 Label * c2d_add_text_default (CAD2D * cad, Point2D p, char * text) {
     Text * d;    
     Label * l = NULL;
+    RGBColor c;
     double limit = strlen(text) * 1;
 
     if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + limit, p.y)) {
         d = (Text *) malloc(sizeof(Text));
         if (d != NULL) {
+            c2d_set_color_pallette(&c, black);
+
             d->point.x = p.x;
             d->point.y = p.y;
             d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
+            d->font = Helvetica;
+            d->scale = u_get_font_scale(fs_medium);
+            d->color = c; 
 
             if (d->text != NULL) {
                 strcpy(d->text, text);
@@ -1351,6 +1448,77 @@ Label * c2d_add_text_default (CAD2D * cad, Point2D p, char * text) {
            }       
         }
     }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_text_default");
+
+    return l;
+}
+
+Label * c2d_add_text (CAD2D * cad, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
+    Text * d;    
+    Label * l = NULL;
+    double text_size;
+
+    /* Check if new scale is proper for canvas boundary */
+    text_size = u_find_text_size(text, fs);
+    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
+        d = (Text *) malloc(sizeof(Text));
+        if (d != NULL) {
+            d->point = p;
+            d->font = f;
+            d->color = c;
+            d->scale = u_get_font_scale(fs);
+
+            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
+            if (d->text != NULL) {
+                strcpy(d->text, text);
+                l = c2d_create_label_default(cad, text_t);
+
+                if (l != NULL)
+                    u_create_entity(cad, l, d, NULL);
+                else
+                    u_free_text(d);
+           }       
+        }
+    }
+    
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_text");
+    
+    return l;
+}
+
+Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
+    Text * d;    
+    Label * l = NULL;
+    double text_size;
+
+    /* Check if new scale is proper for canvas boundary */
+    text_size = u_find_text_size(text, fs);
+    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
+        d = (Text *) malloc(sizeof(Text));
+        if (d != NULL) {
+            d->point = p;
+            d->font = f;
+            d->color = c;
+            d->scale = u_get_font_scale(fs);
+
+            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
+            if (d->text != NULL) {
+                strcpy(d->text, text);
+                l = c2d_create_label(cad, text_t, lname);
+
+                if (l != NULL)
+                    u_create_entity(cad, l, d, NULL);
+                else
+                    u_free_text(d);
+           }       
+        }
+    }
+
+    if (l == NULL)
+        u_throw_error("Entity was unable to add correctly", "c2d_add_text_l");
 
     return l;
 }
@@ -1396,68 +1564,6 @@ double u_find_text_size (char * s, FontScale fs) {
             break;
     }
     return size;
-}
-
-Label * c2d_add_text (CAD2D * cad, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
-    Text * d;    
-    Label * l = NULL;
-    double text_size;
-
-    /* Check if new scale is proper for canvas boundary */
-    text_size = u_find_text_size(text, fs);
-    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
-        d = (Text *) malloc(sizeof(Text));
-        if (d != NULL) {
-            d->point = p;
-            d->font = f;
-            d->color = c;
-            d->scale = u_get_font_scale(fs);
-
-            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
-            if (d->text != NULL) {
-                strcpy(d->text, text);
-                l = c2d_create_label_default(cad, text_t);
-
-                if (l != NULL)
-                    u_create_entity(cad, l, d, NULL);
-                else
-                    u_free_text(d);
-           }       
-        }
-    }
-
-    return l;
-}
-
-Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
-    Text * d;    
-    Label * l = NULL;
-    double text_size;
-
-    /* Check if new scale is proper for canvas boundary */
-    text_size = u_find_text_size(text, fs);
-    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
-        d = (Text *) malloc(sizeof(Text));
-        if (d != NULL) {
-            d->point = p;
-            d->font = f;
-            d->color = c;
-            d->scale = u_get_font_scale(fs);
-
-            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
-            if (d->text != NULL) {
-                strcpy(d->text, text);
-                l = c2d_create_label(cad, text_t, lname);
-
-                if (l != NULL)
-                    u_create_entity(cad, l, d, NULL);
-                else
-                    u_free_text(d);
-           }       
-        }
-    }
-
-    return l;
 }
 
 Canvas * u_max_canvas (Canvas * c1, Canvas * c2) {
@@ -1562,12 +1668,16 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y) {
  * Measurement Between Entity
 *********************************************************************************/
 
-/* Measures the distance between two entity given by their labels */
+
+
+/*  Measures the distance between two entity given by their labels.
+    # Measures the min distance between point/polyline/polygone and point/polyline/polygone
+    # Measures the distance between center of given two 2D shapes            */
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
     CAD2D * root = c2d_get_root_cad(cad);
     EntityInfo * s_info, * t_info; 
     Entity * s, * t;
-    double m = -1;  //! INT_MAX
+    double m = -1;
 
     if (root != NULL) {
         s_info = c2d_find_entity(root, ls);    
@@ -1610,7 +1720,7 @@ double c2d_measure (CAD2D * cad, Label * ls, Label * lt) {
                             case line_t:
                             case polyline_t:
                             case irregular_polygon_t:
-                                m = u_measure_line_line(s->data, t->data);
+                                m = u_measure_polyline_polyline(s->data, t->data);
                                 break;
                             case regular_polygon_t:
                             case triangle_t:
@@ -1669,14 +1779,14 @@ Point2D * c2d_get_center_address (Entity * e) {
                 c = &((Text *) e->data)->point;
                 break;
             default:
-                printf("Given entity type does not have center point\n");
+                u_throw_error("Center was unable to find correctly", "c2d_get_center_address");
         }
     }
 
     return c;
 }
 
-/* Returs center point of given entity */
+/* Returns the calculated center point of given entity */
 Point2D c2d_get_center_point (Entity * e) {
     Point2D c;
 
@@ -1689,7 +1799,7 @@ Point2D c2d_get_center_point (Entity * e) {
             case polyline_t:
             case irregular_polygon_t:
             case regular_polygon_t:
-                c = u_get_center_line(e->data);
+                c = u_get_center_polyline(e->data);
                 break;
             case triangle_t:
                 c = u_get_center_triangle(e->data);
@@ -1709,15 +1819,14 @@ Point2D c2d_get_center_point (Entity * e) {
                 break;
             default:
                 c.x = c.y = -1;
-                printf("Invalid entity type\n");
+                u_throw_error("Center was unable to find correctly", "c2d_get_center_point");
         }
     }
 
     return c;
 }
 
-/* Common function for line, polyline and polygone */
-Point2D u_get_center_line (PointList * e) {
+Point2D u_get_center_polyline (PointList * e) {
     Point2D c;
     int i = 0;
     c.y = c.x = 0;
@@ -1734,6 +1843,7 @@ Point2D u_get_center_line (PointList * e) {
         c.x /= i;
         c.y /= i;
     }
+
     return c;
 }
 
@@ -1750,7 +1860,7 @@ double u_measure_point_polyline (Point2D * p, PointList * pl) {
 }
 
 /* Returns the min distance between given two line/polyline */
-double u_measure_line_line (PointList * pl1, PointList * pl2) {
+double u_measure_polyline_polyline (PointList * pl1, PointList * pl2) {
     double min, tmp;
 
     for (min = INT_MAX; NULL != pl1; pl1 = pl1->next) {
@@ -1763,15 +1873,15 @@ double u_measure_line_line (PointList * pl1, PointList * pl2) {
 
 Point2D u_get_center_triangle (Triangle * e) {
     Point2D c;
-    c.x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3;
-    c.x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3;
+    c.x = (e->corner1.x + e->corner2.x + e->corner3.x) / 3.0;
+    c.x = (e->corner1.y + e->corner2.y + e->corner3.y) / 3.0;
     return c;
 }
 
 Point2D u_get_center_rectangle (Rectangle * e) {
     Point2D c;
-    c.x = (e->corner1.x + e->corner2.x) / 2;
-    c.y = (e->corner1.y + e->corner2.y) / 2;
+    c.x = (e->corner1.x + e->corner2.x) / 2.0;
+    c.y = (e->corner1.y + e->corner2.y) / 2.0;
     return c;
 }
 
@@ -1789,10 +1899,8 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
     if (se_info != NULL) {
         te_info = c2d_find_entity(cad, lt); 
         if (te_info != NULL) {
-            s = se_info->entity;
-            t = te_info->entity;
-            free(se_info);
-            free(te_info);
+            s = se_info->entity, free(se_info);
+            t = te_info->entity, free(te_info);
 
             switch (ls->type) {
                 case point_t:
@@ -1980,6 +2088,7 @@ CAD2D * u_import_gtucad (FILE * fid) {
         cad->llist = u_import_gtucad_llist(fid, cad->llist, cad->elist, cad->elist_size);
         cad->hierarchy = u_import_gtucad_hierarchy(fid, cad);
     }
+
     return cad;
 }
 
@@ -2100,6 +2209,8 @@ LabeList * u_import_gtucad_llist (FILE * fid, LabeList * llist, Entity ** elist,
             free(tmp_l.name);
             l = &(*l)->next;
         }
+        else
+            u_throw_error("Entities was unable to import correctly", "u_import_gtucad_llist");
     } 
 
     printf ("Import llist is DONE\n");
@@ -2138,9 +2249,13 @@ Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad) {
                                 h->child[i] = child_cad->hierarchy;
                                 h->child[i]->parent = h;
                             }
+                            else
+                                u_throw_error("Entities was unable to import correctly", "u_import_gtucad_hierarchy");
                         }
                     }
                 }
+                else
+                    u_throw_error("Entities was unable to import correctly", "u_import_gtucad_hierarchy");
             }
         }
     }
@@ -2168,7 +2283,10 @@ Label * u_find_label_elist (Entity ** elist, int elist_size, Label * l) {
             else
                 ++n;
         }
-    } 
+    }
+    else
+        u_throw_error("Label was unable to find correctly", "u_find_label_elist");
+
 
     return src_l;
 }
@@ -2288,9 +2406,8 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                 }
 
                 /* Export entity style */
-                if (e->style != NULL) {
+                if (e->style != NULL)
                     fwrite(e->style, sizeof(EntityStyle), 1, fid);
-                }
             }
         }
     }
@@ -2359,7 +2476,7 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
                     case line_t:
                     case polyline_t:
                     case irregular_polygon_t:
-                        u_export_eps_line(fid, e->data);
+                        u_export_eps_polyline(fid, e->data);
                         if (e->label->type == irregular_polygon_t)
                             fprintf(fid, "closepath\n");
                         break;
@@ -2485,10 +2602,6 @@ void u_export_eps_fiducial (FILE * fid, Canvas * canvas, Point2D * center) {
     fprintf(fid, "%.2f %.2f %.2f %.2f %.2f arc\nstroke\n", center->x, center->y, r2, 0.0, 360.0);
 }
 
-void u_export_eps_focus_point (FILE * fid, Point2D * e) {
-    //! NOT IMPLEMENTED YET
-}
-
 void u_export_eps_point (FILE * fid, Point2D * e) {
     fprintf(fid, "\n%% Point\n");
     fprintf(fid, "newpath\n");
@@ -2534,7 +2647,7 @@ void u_export_eps_rectangle (FILE * fid, Rectangle * e) {
 } 
 
 /* common function for line, polyline and polygon types */
-void u_export_eps_line (FILE * fid, PointList * e) {
+void u_export_eps_polyline (FILE * fid, PointList * e) {
     fprintf(fid, "\nnewpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
     e = e->next;
@@ -2607,7 +2720,7 @@ void u_delete_elist (Entity ** elist, int size) {
                     case line_t:
                     case polyline_t:
                     case irregular_polygon_t:
-                        u_free_point_list(elist[i]->data);
+                        u_free_plist(elist[i]->data);
                         break;
                     case point_t:
                     case regular_polygon_t:
@@ -2665,11 +2778,8 @@ void c2d_delete (CAD2D * cad) {
                         r = n;
                     }
                     /* Deleted or not empty, check next index */
-                    else {
-                        printf("++\n");
-                        getchar();
+                    else 
                         ++n;
-                    }
                 }
             }          
 
@@ -2702,6 +2812,10 @@ void c2d_delete (CAD2D * cad) {
 /*********************************************************************************
  * Other
 *********************************************************************************/
+
+void u_throw_error (char * prompt, char * location) {
+    printf("[!] %s (%s)\n\n", prompt, location);
+}
 
 /* Produce a hash-code according to given key value */
 int u_create_hash_code (char * key, int size) {

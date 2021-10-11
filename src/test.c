@@ -638,7 +638,6 @@ int main (void) {
      **/
     test10();
     
-    /*
     test0();
     test00();
     test1();
@@ -651,5 +650,6 @@ int main (void) {
     test8();
     test9();
     test55();
+    /*
     */
 }
