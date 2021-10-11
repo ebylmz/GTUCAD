@@ -47,7 +47,8 @@ importing GTUCAD format used.
 TESTING & EXAMPLES
 ---------------------
 All the codes are tested with an application called Evince, so we
-strongly suggest using Evince to see the result of tests.
+strongly suggest using Evince to see the result of tests. Also the 
+result of tests are given in folder called examples.
 
 After compilation, the library, execute the produced executable file
 called test. After execution there will be produced outputs as file
