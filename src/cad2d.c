@@ -22,7 +22,7 @@ char * u_create_hierarchy_name (Hierarchy * h);
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label (LabeList ** llist, Label ** l);
 int u_find_label (CAD2D * cad, Label * l);
-char * u_create_label_name (CAD2D * cad, Label * l);
+char * u_create_default_lname (CAD2D * cad, Label * l);
 
 int u_insert_entity_list (CAD2D * cad, Entity * e);
 void u_free_point_list (PointList * p);
@@ -288,30 +288,33 @@ Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
     if (l != NULL) {
         //* create_label function produce unique label
         l->type = type;
-        l->name = u_create_label_name(cad, l);
+        l->name = u_create_default_lname(cad, l);
     } 
 
     return l;
 }
 
+/* Takes the name of the label and creates an unique label */
 Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
     Label * l = (Label *) malloc(sizeof(Label));
     if (l != NULL) {
         l->type = type;
-        l->name = name;
-        l->hash_code = u_create_hash_code(name, cad->elist_size); 
+        l->name = (char *) calloc(strlen(name) + 1, sizeof(char));
+        if (NULL != l->name) {
+            strcpy(l->name, name);               
+            l->hash_code = u_create_hash_code(name, cad->elist_size); 
 
-        if (u_find_label(cad, l) != FAIL) {
-            printf("\"%s\" named Label is already exist\n", name);
-            free(l);
-            l = NULL;
+            if (u_find_label(cad, l) != FAIL) {
+                printf("\"%s\" named Label is already exist\n", name);
+                free(l);
+                l = NULL;
+            }
         }
     }
-
     return l;
 }
 
-char * u_create_label_name (CAD2D * cad, Label * l) {
+char * u_create_default_lname (CAD2D * cad, Label * l) {
     CAD2D * cad_root = c2d_get_root_cad(cad);
     char c = '0', * r = calloc(10, sizeof(char)), * h;
     int n = 0;
@@ -577,10 +580,8 @@ int u_insert_entity_list (CAD2D * cad, Entity * e) {
     }
 
     if (r != FAIL) {
-        /* In case of UNFAIL, if an empty place finded r would be n o.w. r would be list_size */
-        
-        /*  We cannot find place inside of the current hash-table, 
-        so the next empty place is outside of the table        */
+        /*  r is TRY means that we cannot find place inside of the current
+            hash-table, so the next empty place is outside of the table      */
         if (r == TRY && cad->elist_size > 0)
             r = i;  /* r = cad->elist_size */
         else
@@ -739,6 +740,26 @@ Label * c2d_add_point_xy (CAD2D * cad, double x, double y) {
     return l;
 }
 
+Label * c2d_add_point_xy_l (CAD2D * cad, char * lname, double x, double y) {
+    Point2D * d;
+    Label * l = NULL;
+    if (u_check_canvas_xy(cad, x, y)) {
+    
+        d = c2d_create_point(x, y);
+        if (d != NULL) {
+            l = c2d_create_label(cad, point_t, lname);
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+    else
+        free(d);
+    
+    return l;
+}
+
 Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     Point2D * d;
     Label * l = NULL;
@@ -758,6 +779,27 @@ Label * c2d_add_point_p (CAD2D * cad, Point2D p) {
     
     return l;
 }
+
+Label * c2d_add_point_p_l (CAD2D * cad, char * lname, Point2D p) {
+    Point2D * d;
+    Label * l = NULL;
+
+    if (u_check_canvas_p(cad, &p)) {
+        d = (Point2D *) malloc(sizeof(Point2D));
+        if (d != NULL) {
+            *d = p; 
+
+            l = c2d_create_label(cad, point_t, lname);
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d); 
+        }
+    }
+    
+    return l;
+}
+
 
 void c2d_set_point (Point2D * p, double x, double y) {
     p->x = x;
@@ -803,7 +845,26 @@ Label * c2d_add_line (CAD2D * cad, Point2D start, Point2D end) {
     return l;
 }
 
-/* takes an point array */
+Label * c2d_add_line_l (CAD2D * cad, char * lname, Point2D start, Point2D end) {
+    PointList * head;
+    Label * l = NULL;
+
+    if (u_check_canvas_p(cad, &start) && u_check_canvas_p(cad, &end)) {
+        head = c2d_create_point_list_p(start);
+        head->next = c2d_create_point_list_p(end);
+        
+        l = c2d_create_label(cad, line_t, lname);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point_list(head);
+    }
+
+    return l;
+}
+
+/* Takes an point array */
 Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     PointList * head = NULL, ** trav = &head;
     Label * l = NULL;
@@ -833,6 +894,35 @@ Label * c2d_add_polyline (CAD2D * cad, Point2D * p, int size) {
     return l;
 }
 
+Label * c2d_add_polyline_l (CAD2D * cad, char * lname, Point2D * p, int size) {
+    PointList * head = NULL, ** trav = &head;
+    Label * l = NULL;
+    int i;
+
+    for (i = 0; i < size; ++i) {
+        if (u_check_canvas_p(cad, p + i)) {
+            *trav = c2d_create_point_list_p(p[i]);
+            if (*trav != NULL)
+                trav = &(*trav)->next;
+            else {
+                u_free_point_list(head);
+                head = NULL;
+            }
+        }
+    }
+    
+    if (head != NULL) {
+        l = c2d_create_label(cad, polyline_t, lname);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point_list(head);
+    }
+    
+    return l;
+}
+
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius) {
     RegularPolygon * d; 
     Label * l = NULL;
@@ -846,6 +936,30 @@ Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_
             d->out_radius = out_radius;
             
             l = c2d_create_label_default(cad, regular_polygon_t);
+                
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
+Label * c2d_add_regular_polygon_l (CAD2D * cad, char * lname, int n, Point2D center, double out_radius) {
+    RegularPolygon * d; 
+    Label * l = NULL;
+
+    if (u_check_canvas_xy(cad, center.x + out_radius, center.y + out_radius) &&
+        u_check_canvas_xy(cad, center.x + out_radius, center.y + out_radius)) {
+        d = (RegularPolygon *) malloc(sizeof(RegularPolygon));
+        if (d != NULL) {
+            d->center = center;
+            d->n = n;
+            d->out_radius = out_radius;
+            
+            l = c2d_create_label(cad, regular_polygon_t, lname);
                 
             if (l != NULL)
                 u_create_entity(cad, l, d, NULL);
@@ -886,6 +1000,36 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size) {
     return l;
 }
 
+Label * c2d_add_irregular_polygon_l (CAD2D * cad, char * lname, Point2D * p, int size) {
+    PointList * head = NULL, ** trav = &head;
+    Label * l = NULL;
+    int i;
+
+    for (i = 0; i < size; ++i) {
+        if (u_check_canvas_p(cad, p + i)) {
+            *trav = c2d_create_point_list_p(p[i]);
+            if (*trav != NULL)
+                trav = &(*trav)->next;
+            else {
+                u_free_point_list(head);
+                head = NULL;
+            }
+        }
+    }
+    
+    if (head != NULL) {
+        l = c2d_create_label(cad, irregular_polygon_t, lname);
+        
+        if (l != NULL)
+            u_create_entity(cad, l, head, NULL);
+        else
+            u_free_point_list(head);
+    }
+    
+    return l;
+}
+
+
 Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
     Circle * d;
     Label * l = NULL;
@@ -900,6 +1044,31 @@ Label * c2d_add_circle (CAD2D * cad, Point2D center, double radius) {
             d->end_angle = 360.0;
 
             l = c2d_create_label_default(cad, circle_t);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
+Label * c2d_add_circle_l (CAD2D * cad, char * lname, Point2D center, double radius) {
+    Circle * d;
+    Label * l = NULL;
+
+    if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
+        u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
+        d = (Circle *) malloc(sizeof(Circle));
+        if (d != NULL) {
+            d->center = center;
+            d->radius = radius;
+            d->start_angle = 0.0;
+            d->end_angle = 360.0;
+
+            l = c2d_create_label(cad, circle_t, lname);
             
             if (l != NULL)
                 u_create_entity(cad, l, d, NULL);
@@ -937,6 +1106,32 @@ Label * c2d_add_arc (CAD2D * cad, Point2D center, double radius, double start_an
     return l;
 }
 
+Label * c2d_add_arc_l (CAD2D * cad, char * lname, Point2D center, double radius, double start_angle, double end_angle) {
+    Circle * d;
+    Label * l = NULL;
+
+    //! CHECK THE CANVAS 
+    if (u_check_canvas_xy(cad, center.x + radius, center.y + radius) &&
+        u_check_canvas_xy(cad, center.x - radius, center.y - radius)) {
+
+        d = (Circle *) malloc(sizeof(Circle));
+        if (d != NULL) {
+            d->center = center;
+            d->radius = radius;
+            d->start_angle = start_angle;
+            d->end_angle = end_angle;
+            
+            l = c2d_create_label(cad, arc_t, lname);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+    return l;
+}
+
 Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double radius_y) {
     Ellipse * d;
     Label * l;
@@ -960,6 +1155,31 @@ Label * c2d_add_ellipse(CAD2D * cad, Point2D center, double radius_x, double rad
 
     return l;
 }
+
+Label * c2d_add_ellipse_l (CAD2D * cad, char * lname, Point2D center, double radius_x, double radius_y) {
+    Ellipse * d;
+    Label * l;
+
+    if (u_check_canvas_xy(cad, center.x + radius_x, center.y + radius_y) &&
+        u_check_canvas_xy(cad, center.x - radius_x, center.y - radius_y)) {
+        d = (Ellipse *) malloc(sizeof(Ellipse));
+        if (d != NULL) {
+            d->center = center;
+            d->radius_x = radius_x;
+            d->radius_y = radius_y;
+
+            l = c2d_create_label(cad, ellipse_t, lname);
+            
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
 
 Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D corner3) {
     Triangle * d;
@@ -985,6 +1205,31 @@ Label * c2d_add_triangle (CAD2D * cad, Point2D corner1, Point2D corner2, Point2D
     return l;
 }
 
+Label * c2d_add_triangle_l (CAD2D * cad, char * lname, Point2D corner1, Point2D corner2, Point2D corner3) {
+    Triangle * d;
+    Label * l = NULL;
+
+    if (u_check_canvas_p(cad, &corner1) && 
+        u_check_canvas_p(cad, &corner2) &&
+        u_check_canvas_p(cad, &corner3)) {
+        d = (Triangle *) malloc(sizeof(Triangle));
+        if (d != NULL) {
+            d->corner1 = corner1;
+            d->corner2 = corner2;
+            d->corner3 = corner3;
+
+            l = c2d_create_label(cad, triangle_t, lname);
+            if (l != NULL) 
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
+
 Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
     Rectangle * d;
     Label * l = NULL;
@@ -1005,6 +1250,28 @@ Label * c2d_add_rectangle (CAD2D * cad, Point2D corner1 , Point2D corner2) {
 
     return l;
 }
+
+Label * c2d_add_rectangle_l (CAD2D * cad, char * lname, Point2D corner1 , Point2D corner2) {
+    Rectangle * d;
+    Label * l = NULL;
+        
+    if (u_check_canvas_p(cad, &corner1) && u_check_canvas_p(cad, &corner1)) {
+        d = (Rectangle *) malloc(sizeof(Rectangle));
+        if (d != NULL) {
+            d->corner1 = corner1;
+            d->corner2 = corner2;
+            l = c2d_create_label(cad, rectangle_t, lname);
+
+            if (l != NULL)
+                u_create_entity(cad, l, d, NULL);
+            else
+                free(d);
+        }
+    }
+
+    return l;
+}
+
 
 Label * c2d_add_xy_plane (CAD2D * cad) {
     Label * l = c2d_create_label_default(cad, xy_plane);
@@ -1063,6 +1330,33 @@ Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
 Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
     Text * d;    
     Label * l = NULL;
+    double limit = strlen(text) * 22;
+
+    if (u_check_canvas_xy(cad, p.x, p.y) && u_check_canvas_xy(cad, p.x + limit, p.y)) {
+        d = (Text *) malloc(sizeof(Text));
+        if (d != NULL) {
+            d->point.x = p.x;
+            d->point.y = p.y;
+            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
+
+            if (d->text != NULL) {
+                strcpy(d->text, text);
+                l = c2d_create_label_default(cad, text_t);
+
+                if (l != NULL)
+                    u_create_entity(cad, l, d, NULL);
+                else
+                    u_free_text(d);
+           }       
+        }
+    }
+
+    return l;
+}
+
+Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text) {
+    Text * d;    
+    Label * l = NULL;
 /*
     multiply these number with strlen(text) then add to start point to check ...
     fs_xsmall   0.16
@@ -1080,7 +1374,7 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
 
             if (d->text != NULL) {
                 strcpy(d->text, text);
-                l = c2d_create_label_default(cad, text_t);
+                l = c2d_create_label(cad, text_t, lname);
 
                 if (l != NULL)
                     u_create_entity(cad, l, d, NULL);

@@ -176,12 +176,12 @@ void test3 () {
             /* Set body part of the building */
             c2d_set_point(&p1, -body_x, -body_y);
             c2d_set_point(&p2, body_x, body_y);
-            l_body_rect = c2d_add_rectangle(cad_body, p1, p2);
+            l_body_rect = c2d_add_rectangle_l(cad_body, "body-rect", p1, p2);
             c2d_set_entity_style(cad_body, l_body_rect, DEFAULT, c_gray, fill, DEFAULT);
 
             /* Set a circle window */
             c2d_set_point(&p1, body_x / 2.0, body_y / 2.0);
-            l_win_circ = c2d_add_circle(cad_body, p1, win_circ_r);
+            l_win_circ = c2d_add_circle_l(cad_body, "wind-circ", p1, win_circ_r);
             c2d_set_entity_style(cad_body, l_win_circ, DEFAULT, c_white, fill, DEFAULT);
 
             /* Set two rectangle windows */
@@ -189,23 +189,23 @@ void test3 () {
 
             c2d_set_point(&p1, -margin -win_rect_w, win_rect_h * 4.0/5.0);
             c2d_set_point(&p2, -margin, -win_rect_h * 1.0/4.0);
-            l_win_rect1 = c2d_add_rectangle(cad_body, p1, p2);
+            l_win_rect1 = c2d_add_rectangle_l(cad_body, "wind-rec1", p1, p2);
             c2d_set_entity_style(cad_body, l_win_rect1, DEFAULT, c_white, fill, DEFAULT);
 
             p1.x -= space;
             c2d_set_point(&p2, -margin - 2 * win_rect_w, -win_rect_h * 2.0/5.0);
-            l_win_rect2 = c2d_add_rectangle(cad_body, p1, p2);
+            l_win_rect2 = c2d_add_rectangle_l(cad_body, "wind-rec2", p1, p2);
             c2d_set_entity_style(cad_body, l_win_rect2, DEFAULT, c_white, fill, DEFAULT);
 
             /* Set door as two rectangle */
             c2d_set_point(&p1, body_x - margin, -body_y);
             c2d_set_point(&p2, body_x - margin - door_w, -body_y + door_h);
-            l_door1 = c2d_add_rectangle(cad_body, p1, p2);
+            l_door1 = c2d_add_rectangle_l(cad_body, "door-rec1", p1, p2);
             c2d_set_entity_style(cad_body, l_door1, DEFAULT, c_black, fill, DEFAULT);
                 
             c2d_set_point(&p1, body_x - margin - door_w - space, -body_y);
             c2d_set_point(&p2, body_x - margin - 2 * door_w, -body_y + door_h);
-            l_door2 = c2d_add_rectangle(cad_body, p1, p2);
+            l_door2 = c2d_add_rectangle_l(cad_body, "door-rec2", p1, p2);
             c2d_set_entity_style(cad_body, l_door2, DEFAULT, c_black, fill, DEFAULT);
         }
 
@@ -214,14 +214,14 @@ void test3 () {
             /* Set chimney */
             c2d_set_point(&p1, body_x / 2.0 - chimney_w / 2.0, body_y + roof_h * 1.0/3.0);
             c2d_set_point(&p2, body_x / 2.0 + chimney_w / 2.0, body_y + roof_h * 1.0/3.0 + chimney_h);
-            l_chimney = c2d_add_rectangle(cad_roof, p1, p2);
+            l_chimney = c2d_add_rectangle_l(cad_roof, "chimney-rec", p1, p2);
             c2d_set_entity_style(cad_roof, l_chimney, DEFAULT, c_gray, fill, DEFAULT);
 
             /* Set roof */
             c2d_set_point(&p1, -roof_w / 2.0, body_y);
             c2d_set_point(&p2, 0.0, body_y + roof_h);
             c2d_set_point(&p3, roof_w / 2.0, body_y);
-            l_roof = c2d_add_triangle(cad_roof, p1, p2, p3);
+            l_roof = c2d_add_triangle_l(cad_roof, "roof-tri", p1, p2, p3);
             c2d_set_entity_style(cad_roof, l_roof, DEFAULT, c_black, fill, DEFAULT);
         }
 
@@ -601,17 +601,48 @@ void test8 () {
     }
 }
 
-void test9() {
+void test9 () {
     CAD2D * cad = c2d_import("test8.gtucad", gtucad);
     c2d_export(cad, "test9.eps", eps);
     c2d_delete(cad);
     printf("<<< Test9 DONE >>>\n\n");
 }
 
+void test10 () {
+    CAD2D * cad;
+    Point2D p1;
+    Label * l;
+    RGBColor c;
+
+    cad = c2d_start_wh(1000, 1000);
+    if (NULL != cad) {
+        c2d_set_point(&p1, 0.0, 0.0);
+        c2d_set_color_pallette(&c, blue_light);
+
+        l = c2d_add_arc_l(cad, "center-arc", p1,  30.0, 0.0, 360.0);
+        c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
+
+        l = c2d_add_text(cad, p1, "The World Is Yours AB");
+        c2d_set_text_style(cad , l, Times, c, fs_large);
+
+        c2d_add_xy_plane(cad);
+        c2d_export(cad, "test10.eps", eps);
+        c2d_delete(cad);
+        printf("<<< Test10 DONE >>>\n\n");
+    }
+}
+
 /*
     https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
 */
 int main (void) {
+    /**
+    test3();
+    test4();
+     **/
+    test10();
+    
+    /*
     test0();
     test00();
     test1();
@@ -624,6 +655,5 @@ int main (void) {
     test8();
     test9();
     test55();
-    /*
     */
 }
