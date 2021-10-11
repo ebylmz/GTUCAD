@@ -1,3 +1,14 @@
+/**
+ * @file    cad2d.h
+ * @author  Emirkan Burak Yilmaz (ebylmz17@gmail.com)
+ * @brief   CAD2D Library Header
+ * @version 0.1
+ * @date    2021-10-11
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #ifndef cad2d
 #define cad2d
 
@@ -8,9 +19,6 @@
 #define FAIL        -1
 #define DEFAULT     -1              /* Default design chocie                */
 #define PI          3.141592654 
-/*********************************************************************************
- * Fundamental Structures
-*********************************************************************************/
 
 /* Available export/import options */
 typedef enum {
@@ -60,33 +68,32 @@ typedef struct {
 
 typedef struct {
     EntityType type;    /* identifies the type of the cad entity */
-    char * name;        /* name of the object */
+    char * name;        /* name of the Entity */
     int hash_code;      /* labels are should be unique to do that we use hashing */
 } Label;
 
 typedef struct {
-    Label * label;      /* unique label to identify cad entities */
-    void * data;        /* drawing data like radius, width... */
+    Label * label;      /* Unique label to identify cad entities    */
+    void * data;        /* Entity data like radius, width...        */
     EntityStyle * style;   
 } Entity;
 
 typedef struct Hierarchy {
     struct CAD2D * cad;
-    char * name;                    /* name of the hieararchy */
+    char * name;                    
     int hash_code;      
     struct Hierarchy * parent;
-    struct Hierarchy ** child;      /* array of child hierarchies */
-    int size;
+    struct Hierarchy ** child;      /* Array of child hierarchies   */
+    int size;                       /* Size of the child array      */
 } Hierarchy;
 
-/* Point2D can also treated as Line, Polyline, Polygone and Spline */
 typedef struct {
     double x, y;
 } Point2D;
 
 typedef struct {
-    Point2D start;      /* (-width/2, -height/2) */
-    Point2D end;        /* ( width/2,  height/2) */
+    Point2D start; /* (-width/2, -height/2) */
+    Point2D end;   /* ( width/2,  height/2) */
 } Canvas;
 
 typedef struct LabeList {
@@ -96,39 +103,25 @@ typedef struct LabeList {
 
 typedef struct CAD2D {
     Canvas canvas;
-    int auto_canvas;            /* enables to increase canvas size when exceeding entity occurs */
+    int auto_canvas;        /* Enables to increase canvas size when exceeding entity occurs */
     LabeList * llist;
     int elist_size;         
-    Entity ** elist;            /* Entity list keeps entities by hashing */
-    Hierarchy * hierarchy;      /* hierarchy data of root CAD (this CAD) */   
+    Entity ** elist;        /* Entity list keeps entities by hashing */
+    Hierarchy * hierarchy;  /* hierarchy data of root CAD (this CAD) */   
 } CAD2D;
 
 typedef struct {
-    Entity * entity;            /* Entity itself                    */
-    CAD2D * cad;                /* Container cad of entity          */
-    int index;                  /* index inside of the entity list  */
+    Entity * entity;        /* Entity itself                    */
+    CAD2D * cad;            /* Container cad of entity          */
+    int index;              /* index inside of the entity list  */
 } EntityInfo;
 
-
-/*********************************************************************************
- * Basic CAD Entities:
- * point, line, polyline, polygon, rectangle, circle, arc, ellipse, text
-*********************************************************************************/
-
 /*  Line, IrregularPolygon and Polyline are represented as PointList.
-    Implementation are same but interpretation are changes from type to type */
+    Implementation are same but interpretation are changes from type to type    */
 typedef struct PointList {
     Point2D point;
     struct PointList * next;
 } PointList;
-
-/* To measure the distance between entities */
-typedef struct {
-    //! NOT IMPLEMENTED YET
-    Point2D start, end;     /* Two points for line */
-    // PointList * plist;      
-    double distance;
-} Measurement;
 
 typedef struct {
     Point2D center;
@@ -153,10 +146,9 @@ typedef struct {
 } Rectangle;
 
 typedef struct {
-    int n;                  /* the number of sides      */
-    double out_radius;      /* radius of outer circle   */
+    int n;                /* the number of sides      */
+    double out_radius;    /* radius of outer circle   */
     Point2D center;
-    //! PointList corner;
 } RegularPolygon;
 
 typedef struct {
@@ -164,32 +156,25 @@ typedef struct {
     double radius_x, radius_y;
 } Ellipse;
 
-/*********************************************************************************
- * Function Definitions
-*********************************************************************************/
 CAD2D * c2d_start ();
+CAD2D * c2d_start_hier (Hierarchy * h);
 CAD2D * c2d_start_wh (double width, double height);
 CAD2D * c2d_start_wh_hier (double width, double height, Hierarchy * h);
-
+CAD2D * c2d_get_root_cad (CAD2D * cad);
 Hierarchy * c2d_create_hierarchy (CAD2D * cad);
 Hierarchy * c2d_create_hierarchy_parent (CAD2D * cad, Hierarchy * parent);
-void c2d_delete_hierarchy (Hierarchy * h);
-
-Point2D * c2d_create_point (double x, double y);
-void c2d_set_point (Point2D * p, double x, double y);
-
-Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
-
 Hierarchy * c2d_get_root_hierarchy (Hierarchy * h);
-CAD2D * c2d_get_root_cad (CAD2D * cad);
+void c2d_delete_hierarchy (Hierarchy * h);
+Label * c2d_create_label (CAD2D * cad, EntityType type, char * name);
 EntityInfo * c2d_find_entity (CAD2D * root, Label * l); 
-EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
-void c2d_set_color_rgb (RGBColor * c, double red, double green, double blue);
-void c2d_set_color_pallette (RGBColor * c, ColorPalette color);
 void c2d_remove_entity (CAD2D * cad, Label ** l);
 void c2d_remove_entity_elist (CAD2D * cad, Label ** l);
+EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
+Point2D * c2d_create_point (double x, double y);
 PointList * c2d_create_point_list_p (Point2D p);
-
+void c2d_set_point (Point2D * p, double x, double y);
+void c2d_set_color_rgb (RGBColor * c, double red, double green, double blue);
+void c2d_set_color_pallette (RGBColor * c, ColorPalette color);
 Label * c2d_add_point_xy (CAD2D * cad, double x, double y);
 Label * c2d_add_point_xy_l (CAD2D * cad, char * lname, double x, double y);
 Label * c2d_add_point_p (CAD2D * cad, Point2D p);
@@ -215,13 +200,10 @@ Label * c2d_add_regular_polygon_l (CAD2D * cad, char * lname, int n, Point2D cen
 Label * c2d_add_text (CAD2D * cad, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs);
 Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs);
 Label * c2d_add_xy_plane (CAD2D * cad);
-
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt);
 Point2D c2d_get_center_point (Entity * e);
 Point2D * c2d_get_center_address (Entity * e);
-
-void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt);
-
+void c2d_snap (CAD2D * cad, Label * ls, Label * lt);
 void c2d_export (CAD2D * cad, char * file_name, ExImOption option);
 CAD2D * c2d_import (char * file_name, ExImOption option);
 void c2d_delete (CAD2D * cad);

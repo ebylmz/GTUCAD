@@ -1,8 +1,20 @@
+/**
+ * @file    test.c
+ * @author  Emirkan Burak Yilmaz (ebylmz17@gmail.com)
+ * @brief   Test for CAD2D Library
+ * @version 0.1
+ * @date 2021-10-11
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "cad2d.h"
 
+/* Draws basic entities */
 void test0 () {
     CAD2D * cad;    
     Point2D start, end, center;
@@ -42,20 +54,10 @@ void test0 () {
         c2d_set_point(&end, -20.0, 20.0);
         c2d_add_rectangle(cad, start, end);
 
-        c2d_export(cad, "test0.gtucad", gtucad);
         c2d_export(cad, "test0.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test0 DONE >>>\n\n");
+        printf("Test0   [###############################]    DONE\n\n");
     }
-    else 
-        printf("CAD cannot started properly\n");
-}
-
-void test00 () {
-    CAD2D * cad = c2d_import("test0.gtucad", gtucad);
-    c2d_export(cad, "test00.eps", eps);
-    c2d_delete(cad);
-    printf("<<< Test00 DONE >>>\n\n");
 }
 
 /* Draws a life is good page */
@@ -102,10 +104,8 @@ void test1 () {
 
         c2d_export(cad, "test1.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test1 DONE >>>\n\n");
+        printf("Test1   [###############################]    DONE\n\n");
     }
-    else 
-        printf("CAD cannot started properly\n");
 }
 
 /* Draws a Hello World page :) */
@@ -122,12 +122,12 @@ void test2 () {
     if (cad != NULL) {
         c2d_set_point(&center, 0.0, 0.0);
 
-        /* draw first ellipse as 2/1 ratio */
+        /* Add first ellipse as 2/1 ratio */
         l = c2d_add_ellipse(cad, center, radius * 2, radius);
         c2d_set_color_rgb(&c, 0.0, 0.5, 0.0);
         c2d_set_entity_style(cad, l, solid, c, stroke, lw_medium);
         
-        /* draw first ellipse as 1/2 ratio */
+        /* Add Second ellipse as 1/2 ratio */
         l = c2d_add_ellipse(cad, center, radius, radius * 2);
         c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
         c2d_set_entity_style(cad, l, solid, c, stroke, lw_medium);
@@ -139,10 +139,8 @@ void test2 () {
 
         c2d_export(cad, "test2.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test2 DONE >>>\n\n");
+        printf("Test2   [###############################]    DONE\n\n");
     }
-    else 
-        printf("CAD cannot started properly\n");
 }
 
 /* Draws a sweet home */
@@ -162,7 +160,7 @@ void test3 () {
 
     cad_root = c2d_start();
     if (cad_root != NULL) {
-        cad_body = c2d_start_wh_hier(1500.0, 1500.0, cad_root->hierarchy);
+        cad_body = c2d_start_hier(cad_root->hierarchy);
         
         /* Set colors */
         c2d_set_color_rgb(&c_gray, 0.5, 0.5, 0.5);
@@ -206,7 +204,7 @@ void test3 () {
             c2d_set_entity_style(cad_body, l_door2, DEFAULT, c_black, fill, DEFAULT);
         }
 
-        cad_roof = c2d_start_wh_hier(1500.0, 1500.0, cad_root->hierarchy);
+        cad_roof = c2d_start_hier(cad_root->hierarchy);
         if (cad_roof != NULL) {
             /* Set chimney */
             c2d_set_point(&p1, body_x / 2.0 - chimney_w / 2.0, body_y + roof_h * 1.0/3.0);
@@ -225,10 +223,8 @@ void test3 () {
         /* Export in gtucad mode to continue later */
         c2d_export(cad_root, "test3.gtucad", gtucad);
         c2d_delete(cad_root);
-        printf("<<< Test3 DONE >>>\n\n");
+        printf("Test3   [###############################]    DONE\n\n");
     }
-    else 
-        printf("CAD cannot started properly\n");
 }
 
 void test4 () {
@@ -236,7 +232,7 @@ void test4 () {
     if (cad != NULL) {
         c2d_export(cad, "test4.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test4 DONE >>>\n\n");
+        printf("Test4   [###############################]    DONE\n\n");
     }
     else 
         printf("CAD cannot started properly\n");
@@ -253,7 +249,7 @@ void test5 () {
 
     root = c2d_start();
     if (NULL != root) {
-        for (i = red, d = 1000; d > 0; ++i, d -= 100) {
+        for (i = red, d = 1000; d > 0; ++i, d -= 50) {
             if (i >= brown + 1)
                 i %= brown;
             c2d_set_point(&p1, -d, -d);
@@ -263,30 +259,36 @@ void test5 () {
             c2d_set_entity_style(root, l, DEFAULT, c, fill, DEFAULT);
         }
 
-        cad1 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
-        cad2 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
-        cad3 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy),
-        cad4 = c2d_start_wh_hier(1000.0, 1000.0, root->hierarchy);
+        cad1 = c2d_start_hier(root->hierarchy),
+        cad2 = c2d_start_hier(root->hierarchy),
+        cad3 = c2d_start_hier(root->hierarchy),
+        cad4 = c2d_start_hier(root->hierarchy);
         if (NULL != cad1 && NULL != cad2 && NULL != cad3 && NULL != cad4) {
+            c2d_set_color_pallette(&c, white);
+
             c2d_set_point(&p1, 200.0, 200.0);
             c2d_set_point(&p2, 300.0, 200.0);
             c2d_set_point(&p3, 200.0, 300.0);
-            c2d_add_triangle(cad1, p1, p2, p3);
+            l = c2d_add_triangle(cad1, p1, p2, p3);
+            c2d_set_entity_style(cad1, l, DEFAULT, c, fill, DEFAULT);
 
             c2d_set_point(&p1, -200.0, 200.0);
             c2d_set_point(&p2, -300.0, 200.0);
             c2d_set_point(&p3, -200.0, 300.0);
-            c2d_add_triangle(cad2, p1, p2, p3);
+            l = c2d_add_triangle(cad2, p1, p2, p3);
+            c2d_set_entity_style(cad2, l, DEFAULT, c, fill, DEFAULT);
 
             c2d_set_point(&p1, 200.0, -200.0);
             c2d_set_point(&p2, 300.0, -200.0);
             c2d_set_point(&p3, 200.0, -300.0);
-            c2d_add_triangle(cad3, p1, p2, p3);
+            l = c2d_add_triangle(cad3, p1, p2, p3);
+            c2d_set_entity_style(cad3, l, DEFAULT, c, fill, DEFAULT);
 
             c2d_set_point(&p1, -200.0, -200.0);
             c2d_set_point(&p2, -300.0, -200.0);
             c2d_set_point(&p3, -200.0, -300.0);
-            c2d_add_triangle(cad4, p1, p2, p3);
+            l = c2d_add_triangle(cad4, p1, p2, p3);
+            c2d_set_entity_style(cad4, l, DEFAULT, c, fill, DEFAULT);
 
             /* Deletes child hierarchies and their entities(triangle) */
         /*
@@ -297,22 +299,32 @@ void test5 () {
         */
         }
         c2d_export(root, "test5.gtucad", gtucad);
-        c2d_export(root, "test5.eps", eps);
         c2d_delete(root);
-        printf("<<< Test5 DONE >>>\n\n");
+        printf("Test5   [###############################]    DONE\n\n");
     }
 }
 
+/* Continues from test5 and add a polygon */
+void test6 () {
+    CAD2D * cad;
+    Point2D p1;
+    RGBColor c;
+    Label * l;
 
-void test55 () {
-    CAD2D * cad = c2d_import("test5.gtucad", gtucad);
-    c2d_export(cad, "test55.eps", eps);
+    cad = c2d_import("test5.gtucad", gtucad);
+    if (cad != NULL) {
+        c2d_set_point(&p1, 0.0, 0.0);
+        l = c2d_add_regular_polygon(cad, 8, p1, 100.0);
+        c2d_set_color_pallette(&c, black);
+        c2d_set_entity_style(cad, l, DEFAULT, c, fill, DEFAULT);
+    }
+    c2d_export(cad, "test6.eps", eps);
     c2d_delete(cad);
-    printf("<<< Test55 DONE >>>\n\n");
+    printf("Test6   [###############################]    DONE\n\n");
 }
 
 /* Draw an engine */
-void test6 () {
+void test7 () {
     CAD2D * cad;
     double  plane_size = 1600.0 / 2.0,
             k = plane_size / 20.0;
@@ -384,16 +396,14 @@ void test6 () {
         p2.y *= -1;
         c2d_add_line(cad, p3, p2);
 
-        c2d_export(cad, "test6.eps", eps);
-        c2d_export(cad, "test6.gtucad", gtucad);
-
+        c2d_export(cad, "test7.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test6 DONE >>>\n\n");
+        printf("Test7   [###############################]    DONE\n\n");
     } 
 }
 
 /* Draws 2D shapes on xy plane */
-void test7 () {
+void test8 () {
     CAD2D * cad;
     Point2D p[6];
     int psize = 6;
@@ -433,24 +443,23 @@ void test7 () {
         l_tri = c2d_add_triangle(cad, c1, c2, c3);
         c2d_set_entity_style(cad, l_tri, DEFAULT, c, fill, DEFAULT);
 
-
         /* Add a octagon(regular polygon) */
         c2d_set_color_pallette(&c, red);
         c2d_set_point(&center, 240.0, -240.0);
         l_reg_poly = c2d_add_regular_polygon(cad, 9, center, 100.0);
         c2d_set_entity_style(cad, l_reg_poly, DEFAULT, c, fill, DEFAULT);
 
-        c2d_export(cad, "test7.eps", eps);
+        c2d_export(cad, "test8.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test7 DONE >>>\n\n");
+        printf("Test8   [###############################]    DONE\n\n");
     }
 }
 
 /* Writes GTUCAD */
-void test8 () {
+void test9 () {
     CAD2D * cad;
     Point2D p1, p2, p3;
-    double k = 40.0;
+    double k = 50.0;
     RGBColor c;
     Label * l;
     Point2D p_arr[10];
@@ -586,25 +595,34 @@ void test8 () {
         l = c2d_add_line(cad, p1, p2);
         c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
-        /* Add brand message */
-        c2d_set_point(&p1, 12 * k,  0.0);
-        c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
-        c2d_add_text(cad, p1, "The World Is Yours...", Times, c, fs_medium);
-
-        c2d_export(cad, "test8.gtucad", gtucad);
+        c2d_export(cad, "test9.gtucad", gtucad);
         c2d_delete(cad);
-        printf("<<< Test8 DONE >>>\n\n");
+        printf("Test9   [###############################]    DONE\n\n");
     }
 }
 
-void test9 () {
-    CAD2D * cad = c2d_import("test8.gtucad", gtucad);
-    c2d_export(cad, "test9.eps", eps);
-    c2d_delete(cad);
-    printf("<<< Test9 DONE >>>\n\n");
+/* Continue to GTUCAD */
+void test10 () {
+    CAD2D * cad;
+    Point2D p1;
+    double k = 50.0;
+    RGBColor c;
+    Label * l;
+
+    cad = c2d_import("test9.gtucad", gtucad);
+    if (cad != NULL) {
+        /* Add brand message */
+        c2d_set_point(&p1, 9 * k,  0.0);
+        c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
+        c2d_add_text(cad, p1, "The World Is Yours...", Times, c, fs_medium);
+
+        c2d_export(cad, "test10.eps", eps);
+        c2d_delete(cad);
+        printf("Test10  [###############################]    DONE\n\n");
+    }
 }
 
-void test10 () {
+void test11 () {
     CAD2D * cad;
     Point2D p1;
     Label * l;
@@ -615,6 +633,12 @@ void test10 () {
         c2d_set_point(&p1, 0.0, 0.0);
         c2d_set_color_pallette(&c, blue_light);
 
+        c2d_set_point(&p1, 0.0, 0.0);
+        c2d_add_ellipse(cad, p1, 30, 60);
+
+        c2d_set_point(&p1, -50.0, -50.0);
+        c2d_add_ellipse(cad, p1, 20, 40);
+
         l = c2d_add_arc_l(cad, "center-arc", p1,  30.0, 0.0, 360.0);
         c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
@@ -624,22 +648,12 @@ void test10 () {
         c2d_add_xy_plane(cad);
         c2d_export(cad, "test10.eps", eps);
         c2d_delete(cad);
-        printf("<<< Test10 DONE >>>\n\n");
+        printf("Test10 [###############################]   DONE\n\n");
     }
 }
 
-/*
-    https://web.stanford.edu/class/archive/cs/cs107/cs107.1218/resources/valgrind.html
-*/
 int main (void) {
-    /**
-    test3();
-    test4();
-     **/
-    test10();
-    
     test0();
-    test00();
     test1();
     test2();
     test3();
@@ -649,7 +663,7 @@ int main (void) {
     test7();
     test8();
     test9();
-    test55();
+    test10();
     /*
     */
 }

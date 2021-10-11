@@ -1,3 +1,14 @@
+/**
+ * @file    cad2d.c
+ * @author  Emirkan Burak Yilmaz (ebylmz17@gmail.com)
+ * @brief   CAD2D Library Implementation 
+ * @version 0.1
+ * @date    2021-10-11
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,51 +16,37 @@
 #include <math.h>
 #include "cad2d.h"
 
-int u_is_prime (int n);
-int u_find_close_prime (int n);
-char * u_read_bin_str (FILE * fid);
-void u_throw_error (char * prompt, char * location);
-
-int u_create_hash_code (char * key, int size);
-int u_is_empty (void * p);
+/*********************************************************************************
+ * Utility Function Definitions (Hidden From User)
+*********************************************************************************/
+char * u_create_hierarchy_name (Hierarchy * h); 
 int u_find_hierarchy (Hierarchy * root, Hierarchy * h);
 int u_link_hierarchy (Hierarchy * child, Hierarchy * parent);
 int u_get_tree_depth (Hierarchy * h);
-
-double u_min (double a, double b);
-char * u_deci_to_hexa (int deci);
-char * u_create_hierarchy_name (Hierarchy * h); 
-
+char * u_create_default_lname (CAD2D * cad, Label * l);
 void u_insert_label (LabeList ** llist, Label * l);
 void u_remove_label_llist (LabeList ** llist, Label ** l);
 int u_find_label (CAD2D * cad, Label * l);
-char * u_create_default_lname (CAD2D * cad, Label * l);
-
+Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l);
 int u_insert_entity_elist (CAD2D * cad, Entity * e);
 void u_free_plist (PointList * p);
 void u_free_text (Text * t);
 Entity * u_create_entity (CAD2D * cad, Label * l, void * d, EntityStyle * s);
-
 double u_find_hypotenuse (double x, double y);
 double  u_get_euclidean_dist (Point2D * p1, Point2D * p2);
 Point2D u_get_center_polyline (PointList * e); 
 Point2D u_get_center_triangle (Triangle * e);
 Point2D u_get_center_rectangle (Rectangle * e); 
-
-double u_get_font_scale (FontScale fs);
-double u_find_text_size (char * s, FontScale fs);
-
 Canvas * u_max_canvas (Canvas * c1, Canvas * c2);
 Canvas * u_min_canvas (Canvas * c1, Canvas * c2);
 int u_check_canvas_p (CAD2D * cad, Point2D * p);
 int u_check_canvas_xy (CAD2D * cad, double x, double y);
-
 double u_measure_center (CAD2D * cad, Entity * e1, Entity * e2);
 double u_measure_point_polyline (Point2D * p, PointList * pl);
 double u_measure_polyline_polyline (PointList * pl1, PointList * pl2);
-
 void u_snap_point_line (Point2D * p, PointList * pl);
-
+double u_get_font_scale (FontScale fs);
+double u_find_text_size (char * s, FontScale fs);
 void u_export_eps (FILE * fid, CAD2D * cad);
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_export_eps_entity_style_reset (FILE * fid);
@@ -67,13 +64,17 @@ void u_export_gtucad (FILE * fid, CAD2D * cad);
 void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size);
 void u_export_gtucad_llist (FILE * fid, LabeList * llist);
 void u_export_gtucad_hierarchy (FILE * fid, Hierarchy * h);
-
 CAD2D * u_import_gtucad (FILE * fid);
 Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size);
 LabeList * u_import_gtucad_llist (FILE * fid, LabeList * llist, Entity ** elist, int elist_size);
 Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad);
-
-Label * u_find_label_elist (Entity ** elist, int elist_size, Label * target_l);
+char * u_read_bin_str (FILE * fid);
+void u_throw_error (char * prompt, char * location);
+int u_create_hash_code (char * key, int size);
+int u_find_close_prime (int n);
+int u_is_prime (int n);
+double u_min (double a, double b);
+char * u_deci_to_hexa (int deci);
 
 /*********************************************************************************
  * Hierarchy
@@ -156,7 +157,7 @@ char * u_create_hierarchy_name (Hierarchy * h) {
     if (r != NULL) {
         n = u_get_tree_depth(h);
 
-        /* assume tree depth is maximumum 16 */
+        /* Assume tree depth is maximumum 16 */
         c = n < 9 ? '0' + n : 'A' + n; 
         r[0] = 'h'; r[1] = c;
         h->name = r;
@@ -172,12 +173,10 @@ char * u_create_hierarchy_name (Hierarchy * h) {
             else
                 h->hash_code = u_create_hash_code(h->name, INIT_HASH);
         } while (c <= 'Z' && u_find_hierarchy(root, h) != FAIL);
-        //! What happens if name is not created
     }
     else
         u_throw_error("Hierarchy name was unable to created correctly", "u_create_hierarchy_name");
 
-    printf("New Hierarchy: %s\n", r);
     return r;    
 }
 
@@ -215,10 +214,7 @@ int u_find_hierarchy (Hierarchy * root, Hierarchy * h) {
                 if (root->child[i] != NULL)
                     r = u_find_hierarchy(root->child[i], h);
     }
-    if (root != NULL)
-        printf("for %s - %d: u_find_hierarchy() returns %d\n", h->name, h->hash_code, r);
-    else
-        printf("Root NULL\n");
+
     return r;
 }
 
@@ -268,20 +264,18 @@ int u_link_hierarchy (Hierarchy * child, Hierarchy * parent) {
                 free(parent->child);
                 parent->child = tmp;
             }
-            else {
+            else
                 r = FAIL;
-                u_throw_error("Hierarchies was unable to link correctly", "u_link_hierarchy");
-            }
         }
         
         if (r != FAIL) {
             parent->child[r] = child; 
             child->parent = parent;
-            printf("%s inserted as index %d and child of %s\n\n\n", child->name, r, child->parent->name);
         }
     }
-    else    
-        printf("%s named hierarchy already exist!\n", child->name);
+
+    if (r == FAIL)
+        u_throw_error("Hierarchies was unable to link correctly", "u_link_hierarchy");
 
     return r;
 }
@@ -295,7 +289,6 @@ Label * c2d_create_label_default (CAD2D * cad, EntityType type) {
     Label * l = (Label *) malloc(sizeof(Label));
  
     if (l != NULL) {
-        //* create_label function produce unique label
         l->type = type;
         l->name = u_create_default_lname(cad, l);
     } 
@@ -314,7 +307,7 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
             l->hash_code = u_create_hash_code(name, cad->elist_size); 
 
             if (u_find_label(cad, l) != FAIL) {
-                printf("\"%s\" named Label is already exist\n", name);
+                u_throw_error("Label was unable to created correctly", "c2d_create_label");
                 free(l);
                 l = NULL;
             }
@@ -325,65 +318,70 @@ Label * c2d_create_label (CAD2D * cad, EntityType type, char * name) {
 
 char * u_create_default_lname (CAD2D * cad, Label * l) {
     CAD2D * cad_root = c2d_get_root_cad(cad);
-    char c = '0', * r = calloc(10, sizeof(char)), * h;
+    char c = '0', * r, * h;
     int n = 0;
 
+    r = calloc(10, sizeof(char));
+    if (r != NULL) {
     /* LabelName: EntityType + Hierarchy level/depth + instance */
-    switch (l->type) {
-        case point_t:
-            r[0] = 'P';    break;
-        case xy_plane:
-            r[0] = 'X';
-            r[1] = 'Y';    
-            r[2] = 'P';    break;
-        case line_t:
-            r[0] = 'L';    break;
-        case polyline_t:
-            r[0] = 'P';
-            r[1] = 'l';    break;
-        case irregular_polygon_t:
-            r[0] = 'I';
-            r[1] = 'P';
-            r[2] = 'g';    break;
-        case regular_polygon_t:
-            r[0] = 'R';
-            r[1] = 'P';
-            r[2] = 'g';    break;
-        case triangle_t:
-            r[0] = 'T';
-            r[1] = 'r';    break;
-        case rectangle_t:
-            r[0] = 'R';    break;
-        case circle_t:
-            r[0] = 'C';    break;
-        case arc_t:
-            r[0] = 'A';    break;
-        case ellipse_t:
-            r[0] = 'E';    break;
-        case text_t:
-            r[0] = 'T';    break;
-        default:
-            printf("Undefined entity type during label name creation\n");
-    }
-    
-    /* get hierarchy information */
-    h = u_deci_to_hexa(u_get_tree_depth(cad->hierarchy)); 
-    strcat(r, h);
-    free(h);
-    
-    /* Be sure produced label is unique, to do that use hash value of new label */
-    n = strlen(r);
-    l->name = r;
+        switch (l->type) {
+            case point_t:
+                r[0] = 'P';    break;
+            case xy_plane:
+                r[0] = 'X';
+                r[1] = 'Y';    
+                r[2] = 'P';    break;
+            case line_t:
+                r[0] = 'L';    break;
+            case polyline_t:
+                r[0] = 'P';
+                r[1] = 'l';    break;
+            case irregular_polygon_t:
+                r[0] = 'I';
+                r[1] = 'P';
+                r[2] = 'g';    break;
+            case regular_polygon_t:
+                r[0] = 'R';
+                r[1] = 'P';
+                r[2] = 'g';    break;
+            case triangle_t:
+                r[0] = 'T';
+                r[1] = 'r';    break;
+            case rectangle_t:
+                r[0] = 'R';    break;
+            case circle_t:
+                r[0] = 'C';    break;
+            case arc_t:
+                r[0] = 'A';    break;
+            case ellipse_t:
+                r[0] = 'E';    break;
+            case text_t:
+                r[0] = 'T';    break;
+            default:
+                u_throw_error("Label name was unable to created correctly", "u_create_default_lname");
+                free(r);
+                return NULL;
+        }
+        
+        /* get hierarchy information */
+        h = u_deci_to_hexa(u_get_tree_depth(cad->hierarchy)); 
+        strcat(r, h);
+        free(h);
+        
+        /* Be sure produced label is unique, to do that use hash value of new label */
+        n = strlen(r);
+        l->name = r;
 
-    /* define the instance number from 1 to 9 and A to Z */
-    /* check if given */
-    do {
-        if (c == '9' + 1)
-            c = 'A';
-        r[n] = c++;
-        /* calculate the hash-code of new created name */
-        l->hash_code = u_create_hash_code(l->name, cad->elist_size); 
-    } while (c <= 'Z' && u_find_label(cad_root, l) != FAIL);
+        /* define the instance number from 1 to 9 and A to Z */
+        /* check if given */
+        do {
+            if (c == '9' + 1)
+                c = 'A';
+            r[n] = c++;
+            /* calculate the hash-code of new created name */
+            l->hash_code = u_create_hash_code(l->name, cad->elist_size); 
+        } while (c <= 'Z' && u_find_label(cad_root, l) != FAIL);
+    }
 
     return r;
 }
@@ -417,16 +415,11 @@ int u_find_label (CAD2D * cad, Label * l) {
         r = FAIL;
         if (cad->hierarchy != NULL) 
             for (i = 0; i < cad->hierarchy->size && r == FAIL; ++i)
-                if (cad->hierarchy->child[i] != NULL && cad->hierarchy->child[i] != DELETED) {
-    printf("Search %s in hierarchy %s\n", l->name, cad->hierarchy->name);
+                if (cad->hierarchy->child[i] != NULL && cad->hierarchy->child[i] != DELETED)
                     r = u_find_label(cad->hierarchy->child[i]->cad, l);
-                }
+                
     }
 
-    if (r == FAIL && cad->hierarchy != NULL)
-        printf("NOT FIND (%s, %2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
-    else
-        printf("FIND (%s, %2d) in %s\n", l->name, l->hash_code, cad->hierarchy->name);
     return r;
 }
 
@@ -533,9 +526,7 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
         /* Be sure given cad is container of given label */
         cad = e_info->cad;
         e = cad->elist[e_info->index];
-        
-        printf("Delete %s: ", (*l)->name);
-        
+                
         /* Free entity data */
         switch (e->label->type) {
             case line_t:
@@ -564,7 +555,6 @@ void c2d_remove_entity (CAD2D * cad, Label ** l) {
         
         /* Set Deleted flag in hash-table to maintain linear-probing */
         cad->elist[e_info->index] = DELETED;
-        printf("Done\n");
         free(e_info);
     }
     else
@@ -621,14 +611,9 @@ int u_insert_entity_elist (CAD2D * cad, Entity * e) {
         }
 
         /* Assign it */
-        if (r != FAIL) {
+        if (r != FAIL) 
             cad->elist[r] = e;
-            printf("(->) INSERT (%s %-2d) to %s\n\n", e->label->name, e->label->hash_code, cad->hierarchy->name);
-        }
     }
-
-    if (r == FAIL)
-        printf("(-) INSERT FAIL (%s %-2d) to %s\n\n", e->label->name, e->label->hash_code, cad->hierarchy->name);
 
     return r;
 }
@@ -652,15 +637,15 @@ void u_free_text (Text * t) {
  * CAD Start
 *********************************************************************************/
 
-/* Initialize a new cad without any constrain */
+/* Initialize a new CAD without any constrain (Unlimited Canvas) */
 CAD2D * c2d_start () {
     CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
     
     if (cad != NULL) {
         /* Initialize canvas as 1000x1000 also enable automaticly expand canvas mode */
         cad->auto_canvas = 1;   
-        cad->canvas.start.x = cad->canvas.start.y = -500.0;
-        cad->canvas.end.x = cad->canvas.end.y = 500.0;
+        cad->canvas.start.x = cad->canvas.start.y = -750.0;
+        cad->canvas.end.x = cad->canvas.end.y = 750.0;
 
         cad->elist = NULL;
         cad->elist_size = 0;
@@ -670,6 +655,42 @@ CAD2D * c2d_start () {
     }
     else
         u_throw_error("CAD was unable to start correctly", "c2d_start");
+    return cad;
+}
+
+/* Initialize a new CAD at child of given hierarchy */
+CAD2D * c2d_start_hier (Hierarchy * h) {
+    CAD2D * cad = (CAD2D *) malloc(sizeof(CAD2D));
+    CAD2D * root;
+
+    if (cad != NULL) {
+        /* Initialize canvas as 1000x1000 also enable automaticly expand canvas mode */
+        cad->auto_canvas = 1;   
+        cad->canvas.start.x = cad->canvas.start.y = -750.0;
+        cad->canvas.end.x = cad->canvas.end.y = 750.0;
+
+        cad->elist = NULL;
+        cad->elist_size = 0;
+        cad->llist = NULL;
+        
+        cad->hierarchy = c2d_create_hierarchy_parent(cad, h);
+        if (cad->hierarchy != NULL) {
+            /*  If auto-canvas is on, update the root size as max-canvas
+                o.w. change the canvas of child-cad as min-canvas        */
+            root = c2d_get_root_cad(cad);
+            if (NULL != root) {
+                if (1 == root->auto_canvas)
+                    root->canvas = *u_max_canvas(&root->canvas, &cad->canvas);
+                else
+                    cad->canvas = *u_min_canvas(&root->canvas, &cad->canvas);
+            }
+        }
+        else {
+            free(cad);
+            cad = NULL;
+            u_throw_error("CAD was unable to start correctly", "c2d_start_wh_hier");
+        }
+    }
     return cad;
 }
 
@@ -1366,59 +1387,6 @@ Label * c2d_add_xy_plane (CAD2D * cad) {
     return l;
 }
 
-/* Focuses center of the given entity */
-Label * c2d_add_focus_point (CAD2D * cad, Label * ls) {
-    EntityInfo * e_info = c2d_find_entity(c2d_get_root_cad(cad), ls);
-    Point2D * p;
-    Label * l = NULL;
-
-    if (e_info != NULL) {
-        p = (Point2D *) malloc(sizeof(Point2D));
-        if (p != NULL) {
-            p->x = ((Point2D *) e_info->entity->data)->x;
-            p->y = ((Point2D *) e_info->entity->data)->y;
-            //! NOT IMPLEMENTED YET
-            // l = c2d_create_label_default(cad, focus_point_t);
-                            
-            if (l != NULL)
-                u_create_entity(cad, l, p, NULL);
-            else
-                free(p);
-        }
-    } 
-
-    if (l == NULL)
-        u_throw_error("Entity was unable to add correctly", "c2d_add_focus_point");
-
-
-    return l;
-}
-
-Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
-    double * d;
-    Label * l = NULL;
-    double distance;
-
-    /* Get the distance */
-    // distance = c2d_measure(cad, ls1, ls2);
-        //! We need 2 point
-    /* Define the Points */
-    /* Be sure we are not exceeding canvas */
-    d = (double *) malloc(sizeof(double));
-        /*
-    if (d != NULL) {
-        d->start; 
-        d->end;
-        d->distance = distance;
-    }
-        */
-
-    if (l == NULL)
-        u_throw_error("Entity was unable to add correctly", "c2d_add_measurement");
-
-    return l;
-} 
-
 Label * c2d_add_text_default (CAD2D * cad, Point2D p, char * text) {
     Text * d;    
     Label * l = NULL;
@@ -1605,7 +1573,6 @@ int u_check_canvas_p (CAD2D * cad, Point2D * p) {
         /* if auto_canvas is on, check if canvas size is enough o.w. return the result */
         if (1 == cad->auto_canvas) {
             if (0 == r) {
-                printf("Canvas size doubled\n");
                 /* Double up the canvas size */
                 cad->canvas.start.x *= 2;
                 cad->canvas.start.y *= 2;
@@ -1642,7 +1609,6 @@ int u_check_canvas_xy (CAD2D * cad, double x, double y) {
         if (1 == cad->auto_canvas) {
             if (0 == r) {
                 /* Double up the canvas size */
-                printf("Canvas size doubled\n");
                 cad->canvas.start.x *= 2;
                 cad->canvas.start.y *= 2;
                 cad->canvas.end.x *= 2;
@@ -1890,7 +1856,7 @@ Point2D u_get_center_rectangle (Rectangle * e) {
 *********************************************************************************/  
 
 /* Snaps source entity by given it's label to target entity */
-void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
+void c2d_snap (CAD2D * cad, Label * ls, Label * lt) {
     EntityInfo * se_info, * te_info;
     Entity * s, * t;
     Point2D * sp;     /* Point to indicate center of source entity */
@@ -1928,13 +1894,13 @@ void c2d_snap (CAD2D * cad, const Label * ls, const Label * lt) {
                     break;
                 case line_t:
                 case polyline_t:
-                    //! Define a strategy!
+                    /* Define a strategy! */
                     break;
                 case irregular_polygon_t:
                 case regular_polygon_t:
                 case rectangle_t:
                 case triangle_t:
-                    //! Define a strategy!
+                    /* Define a strategy! */
                     break;
                 /*  For types whose have center point, get the address of that
                     point, and change that value as center of the target        */
@@ -2038,7 +2004,7 @@ void c2d_set_color_pallette (RGBColor * c, ColorPalette color) {
         case brown:
             c->red = 0.7, c->green = 0.3, c->blue = 0.0; break; 
         default:
-            printf("Given color cannot find in color pallette\n");      
+            u_throw_error("Color was unable to set correctly", "c2d_set_color_pallette");
     }
 }
 
@@ -2062,14 +2028,12 @@ CAD2D * c2d_import (char * file_name, ExImOption option) {
         case gtucad:        
             fid = fopen(file_name, "rb");
             if (fid != NULL) {
-                printf("IMPORT GTUCAD:\n");
                 cad = u_import_gtucad(fid);
                 fclose(fid);
             }
             break;
         default:
-            printf("Given import format is invalid\n");        
-            printf("Please select file format \"gtucad\"\n");        
+            u_throw_error("CAD was unable to import correctly", "c2d_import");
     }
 
     return cad;
@@ -2184,7 +2148,6 @@ Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                     }
                 } 
             }
-            printf("Import elist is DONE\n");
         } 
     }
     return elist;
@@ -2212,8 +2175,6 @@ LabeList * u_import_gtucad_llist (FILE * fid, LabeList * llist, Entity ** elist,
         else
             u_throw_error("Entities was unable to import correctly", "u_import_gtucad_llist");
     } 
-
-    printf ("Import llist is DONE\n");
     
     return llist;
 }
@@ -2231,10 +2192,8 @@ Hierarchy * u_import_gtucad_hierarchy (FILE * fid, CAD2D * cad) {
             h->cad = cad;
 
             /* Read the hierarchy name */
-            if (h->name != NULL) {
+            if (h->name != NULL) 
                 h->name = u_read_bin_str(fid);
-                printf("export: %s\n", h->name);
-            } 
 
             /* Import the child hierarchies */
             if (h->child != NULL) {
@@ -2302,7 +2261,6 @@ char * u_read_bin_str (FILE * fid) {
     if (r != NULL)
         strcpy(r, buff);
 
-    printf("Readed from file: %s\n", r);
     return r;
 }
 
@@ -2316,8 +2274,6 @@ void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
             case eps:        
                 fid = fopen(file_name, "wt");
                 if (fid != NULL) {
-                    printf("EXPORT EPS:\n");
-
                     /* Write the eps file specification and settings of CAD */
                     fprintf(fid, "%%!PS-Adobe-3.0 EPSF-3.0\n");
                     fprintf(fid, "%%%%BoundingBox: %.2f %.2f %.2f %.2f\n", cad->canvas.start.x, cad->canvas.start.y, cad->canvas.end.x, cad->canvas.end.y);
@@ -2331,14 +2287,12 @@ void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
             case gtucad:     
                 fid = fopen(file_name, "wb");
                 if (fid != NULL) {
-                    printf("EXPORT GTUCAD:\n");
                     u_export_gtucad(fid, cad);
                     fclose(fid);
                 }            
                 break;
             default:
-                printf("Given export format is invalid\n");        
-                printf("Please select one of the formats \"gtucad\" or \"eps\"\n");        
+                u_throw_error("CAD was unable to export correctly", "c2d_export");
         }
     }
 }
@@ -2346,10 +2300,8 @@ void c2d_export (CAD2D * cad, char * file_name, ExImOption option) {
 /* Exports all the CAD content by recursivly with it's utility functions it's hierarchy data by recursivly */
 void u_export_gtucad (FILE * fid, CAD2D * cad) {
     /* Export CAD object */
-    printf("export: %s\n", cad->hierarchy->name);
-
-
     fwrite(cad, sizeof(CAD2D), 1, fid);
+
     u_export_gtucad_elist(fid, cad->elist, cad->elist_size);
     u_export_gtucad_llist(fid, cad->llist);
     u_export_gtucad_hierarchy(fid, cad->hierarchy);
@@ -2411,7 +2363,6 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
             }
         }
     }
-    printf("Export elist is DONE\n");
 }
 
 void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
@@ -2421,7 +2372,6 @@ void u_export_gtucad_llist (FILE * fid, LabeList * llist) {
         fwrite(llist->label->name, sizeof(char), strlen(llist->label->name) + 1, fid);
         llist = llist->next;
     }
-    printf ("Export llist is DONE\n");
 }
 
 /*  Actualy u_export_gtucad is recursive function 
@@ -2455,17 +2405,14 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
     if (cad != NULL) {
         h = cad->hierarchy;
         l = cad->llist;
-        
-        printf("\nHierarchy: %s\n", cad->hierarchy->name);
-        
-        /* export current cad */
+                
+        /* Export current CAD */
         while (l != NULL) {
             e_info = c2d_find_entity(cad, l->label);
             
             if (e_info != NULL) {
                 e = e_info->entity;
                 
-                printf("\t%s\t%d\n", e->label->name, e->label->hash_code);
                 switch (e->label->type) {
                     case point_t:
                         u_export_eps_point(fid, e->data);
@@ -2517,12 +2464,9 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
 
                 free(e_info);
             }
-            else
-                printf("%s not find in %s at exporting process\n", l->label->name, cad->hierarchy->name);
             l = l->next;
         }
         /* Export child of the root hierarchy */
-        printf("Child hiearchy number: %d\n", h->size);
         for (i = 0; i < h->size; ++i)
             if (h->child[i] != NULL && h->child[i] != DELETED)
                 u_export_eps(fid, h->child[i]->cad);
@@ -2790,21 +2734,13 @@ void c2d_delete (CAD2D * cad) {
                         c2d_delete(current->child[i]->cad);
 
             /* Free the allocated memory for current hierarchy */
-            printf("Delete %s\n", cad->hierarchy->name);
             free(current->name);
             free(current->child);
             free(current);
         }
-        
         /* Lastly free given cad and it's entities */
-        printf("Delete elist: ");
         u_delete_elist(cad->elist, cad->elist_size);
-        printf("DONE\n");
-
-        printf("Delete llist: ");
         u_delete_llist(cad->llist);
-        printf("DONE\n");
-
         free(cad);
     }
 }
@@ -2832,11 +2768,6 @@ int u_create_hash_code (char * key, int size) {
     for (i = 0; key[i] != '\0'; ++i)
         code = (code * q + key[i]) % p;
     return code;
-}
-
-/* Returns if given block at hash table is empty or not */
-int u_is_empty (void * p) {
-    return p == NULL || p == DELETED;
 }
 
 int u_is_prime (int n) {
