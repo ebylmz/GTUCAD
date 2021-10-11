@@ -64,7 +64,7 @@ void test1 () {
     Point2D start;
     RGBColor c;
     double k = 40.0;
-    Label * l_sun, * l_mount, * l_text;
+    Label * l_sun, * l_mount;
     int x = 400, n = 6;
     Point2D p[6];
     
@@ -90,9 +90,8 @@ void test1 () {
 
         /* Add text */
         c2d_set_point(&start, -2 * k, -2 * k);
-        l_text = c2d_add_text(cad, start, "Life is good");
         c2d_set_color_rgb(&c, 0.2, 0.5, 1.0);
-        c2d_set_text_style(cad, l_text, Coronet, c, fs_medium);
+        c2d_add_text(cad, start, "Life is good", Coronet, c, fs_medium);
 
         /* Delete specific entity */
         /*
@@ -113,9 +112,8 @@ void test1 () {
 void test2 () {
     CAD2D * cad;    
     Point2D center;
-    Label * l_ellipse1, * l_ellipse2, * l_text;
+    Label * l;
     RGBColor c;
-    char * text = "Hello, World!";
 
     double radius = 120.0, canvas_size = 500.0;
 
@@ -125,20 +123,19 @@ void test2 () {
         c2d_set_point(&center, 0.0, 0.0);
 
         /* draw first ellipse as 2/1 ratio */
-        l_ellipse1 = c2d_add_ellipse(cad, center, radius * 2, radius);
+        l = c2d_add_ellipse(cad, center, radius * 2, radius);
         c2d_set_color_rgb(&c, 0.0, 0.5, 0.0);
-        c2d_set_entity_style(cad, l_ellipse1, solid, c, stroke, lw_medium);
+        c2d_set_entity_style(cad, l, solid, c, stroke, lw_medium);
         
         /* draw first ellipse as 1/2 ratio */
-        l_ellipse2 = c2d_add_ellipse(cad, center, radius, radius * 2);
+        l = c2d_add_ellipse(cad, center, radius, radius * 2);
         c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
-        c2d_set_entity_style(cad, l_ellipse2, solid, c, stroke, lw_medium);
+        c2d_set_entity_style(cad, l, solid, c, stroke, lw_medium);
 
         /* Add text */
         c2d_set_point(&center, -80.0, -200.0);
-        l_text = c2d_add_text(cad, center, text);
         c2d_set_color_rgb(&c, 1.0, 0.0, 0.5);
-        c2d_set_text_style(cad, l_text, Courier, c, fs_small);
+        c2d_add_text(cad, center, "Hello, World!", Courier, c, fs_small);
 
         c2d_export(cad, "test2.eps", eps);
         c2d_delete(cad);
@@ -592,8 +589,7 @@ void test8 () {
         /* Add brand message */
         c2d_set_point(&p1, 12 * k,  0.0);
         c2d_set_color_rgb(&c, 0.0, 0.5, 1.0);
-        l = c2d_add_text(cad, p1, "The World Is Yours...");
-        c2d_set_text_style(cad , l, Times, c, fs_medium);
+        c2d_add_text(cad, p1, "The World Is Yours...", Times, c, fs_medium);
 
         c2d_export(cad, "test8.gtucad", gtucad);
         c2d_delete(cad);
@@ -614,7 +610,7 @@ void test10 () {
     Label * l;
     RGBColor c;
 
-    cad = c2d_start_wh(1000, 1000);
+    cad = c2d_start_wh(500, 500);
     if (NULL != cad) {
         c2d_set_point(&p1, 0.0, 0.0);
         c2d_set_color_pallette(&c, blue_light);
@@ -622,8 +618,8 @@ void test10 () {
         l = c2d_add_arc_l(cad, "center-arc", p1,  30.0, 0.0, 360.0);
         c2d_set_entity_style(cad, l, DEFAULT, c, DEFAULT, lw_large);
 
-        l = c2d_add_text(cad, p1, "The World Is Yours AB");
-        c2d_set_text_style(cad , l, Times, c, fs_large);
+        c2d_set_point(&p1, 150.0, 0.0);
+        c2d_add_text(cad, p1, "The World Is Yours AB", Coronet, c, fs_xsmall);
 
         c2d_add_xy_plane(cad);
         c2d_export(cad, "test10.eps", eps);

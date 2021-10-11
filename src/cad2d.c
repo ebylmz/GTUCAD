@@ -35,6 +35,9 @@ Point2D u_get_center_line (PointList * e);
 Point2D u_get_center_triangle (Triangle * e);
 Point2D u_get_center_rectangle (Rectangle * e); 
 
+double u_get_font_scale (FontScale fs);
+double u_find_text_size (char * s, FontScale fs);
+
 Canvas * u_max_canvas (Canvas * c1, Canvas * c2);
 Canvas * u_min_canvas (Canvas * c1, Canvas * c2);
 int u_check_canvas_p (CAD2D * cad, Point2D * p);
@@ -47,7 +50,6 @@ double u_measure_line_line (PointList * pl1, PointList * pl2);
 void u_snap_point_line (Point2D * p, PointList * pl);
 
 void u_export_eps (FILE * fid, CAD2D * cad);
-void u_export_eps_text_style (FILE * fid, TextStyle * s);
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s);
 void u_export_eps_entity_style_reset (FILE * fid);
 void u_export_eps_xy_plane (FILE * fid, Canvas * canvas, EntityStyle * s);
@@ -634,7 +636,6 @@ void u_free_point_list (PointList * p) {
 
 void u_free_text (Text * t) {
     free(t->text);
-    free(t->style);
     free(t);
 }
 
@@ -1327,12 +1328,12 @@ Label * c2d_add_measurement (CAD2D * cad, Label * ls1, Label * ls2) {
     return l;
 } 
 
-Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
+Label * c2d_add_text_default (CAD2D * cad, Point2D p, char * text) {
     Text * d;    
     Label * l = NULL;
-    double limit = strlen(text) * 22;
+    double limit = strlen(text) * 1;
 
-    if (u_check_canvas_xy(cad, p.x, p.y) && u_check_canvas_xy(cad, p.x + limit, p.y)) {
+    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + limit, p.y)) {
         d = (Text *) malloc(sizeof(Text));
         if (d != NULL) {
             d->point.x = p.x;
@@ -1354,24 +1355,96 @@ Label * c2d_add_text (CAD2D * cad, Point2D p, char * text) {
     return l;
 }
 
-Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text) {
+double u_get_font_scale (FontScale fs) {
+    double scale;
+
+    switch (fs) {
+        case fs_xsmall:
+            scale = 10.0; break;
+        case fs_small:
+            scale = 20.0; break;
+        case fs_medium:
+        case DEFAULT:
+            scale = 50.0; break;
+        case fs_large:
+            scale = 80.0; break;
+        default:
+            scale = 50.0;
+    }
+    return scale;
+}
+
+double u_find_text_size (char * s, FontScale fs) {
+    double size;
+    int len = strlen(s);
+
+    switch (fs) {
+        case fs_xsmall:
+            size = len * 4.5;
+            break;
+        case fs_small:
+            size = len * 9.5;
+            break;
+        case fs_medium:
+        case DEFAULT:
+            size = len * 23;
+        case fs_large:
+            size = len * 38;
+            break;
+        default:
+            size = len * 23;
+            break;
+    }
+    return size;
+}
+
+Label * c2d_add_text (CAD2D * cad, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
     Text * d;    
     Label * l = NULL;
-/*
-    multiply these number with strlen(text) then add to start point to check ...
-    fs_xsmall   0.16
-    fs_small    0.08
-    fs_medium   0.04
-    fs_large    0.02
-*/
-    //! CHECK THE CANVAS
-    if (u_check_canvas_xy(cad, p.x, p.y)) {
+    double text_size;
+
+    /* Check if new scale is proper for canvas boundary */
+    text_size = u_find_text_size(text, fs);
+    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
         d = (Text *) malloc(sizeof(Text));
         if (d != NULL) {
-            d->point.x = p.x;
-            d->point.y = p.y;
-            d->text = (char *) calloc(strlen(text), sizeof(char));
+            d->point = p;
+            d->font = f;
+            d->color = c;
+            d->scale = u_get_font_scale(fs);
 
+            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
+            if (d->text != NULL) {
+                strcpy(d->text, text);
+                l = c2d_create_label_default(cad, text_t);
+
+                if (l != NULL)
+                    u_create_entity(cad, l, d, NULL);
+                else
+                    u_free_text(d);
+           }       
+        }
+    }
+
+    return l;
+}
+
+Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs) {
+    Text * d;    
+    Label * l = NULL;
+    double text_size;
+
+    /* Check if new scale is proper for canvas boundary */
+    text_size = u_find_text_size(text, fs);
+    if (u_check_canvas_p(cad, &p) && u_check_canvas_xy(cad, p.x + text_size, p.y)) {
+        d = (Text *) malloc(sizeof(Text));
+        if (d != NULL) {
+            d->point = p;
+            d->font = f;
+            d->color = c;
+            d->scale = u_get_font_scale(fs);
+
+            d->text = (char *) calloc(strlen(text) + 1, sizeof(char));
             if (d->text != NULL) {
                 strcpy(d->text, text);
                 l = c2d_create_label(cad, text_t, lname);
@@ -1830,27 +1903,6 @@ EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGB
     return style;
 }
 
-TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s) {
-    TextStyle * style;
-    EntityInfo * e_info = c2d_find_entity(cad, label); 
-    Text * d;
-    
-    if (e_info != NULL) {
-        style = (TextStyle *) malloc(sizeof(TextStyle));
-        if (style != NULL) {
-            style->color = c;
-            style->font = f;
-            style->scale = s;
-            
-            d = (Text *) e_info->entity->data;
-            d->style = style;
-        }
-        free(e_info);
-    }
-
-    return style;
-}
-
 void c2d_set_color_pallette (RGBColor * c, ColorPalette color) {
     switch (color) {
         case red:
@@ -2010,11 +2062,6 @@ Entity ** u_import_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                                     if (e->data != NULL) {
                                         fread(e->data, sizeof(Text), 1, fid); 
                                         ((Text *) e->data)->text = u_read_bin_str(fid);
-                                        if (((Text *) e->data)->style != NULL) {
-                                            ((Text *) e->data)->style = (TextStyle *) malloc(sizeof(TextStyle));
-                                            if (((Text *) e->data)->style != NULL) 
-                                                fread(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
-                                        }
                                     }
                                     break;
                             }
@@ -2237,8 +2284,6 @@ void u_export_gtucad_elist (FILE * fid, Entity ** elist, int elist_size) {
                         /* Export Text object, it's text(str) and it's style */
                         fwrite(e->data, sizeof(Text), 1, fid); 
                         fwrite(((Text *) e->data)->text, sizeof(char), strlen(((Text *) e->data)->text) + 1, fid);
-                        if (((Text *) e->data)->style != NULL)
-                            fwrite(((Text *) e->data)->style, sizeof(TextStyle), 1, fid);
                         break;
                 }
 
@@ -2365,43 +2410,6 @@ void u_export_eps (FILE * fid, CAD2D * cad) {
             if (h->child[i] != NULL && h->child[i] != DELETED)
                 u_export_eps(fid, h->child[i]->cad);
     }
-}
-
-/* set font, color and scale of the text */
-void u_export_eps_text_style (FILE * fid, TextStyle * s) {
-    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", s->color.red, s->color.green, s->color.blue);
-    
-    switch (s->font) {
-        case Helvetica:
-            fprintf(fid, "/Helvetica");
-            break;
-        case Courier:
-            fprintf(fid, "/Courier");
-            break;
-        case Times:
-            fprintf(fid, "/Times");
-            break;
-        case Coronet:
-            fprintf(fid, "/Coronet");
-            break;
-        case Symbol:
-            fprintf(fid, "/Symbol");
-            break;
-        case Albertus:
-            fprintf(fid, "/Albertus");
-            break;
-        case Arial:
-            fprintf(fid, "/Arial");
-            break;
-        case Bodoni:
-            fprintf(fid, "/Bodoni");
-            break;
-        default:
-            /* don't do anyting */
-            return;
-    }
-
-    fprintf(fid, " findfont %.2f scalefont setfont\n", s->scale);
 }
 
 void u_export_eps_entity_style (FILE * fid, Label * l, EntityStyle * s) {
@@ -2556,7 +2564,31 @@ void u_export_eps_text (FILE * fid, Text * e) {
     fprintf(fid, "\n%% Text\n");
     fprintf(fid, "newpath\n");
     fprintf(fid, "%.2f %.2f moveto\n", e->point.x , e->point.y);
-    u_export_eps_text_style(fid, e->style);
+
+    fprintf(fid, "%.2f %.2f %.2f setrgbcolor\n", e->color.red, e->color.green, e->color.blue);
+    
+    switch (e->font) {
+        case Helvetica:
+            fprintf(fid, "/Helvetica"); break;
+        case Courier:
+            fprintf(fid, "/Courier");   break;
+        case Times:
+            fprintf(fid, "/Times");     break;
+        case Coronet:
+            fprintf(fid, "/Coronet");   break;
+        case Symbol:
+            fprintf(fid, "/Symbol");    break;
+        case Albertus:
+            fprintf(fid, "/Albertus");  break;
+        case Arial:
+            fprintf(fid, "/Arial");     break;
+        case Bodoni:
+            fprintf(fid, "/Bodoni");    break;
+        default:
+            fprintf(fid, "/Helvetica");
+    }
+
+    fprintf(fid, " findfont %.2f scalefont setfont\n", e->scale);
     fprintf(fid, "(%s) show\n", e->text);
 }
 

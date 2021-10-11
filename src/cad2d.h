@@ -44,7 +44,7 @@ typedef enum {
 } LineWidth;
 
 typedef enum {
-    fs_xsmall = 10, fs_small = 20, fs_medium = 50, fs_large = 80
+    fs_xsmall, fs_small, fs_medium, fs_large
 } FontScale;
 
 typedef struct {
@@ -57,12 +57,6 @@ typedef struct {
     DrawStyle draw;
     double line_width;
 } EntityStyle;
-
-typedef struct {
-    FontStyle font;
-    double scale; 
-    RGBColor color;
-} TextStyle;
 
 typedef struct {
     EntityType type;    /* identifies the type of the cad entity */
@@ -145,7 +139,9 @@ typedef struct {
 typedef struct {
     Point2D point;  /* start point of text */
     char * text;    /* text field */
-    TextStyle * style;
+    FontStyle font;
+    RGBColor color;
+    double scale; 
 } Text;
 
 typedef struct {
@@ -188,7 +184,6 @@ Hierarchy * c2d_get_root_hierarchy (Hierarchy * h);
 CAD2D * c2d_get_root_cad (CAD2D * cad);
 EntityInfo * c2d_find_entity (CAD2D * root, Label * l); 
 EntityStyle * c2d_set_entity_style (CAD2D * cad, Label * label, LineStyle l, RGBColor c, DrawStyle d, double w);
-TextStyle * c2d_set_text_style (CAD2D * cad, Label * label, FontStyle f, RGBColor c, double s);
 void c2d_set_color_rgb (RGBColor * c, double red, double green, double blue);
 void c2d_set_color_pallette (RGBColor * c, ColorPalette color);
 void c2d_remove_entity (CAD2D * cad, Label ** l);
@@ -217,8 +212,8 @@ Label * c2d_add_irregular_polygon (CAD2D * cad, Point2D * p, int size);
 Label * c2d_add_irregular_polygon_l (CAD2D * cad, char * lname, Point2D * p, int size);
 Label * c2d_add_regular_polygon (CAD2D * cad, int n, Point2D center, double out_radius);
 Label * c2d_add_regular_polygon_l (CAD2D * cad, char * lname, int n, Point2D center, double out_radius);
-Label * c2d_add_text (CAD2D * cad, Point2D p, char * text);
-Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text);
+Label * c2d_add_text (CAD2D * cad, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs);
+Label * c2d_add_text_l (CAD2D * cad, char * lname, Point2D p, char * text, FontStyle f, RGBColor c, FontScale fs);
 Label * c2d_add_xy_plane (CAD2D * cad);
 
 double c2d_measure (CAD2D * cad, Label * ls, Label * lt);
