@@ -52,7 +52,7 @@ result of tests are given in folder called examples.
 
 After compilation, the library, execute the produced executable file
 called test. After execution there will be produced outputs as file
-extensions .eps and .gtucad. Then you can use the bash command
+extensions *.eps and *.gtucad. Then you can use the bash command
 `evince test0.eps` to see the first test. As a shortcut to see
 all the examples use the command `evince test*eps`. 
 
