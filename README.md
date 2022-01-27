@@ -16,7 +16,7 @@ To compile the library and test file, use provided makefile.
 IMPLEMENTATION
 ---------------------
 There are plenty of created data structures to provide easy to use
-functions. One of the most important ones are given below.
+interface. One of the most important ones are given below.
 
 1. CAD2D:
     Data structure to keep all the CAD content. Export/import 
