@@ -1,4 +1,4 @@
-# cse102-summer-project
+# GTUCAD (cse102-summer-project)
 
 INTRODUCTION
 ---------------------
@@ -62,8 +62,3 @@ OPTIMIZATION
 Snapping functions are enough for basic purposes, for more advance
 purposes it might have some optimization. In the future better snapping
 functions are provided.
-
-
-GITHUB Repository
----------------------
-https://github.com/ebylmz17/cse102-summer-project.git
