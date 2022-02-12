@@ -1,4 +1,4 @@
-# GTUCAD (cse102-summer-project)
+# GTUCAD 
 
 INTRODUCTION
 ---------------------
