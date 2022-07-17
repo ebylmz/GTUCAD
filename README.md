@@ -1,5 +1,7 @@
 # GTUCAD 
 
+![alt text](https://github.com/ebylmz/GTUCAD/blob/master/intro.png?raw=true)
+
 INTRODUCTION
 ---------------------
 CAD Library for drawing and manipulating 2D shapes. All the code
